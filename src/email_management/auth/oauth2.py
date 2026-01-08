@@ -4,8 +4,8 @@ import base64
 from dataclasses import dataclass
 from typing import Callable
 
-from .base import AuthContext
-from src.email_management.errors import AuthError
+from email_management.auth.base import AuthContext
+from email_management.errors import AuthError
 
 
 @dataclass(frozen=True)

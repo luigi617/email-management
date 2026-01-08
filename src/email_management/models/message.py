@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Dict, List, Optional, Sequence
 
-from src.email_management.models import Attachment
+from email_management.models import Attachment
 
 @dataclass(frozen=True)
 class EmailMessage:

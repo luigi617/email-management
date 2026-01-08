@@ -5,13 +5,13 @@ import ssl
 from dataclasses import dataclass
 from typing import Sequence
 
-from src.email_management import SMTPConfig
-from src.email_management.errors import AuthError, ConfigError, SMTPError
-from src.email_management.models import EmailMessage
-from src.email_management.types import SendResult
-from src.email_management.auth import AuthContext
+from email_management import SMTPConfig
+from email_management.errors import AuthError, ConfigError, SMTPError
+from email_management.models import EmailMessage
+from email_management.types import SendResult
+from email_management.auth import AuthContext
 
-from .builder import build_mime_message
+from email_management.smtp.builder import build_mime_message
 
 @dataclass(frozen=True)
 class SMTPClient:

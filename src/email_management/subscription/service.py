@@ -1,9 +1,9 @@
 from email.message import EmailMessage
 from typing import Dict, List, Optional
 
-from src.email_management.smtp import SMTPClient
+from email_management.smtp import SMTPClient
 
-from src.email_management.models import (
+from email_management.models import (
     UnsubscribeCandidate,
     UnsubscribeActionResult,
     UnsubscribeMethod,

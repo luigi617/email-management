@@ -3,7 +3,7 @@ from __future__ import annotations
 from email.message import EmailMessage as PyEmailMessage
 from email.utils import make_msgid
 
-from src.email_management.models import EmailMessage
+from email_management.models import EmailMessage
 
 def build_mime_message(msg: EmailMessage) -> PyEmailMessage:
     m = PyEmailMessage()

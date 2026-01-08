@@ -4,15 +4,15 @@ import imaplib
 from dataclasses import dataclass
 from typing import List, Optional, Sequence, Set
 
-from src.email_management.auth import AuthContext
+from email_management.auth import AuthContext
 
-from src.email_management import IMAPConfig
-from src.email_management.errors import AuthError, ConfigError, IMAPError
-from src.email_management.models import EmailMessage
-from src.email_management.types import EmailRef
+from email_management import IMAPConfig
+from email_management.errors import AuthError, ConfigError, IMAPError
+from email_management.models import EmailMessage
+from email_management.types import EmailRef
 
-from .query import IMAPQuery
-from .parser import parse_rfc822
+from email_management.imap.query import IMAPQuery
+from email_management.imap.parser import parse_rfc822
 
 @dataclass(frozen=True)
 class IMAPClient:

@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from src.email_management.auth import SMTPAuth, IMAPAuth
+from email_management.auth import SMTPAuth, IMAPAuth
 
 
 

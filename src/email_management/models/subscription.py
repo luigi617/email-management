@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional
 
-from src.email_management.types import EmailRef, SendResult
+from email_management.types import EmailRef, SendResult
 
 
 @dataclass(frozen=True)

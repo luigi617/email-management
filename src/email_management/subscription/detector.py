@@ -1,9 +1,7 @@
 from typing import List, Optional
-
-from src.email_management.imap import IMAPClient, IMAPQuery
-from src.email_management.models import UnsubscribeCandidate
-
-from .parser import parse_list_unsubscribe
+from email_management.imap import IMAPClient, IMAPQuery
+from email_management.models import UnsubscribeCandidate
+from email_management.subscription.parser import parse_list_unsubscribe
 
 
 class SubscriptionDetector:

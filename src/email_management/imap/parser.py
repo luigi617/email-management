@@ -4,8 +4,8 @@ import email
 from email.header import decode_header, make_header
 from email.message import Message as PyMessage
 from typing import Optional, Tuple, List
-from src.email_management.models import EmailMessage, Attachment
-from src.email_management.errors import ParseError
+from email_management.models import EmailMessage, Attachment
+from email_management.errors import ParseError
 from email.utils import getaddresses
 
 def _decode(value: Optional[str]) -> str:

@@ -1,7 +1,7 @@
 import re
 from typing import List
 
-from src.email_management.models import UnsubscribeMethod
+from email_management.models import UnsubscribeMethod
 
 
 _LIST_UNSUB_RE = re.compile(r"<\s*([^>]+?)\s*>")
