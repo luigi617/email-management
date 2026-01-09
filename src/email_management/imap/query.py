@@ -196,15 +196,8 @@ class IMAPQuery:
     def exclude_body(self, s: str) -> IMAPQuery:
         return self._not("BODY", _q(s))
 
-    # --- Logical operations ---
-    def or_(self, left: IMAPQuery, right: IMAPQuery) -> IMAPQuery:
-        """
-        IMAP OR only accepts two operands.
-        """
-        self.parts += ["OR", left.build(), right.build()]
-        return self
     
-    def or_many(self, *queries: IMAPQuery) -> IMAPQuery:
+    def or_(self, *queries: IMAPQuery) -> IMAPQuery:
         """
         Combine multiple IMAPQuery objects using nested OR.
         Example:

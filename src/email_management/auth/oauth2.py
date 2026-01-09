@@ -17,35 +17,41 @@ class OAuth2Auth:
     username: str
     token_provider: Callable[[], str]
 
-    def _xoauth2_string(self, access_token: str) -> str:
-        # Format: "user=<email>\x01auth=Bearer <token>\x01\x01"
-        s = f"user={self.username}\x01auth=Bearer {access_token}\x01\x01"
-        return base64.b64encode(s.encode("utf-8")).decode("utf-8")
+    def _raw_xoauth2(self, access_token: str) -> str:
+        return f"user={self.username}\x01auth=Bearer {access_token}\x01\x01"
 
     def apply_imap(self, conn, ctx: AuthContext) -> None:
         try:
             token = self.token_provider()
-            auth_str = self._xoauth2_string(token)
+            if not token:
+                raise AuthError("OAuth2 token provider returned empty token")
+
+            auth_bytes = self._raw_xoauth2(token).encode("utf-8")
 
             def auth_cb(_):
-                return auth_str
+                return auth_bytes
 
-            typ, _ = conn.authenticate("XOAUTH2", auth_cb)
+            typ, data = conn.authenticate("XOAUTH2", auth_cb)
             if typ != "OK":
-                raise AuthError("IMAP XOAUTH2 auth failed (non-OK response)")
+                raise AuthError(f"IMAP XOAUTH2 auth failed (non-OK response: {typ}, {data})")
         except Exception as e:
             raise AuthError(f"IMAP XOAUTH2 auth failed: {e}") from e
 
     def apply_smtp(self, server, ctx: AuthContext) -> None:
         """
         smtplib doesn't expose a single 'authenticate XOAUTH2' helper,
-        but you can issue an AUTH command. Many servers accept this.
+        so we send AUTH XOAUTH2 with a base64-encoded initial response.
         """
         try:
             token = self.token_provider()
-            auth_str = self._xoauth2_string(token)
-            code, resp = server.docmd("AUTH", "XOAUTH2 " + auth_str)
+            if not token:
+                raise AuthError("OAuth2 token provider returned empty token")
+
+            raw = self._raw_xoauth2(token)
+            auth_b64 = base64.b64encode(raw.encode("utf-8")).decode("ascii")
+
+            code, resp = server.docmd("AUTH", "XOAUTH2 " + auth_b64)
             if code != 235:
-                raise AuthError(f"SMTP XOAUTH2 auth failed: {code} {resp}")
+                raise AuthError(f"SMTP XOAUTH2 auth failed: {code} {resp!r}")
         except Exception as e:
             raise AuthError(f"SMTP XOAUTH2 auth failed: {e}") from e

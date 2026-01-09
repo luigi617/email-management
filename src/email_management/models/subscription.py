@@ -28,7 +28,7 @@ class UnsubscribeCandidate:
 @dataclass(frozen=True)
 class UnsubscribeActionResult:
     ref: EmailRef
-    method: UnsubscribeMethod
+    method: Optional[UnsubscribeMethod]
     sent: bool
     send_result: Optional[SendResult] = None
     note: Optional[str] = None

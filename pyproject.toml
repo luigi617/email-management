@@ -7,11 +7,16 @@ name = "email_management"
 version = "0.1.0"
 description = "API for managing your email"
 requires-python = ">=3.8"
-dependencies = []
+dependencies = [
+    "pytest",
+    "langchain",
+    "langchain-core",
+    "langchain-openai"
+]
 
 # 👇 IMPORTANT PART
 [tool.hatch.build.targets.wheel]
-packages = ["email_management"]
-include = [
-    "email_management/py.typed",
-]
+packages = ["src/email_management"]
+include = ["src/email_management/py.typed"]
+
+

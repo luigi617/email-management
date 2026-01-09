@@ -82,7 +82,7 @@ class IMAPClient:
                 if typ != "OK" or not data or not data[0]:
                     continue
                 raw = data[0][1]
-                out.append(parse_rfc822(raw, include_attachments=include_attachments))
+                out.append(parse_rfc822(r, raw, include_attachments=include_attachments))
             return out
         finally:
             if conn is not None:

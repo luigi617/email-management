@@ -27,7 +27,7 @@ class SubscriptionDetector:
 
         out: List[UnsubscribeCandidate] = []
         for ref, msg in zip(refs, msgs):
-            headers = getattr(msg, "headers", {}) or {}
+            headers = msg.headers
             lu = _get_header(headers, "List-Unsubscribe")
             if not lu:
                 continue
