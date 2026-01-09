@@ -1,6 +1,6 @@
-# email-manager
+# Email-Manager
 
-Lightweight Python toolkit for working with email via IMAP (read/search) and SMTP (send).  
+Lightweight Python toolkit for working with email via IMAP (read/search) and SMTP (send), with optional AI assistant features (summaries, reply templates, and more).  
 Provides a simple high-level `EmailManager` plus a flexible `EasyIMAPQuery` builder for composing IMAP queries without worrying about low-level protocol details.
 
 ---
