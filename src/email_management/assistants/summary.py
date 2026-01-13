@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 from pydantic import BaseModel, Field
 from email_management.llm import get_model
 from email_management.models import EmailMessage
@@ -15,11 +15,6 @@ Instructions (follow all):
 
 Email context:
 {email_context}
-
-Return:
-{{
-    "summary": "<A concise summary of this email.>"
-}}
 """
 
 
@@ -32,7 +27,7 @@ def llm_summarize_single_email(
     msg: EmailMessage,
     *,
     model_path: str,
-) -> Tuple[str, Dict[str, Any]]:
+) -> Tuple[Optional[str], Dict[str, Any]]:
     """
     Generate a concise email reply using the LLM pipeline.
     """
@@ -43,5 +38,6 @@ def llm_summarize_single_email(
             email_context=email_context,
         )
     )
-    res = result["summary"] if result and "summary" in result else result
+
+    res = result.summary if result else None
     return res, llm_call_info

@@ -1,6 +1,6 @@
 from functools import lru_cache
 import time
-from typing import Type, Optional
+from typing import Any, Callable, Dict, Tuple, Type, Optional, TypeVar
 from time import sleep
 from random import random
 from json import JSONDecodeError
@@ -14,12 +14,12 @@ from email_management.llm.gpt import get_openai
 
 from email_management.llm.costs import TokenUsageCallback, compute_cost_usd
 
-
+TModel = TypeVar("TModel", bound=BaseModel)
 
 @lru_cache(maxsize=None)
 def _get_base_llm(
     model_name: str,
-    pydantic_model: Type[BaseModel] = None,
+    pydantic_model: Type[TModel],
     temperature: float = 0.1,
     timeout: int = 120,
 ):
@@ -29,21 +29,21 @@ def _get_base_llm(
 
 def get_model(
     model_name: str,
-    pydantic_model: Type[BaseModel] = None,
+    pydantic_model: Type[TModel],
     temperature: float = 0.1,
     retries: int = 5, # -1 for infinite retries
     base_delay: float = 1.5,
     max_delay: float = 30.0,
     timeout: int = 120,
     all_fail_raise: bool = True,
-):
+) -> Callable[[str], Tuple[Optional[TModel], Dict[str, Any]]]:
 
     chain = _get_base_llm(model_name, pydantic_model, temperature, timeout)
 
     TRANSIENT_EXC = (APIConnectionError, APITimeoutError, RateLimitError)
     PARSE_EXC = (JSONDecodeError, OutputParserException, ValidationError)
 
-    def run(prompt_text: str):
+    def run(prompt_text: str) -> Tuple[Optional[TModel], Dict[str, Any]]:
         infinite = (retries == -1)
         max_tries = float("inf") if infinite else max(1, retries)
         delay = base_delay
@@ -61,11 +61,8 @@ def get_model(
                 )
                 t1 = time.perf_counter()
 
-                if pydantic_model is not None:
-                    model_obj = out if isinstance(out, BaseModel) else pydantic_model.model_validate(out)
-                    out_dict = model_obj.model_dump()
-                else:
-                    out_dict = out.content
+                model_obj = out if isinstance(out, BaseModel) else pydantic_model.model_validate(out)
+                out_dict = model_obj.model_dump()
 
                 cost_usd = compute_cost_usd(
                     model_name,
@@ -85,10 +82,7 @@ def get_model(
                     "cost_usd": cost_usd
                 }
                 
-                if pydantic_model is not None:
-                    return model_obj.model_dump(), llm_call_info
-                
-                return out_dict, llm_call_info
+                return model_obj, llm_call_info
 
             except (*TRANSIENT_EXC, *PARSE_EXC) as e:
                 last_exc = e

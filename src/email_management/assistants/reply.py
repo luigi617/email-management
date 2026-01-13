@@ -1,4 +1,4 @@
-from typing import Any, Tuple
+from typing import Any, Optional, Tuple
 from pydantic import BaseModel, Field
 from email_management.llm import get_model
 from email_management.models import EmailMessage
@@ -17,11 +17,6 @@ Instructions (follow all):
 
 Email context:
 {email_context}
-
-Return:
-{{
-    "reply": "<The generated reply body.>"
-}}
 """
 
 class EmailReplySchema(BaseModel):
@@ -32,7 +27,7 @@ def llm_concise_reply_for_email(
     msg: EmailMessage,
     *,
     model_path: str,
-) -> Tuple[str, dict[str, Any]]:
+) -> Tuple[Optional[str], dict[str, Any]]:
     """
     Generate a concise email reply using the LLM pipeline.
     """
@@ -43,5 +38,5 @@ def llm_concise_reply_for_email(
             email_context=email_context,
         )
     )
-    res = result["reply"] if result and "reply" in result else result
+    res = result.reply if result else None
     return res, llm_call_info

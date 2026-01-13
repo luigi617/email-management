@@ -1,37 +1,18 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from email.message import EmailMessage as PyEmailMessage
-from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 
 from email_management.assistants import (
     llm_concise_reply_for_email,
     llm_summarize_single_email,
-    llm_summarize_many_emails
+    llm_summarize_many_emails,
+    llm_easy_imap_query_from_nl,
 )
-from .email_query import EasyIMAPQuery
-from email_management.models import UnsubscribeCandidate, EmailMessage, UnsubscribeActionResult
-from email_management.subscription import SubscriptionService, SubscriptionDetector
-from email_management.imap import IMAPClient
-from email_management.smtp import SMTPClient
-from email_management.types import EmailRef, SendResult
-from email_management.utils import (ensure_reply_subject,
-                                    get_header,
-                                    parse_addrs,
-                                    dedup_addrs,
-                                    build_references,
-                                    remove_addr)
+from email_management.email_manager import EmailManager
+from email_management.email_query import EasyIMAPQuery
+from email_management.models import EmailMessage
 
-
-SEEN = r"\Seen"
-ANSWERED = r"\Answered"
-FLAGGED = r"\Flagged"
-DELETED = r"\Deleted"
-DRAFT = r"\Draft"
-
-@dataclass
 class EmailAssistant:
 
     def generate_reply(
@@ -70,3 +51,25 @@ class EmailAssistant:
             messages,
             model_path=model_path,
         )
+    
+    def build_query_from_nl(
+        self,
+        user_request: str,
+        *,
+        model_path: str,
+        manager: EmailManager,
+        mailbox: str = "INBOX",
+    ) -> Tuple[EasyIMAPQuery, Dict[str, Any]]:
+        """
+        Turn a natural-language request like:
+            "find unread security alerts from Google last week"
+        into an EasyIMAPQuery + llm_call_info.
+        """
+        return llm_easy_imap_query_from_nl(
+            user_request,
+            model_path=model_path,
+            manager=manager,
+            mailbox=mailbox,
+        )
+    
+ 

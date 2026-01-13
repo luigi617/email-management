@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 from pydantic import BaseModel, Field
 
 from email_management.llm import get_model
@@ -21,11 +21,6 @@ Instructions (follow all):
 
 Emails:
 {emails_block}
-
-Return:
-{{
-    "summary": "<One short paragraph that triages all the emails.>"
-}}
 """
 
 class EmailMultiSummarySchema(BaseModel):
@@ -36,7 +31,7 @@ def llm_summarize_many_emails(
     messages: Sequence[EmailMessage],
     *,
     model_path: str,
-) -> Tuple[str, Dict[str, Any]]:
+) -> Tuple[Optional[str], Dict[str, Any]]:
     """
     Generate a concise email reply using the LLM pipeline.
     """
@@ -54,5 +49,5 @@ def llm_summarize_many_emails(
             emails_block=emails_block,
         )
     )
-    res = result["summary"] if result and "summary" in result else result
+    res = result.summary if result else None
     return res, llm_call_info

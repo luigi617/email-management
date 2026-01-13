@@ -134,6 +134,10 @@ class IMAPQuery:
     def new(self) -> IMAPQuery:
         self.parts += ["NEW"]
         return self
+    
+    def old(self) -> IMAPQuery:
+        self.parts += ["OLD"]
+        return self
 
     # --- size ---
     def larger(self, n_bytes: int) -> IMAPQuery:
@@ -194,23 +198,20 @@ class IMAPQuery:
     def exclude_body(self, s: str) -> IMAPQuery:
         return self._not("BODY", _q(s))
 
-    
-    def or_(self, *queries: IMAPQuery) -> IMAPQuery:
-        """
-        Combine multiple IMAPQuery objects using nested OR.
-        Example:
-            OR(q1, q2, q3) =>
-            OR q1 (OR q2 q3)
-        """
-        if len(queries) < 2:
-            raise ValueError("or_many requires at least two queries")
+    def or_(self, *queries: "IMAPQuery") -> "IMAPQuery":
+        qs = [q for q in (self, *queries) if q.parts]
 
-        def fold(qs: List[IMAPQuery]) -> str:
-            if len(qs) == 2:
-                return f"OR {qs[0].build()} {qs[1].build()}"
-            return f"OR {qs[0].build()} {fold(qs[1:])}"
+        if len(qs) < 2:
+            raise ValueError("or_ requires at least two non-empty IMAPQuery instances (including self)")
 
-        self.parts.append(fold(list(queries)))
+        tokens: List[str] = list(qs[0].parts)
+
+        for q in qs[1:]:
+            right = list(q.parts)
+            
+            tokens = ["OR", "("] + tokens + [")", "("] + right + [")"]
+
+        self.parts = tokens
         return self
     
     # --- composition helpers ---
@@ -226,4 +227,8 @@ class IMAPQuery:
         return self
 
     def build(self) -> str:
-        return " ".join(self.parts) if self.parts else "ALL"
+        if not self.parts:
+            return "ALL"
+        s = " ".join(self.parts)
+        s = s.replace("( ", "(").replace(" )", ")")
+        return s

@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from email.message import EmailMessage as PyEmailMessage
 
 from email_management import EmailManager, EmailAssistant
 import email_management.llm.model as model_mod
@@ -80,7 +79,8 @@ def test_get_model_with_pydantic(monkeypatch):
     )
 
     out, info = run("prompt")
-    assert out == {"value": "hello"}
+    assert isinstance(out, MySchema)
+    assert out.value == "hello"
 
 
 class FakeChain:

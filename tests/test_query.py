@@ -159,10 +159,38 @@ def test_or_combines_queries_with_nested_or():
     q2 = IMAPQuery().to("b@example.com")
     q3 = IMAPQuery().subject("hello")
 
-    combined = IMAPQuery().or_(q1, q2, q3)
+    combined = q1.or_(q2, q3)
+
     
     assert combined.build() == (
-        'OR FROM "a@example.com" OR TO "b@example.com" SUBJECT "hello"'
+        'OR (OR (FROM "a@example.com") (TO "b@example.com")) (SUBJECT "hello")'
+    )
+
+def test_or_combines_queries_with_sequential_or():
+    q1 = IMAPQuery().from_("a@example.com")
+    q2 = IMAPQuery().to("b@example.com")
+    q3 = IMAPQuery().subject("hello")
+
+    combined = q1.or_(q2).or_(q3)
+
+    
+    assert combined.build() == (
+        'OR (OR (FROM "a@example.com") (TO "b@example.com")) (SUBJECT "hello")'
+    )
+
+def test_or_with_multiple_and_clauses():
+    q1 = IMAPQuery().from_("a@example.com").unseen()
+    q2 = IMAPQuery().subject("invoice").since("2024-01-01")
+
+    combined = q1.or_(q2)
+
+    combined.answered()
+
+
+    assert combined.build() == (
+        'OR (FROM "a@example.com" UNSEEN) '
+        '(SUBJECT "invoice" SINCE 01-Jan-2024) '
+        'ANSWERED'
     )
 
 
