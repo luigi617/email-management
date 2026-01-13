@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Sequence, TYPE_CHECKING
+from typing import Dict, List, Optional, Sequence, TYPE_CHECKING, Set
 
 from email_management.types import EmailRef
 
@@ -33,3 +33,15 @@ class EmailMessage:
             f"to={list(self.to)!r}, "
             f"attachments={len(self.attachments)})"
         )
+    
+@dataclass(frozen=True)
+class EmailOverview:
+    
+    ref: EmailRef
+    subject: Optional[str]
+    from_email: Optional[str]
+    to: List[str]
+    flags: Set[str]
+    preview: str
+    headers: Dict[str, str]
+    date: Optional[datetime] = None

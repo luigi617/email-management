@@ -120,7 +120,7 @@ class EmailManager:
         bcc: Sequence[str] = (),
         text: Optional[str] = None,
         html: Optional[str] = None,
-        attachments: Optional[Sequence[Any]] = None,
+        attachments: Optional[Sequence[Attachment]] = None,
         extra_headers: Optional[Dict[str, str]] = None,
     ) -> PyEmailMessage:
         """
@@ -151,7 +151,7 @@ class EmailManager:
         bcc: Sequence[str] = (),
         text: Optional[str] = None,
         html: Optional[str] = None,
-        attachments: Optional[Sequence[Any]] = None,
+        attachments: Optional[Sequence[Attachment]] = None,
         extra_headers: Optional[Dict[str, str]] = None,
     ) -> PyEmailMessage:
         """
@@ -198,7 +198,7 @@ class EmailManager:
         bcc: Sequence[str] = (),
         text: Optional[str] = None,
         html: Optional[str] = None,
-        attachments: Optional[Sequence[Any]] = None,
+        attachments: Optional[Sequence[Attachment]] = None,
         extra_headers: Optional[Dict[str, str]] = None,
     ) -> SendResult:
         """
@@ -227,7 +227,7 @@ class EmailManager:
         bcc: Sequence[str] = (),
         text: Optional[str] = None,
         html: Optional[str] = None,
-        attachments: Optional[Sequence[Any]] = None,
+        attachments: Optional[Sequence[Attachment]] = None,
         extra_headers: Optional[Dict[str, str]] = None,
         mailbox: str = "Drafts",
     ) -> EmailRef:
@@ -689,3 +689,19 @@ class EmailManager:
 
         return {"imap": imap_ok, "smtp": smtp_ok}
 
+    def close(self) -> None:
+        # Best-effort close both
+        try:
+            self.imap.close()
+        except Exception:
+            pass
+        try:
+            self.smtp.close()
+        except Exception:
+            pass
+
+    def __enter__(self) -> "EmailManager":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()

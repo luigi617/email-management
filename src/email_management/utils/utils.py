@@ -2,6 +2,7 @@ import html as _html
 from datetime import datetime, timezone, timedelta
 from email.message import EmailMessage as PyEmailMessage
 from email.utils import getaddresses, formataddr
+import re
 from typing import Optional, Sequence, Dict, Any, Set, Tuple, List
 
 from email_management.models import EmailMessage
@@ -145,3 +146,37 @@ def quote_original_html(original: EmailMessage) -> str:
         body_html = "<blockquote><em>(no body)</em></blockquote>"
 
     return f"<p>{header_html}</p>\n{body_html}"
+
+
+def parse_list_mailbox_name(raw: bytes | str) -> str | None:
+        """
+        Parse a single IMAP LIST response line and extract the mailbox name.
+        Handles typical formats like:
+            (\\HasNoChildren) "/" "INBOX"
+            (\\Noselect) "/" "[Gmail]/All Mail"
+            (\\HasNoChildren) "/" INBOX
+        Returns the decoded mailbox name or None if it can't be parsed.
+        """
+        if isinstance(raw, bytes):
+            s = raw.decode(errors="ignore")
+        else:
+            s = str(raw)
+
+        s = s.strip()
+
+        m = re.match(r'\((?P<flags>.*?)\)\s+(?P<delim>NIL|".*?"|\S+)\s+(?P<name>.+)', s)
+        if not m:
+            return None
+
+        name = m.group("name").strip()
+
+        if name.startswith('"') and name.endswith('"'):
+            name = name[1:-1]
+
+        try:
+            from imaplib import _decode_utf7 as decode_utf7  # type: ignore[attr-defined]
+            name = decode_utf7(name)
+        except Exception:
+            pass
+
+        return name or None

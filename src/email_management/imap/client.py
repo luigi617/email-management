@@ -1,23 +1,36 @@
 from __future__ import annotations
+from email.parser import BytesParser
 import imaplib
 import time
 import re
-from dataclasses import dataclass
+import threading
+from dataclasses import dataclass, field
 from typing import List, Optional, Sequence, Set, Dict
-from email.message import EmailMessage as PyEmailMessage 
+from email.message import EmailMessage as PyEmailMessage
+from email.policy import default as default_policy
 
 from email_management.auth import AuthContext
 from email_management import IMAPConfig
 from email_management.errors import ConfigError, IMAPError
-from email_management.models import EmailMessage
+from email_management.models import EmailMessage, EmailOverview
 from email_management.types import EmailRef
+from email_management.utils import parse_list_mailbox_name
 
 from email_management.imap.query import IMAPQuery
 from email_management.imap.parser import parse_rfc822
 
-@dataclass(frozen=True)
+
+
+@dataclass
 class IMAPClient:
     config: IMAPConfig
+    _conn: imaplib.IMAP4 | None = field(default=None, init=False, repr=False)
+    _lock: threading.RLock = field(default_factory=threading.RLock, init=False, repr=False)
+    _selected_mailbox: str | None = field(default=None, init=False, repr=False)
+    _selected_readonly: bool | None = field(default=None, init=False, repr=False)
+
+    max_retries: int = 1
+    backoff_seconds: float = 0.0
 
     @classmethod
     def from_config(cls, config: IMAPConfig) -> "IMAPClient":
@@ -27,7 +40,8 @@ class IMAPClient:
             raise ConfigError("IMAP port required")
         return cls(config)
 
-    def _connect(self) -> imaplib.IMAP4:
+
+    def _open_new_connection(self) -> imaplib.IMAP4:
         cfg = self.config
         try:
             conn = (
@@ -46,13 +60,97 @@ class IMAPClient:
             raise IMAPError(f"IMAP connection/auth failed: {e}") from e
         except OSError as e:
             raise IMAPError(f"IMAP network error: {e}") from e
-            
+
+    def _get_conn(self) -> imaplib.IMAP4:
+        # NOTE: must be called with self._lock held
+        if self._conn is not None:
+            return self._conn
+        self._conn = self._open_new_connection()
+        self._selected_mailbox = None
+        self._selected_readonly = None
+        return self._conn
+
+    def _reset_conn(self) -> None:
+        # NOTE: must be called with self._lock held
+        if self._conn is not None:
+            try:
+                self._conn.logout()
+            except Exception:
+                pass
+        self._conn = None
+        self._selected_mailbox = None
+        self._selected_readonly = None
+
+    def _ensure_selected(self, conn: imaplib.IMAP4, mailbox: str, readonly: bool) -> None:
+        """
+        Cache the selected mailbox to avoid repeated SELECT/EXAMINE.
+        - readonly=True -> EXAMINE
+        - readonly=False -> SELECT (read-write)
+        Reuses a read-write selection for readonly operations, but not vice versa.
+        Must be called with self._lock held.
+        """
+        if self._selected_mailbox == mailbox:
+            if readonly or self._selected_readonly is False:
+                return
+
+        typ, _ = conn.select(mailbox, readonly=readonly)
+        if typ != "OK":
+            raise IMAPError(f"select({mailbox!r}, readonly={readonly}) failed")
+        self._selected_mailbox = mailbox
+        self._selected_readonly = readonly
+
+    def _assert_same_mailbox(self, refs: Sequence["EmailRef"], op_name: str) -> str:
+        """
+        Ensure all EmailRefs share the same mailbox.
+        Returns the common mailbox name, or raises IMAPError.
+        """
+        if not refs:
+            raise IMAPError(f"{op_name} called with empty refs")
+
+        mailbox = refs[0].mailbox
+        for r in refs:
+            if r.mailbox != mailbox:
+                raise IMAPError(
+                    f"All EmailRef.mailbox must match for {op_name} "
+                    f"(got {refs[0].mailbox!r} and {r.mailbox!r})"
+                )
+        return mailbox
+    
+    def _run_with_conn(self, op):
+        """
+        Run an operation with a connection, handling:
+        - thread-safety (RLock)
+        - reconnect-on-abort (retry max_retries times)
+
+        `op` is a callable taking a single `imaplib.IMAP4` argument.
+        """
+        last_exc: Optional[BaseException] = None
+        attempts = self.max_retries + 1
+
+        for attempt in range(attempts):
+            with self._lock:
+                conn = self._get_conn()
+                try:
+                    return op(conn)
+                except imaplib.IMAP4.abort as e:
+                    # Connection died; reset and retry with a fresh one.
+                    last_exc = e
+                    self._reset_conn()
+                    # loop will retry
+                except imaplib.IMAP4.error as e:
+                    # Non-abort protocol error; don't retry
+                    raise IMAPError(f"IMAP operation failed: {e}") from e
+            if attempt < attempts - 1 and self.backoff_seconds > 0:
+                time.sleep(self.backoff_seconds)
+
+        # If we get here, all attempts failed due to abort
+        raise IMAPError(f"IMAP connection repeatedly aborted: {last_exc}") from last_exc
+
+    # ---------- public API ----------
+
     def search(self, *, mailbox: str, query: IMAPQuery, limit: int = 50) -> List["EmailRef"]:
-        conn = None
-        try:
-            conn = self._connect()
-            if conn.select(mailbox)[0] != "OK":
-                raise IMAPError(f"select({mailbox}) failed")
+        def _impl(conn: imaplib.IMAP4) -> List["EmailRef"]:
+            self._ensure_selected(conn, mailbox, readonly=True)
 
             typ, data = conn.uid("SEARCH", None, query.build())
             if typ != "OK":
@@ -61,34 +159,170 @@ class IMAPClient:
             uids = (data[0] or b"").split()
             uids = list(reversed(uids))[:limit]
             return [EmailRef(uid=int(x), mailbox=mailbox) for x in uids]
-        finally:
-            if conn is not None:
-                try: conn.logout()
-                except Exception: pass
+
+        return self._run_with_conn(_impl)
 
     def fetch(self, refs: Sequence["EmailRef"], *, include_attachments: bool = False) -> List[EmailMessage]:
         if not refs:
             return []
-        mailbox = refs[0].mailbox
-        conn = None
-        try:
-            conn = self._connect()
-            if conn.select(mailbox)[0] != "OK":
-                raise IMAPError(f"select({mailbox}) failed")
 
+        mailbox = self._assert_same_mailbox(refs, "fetch")
+
+        uid_to_ref: Dict[int, EmailRef] = {r.uid: r for r in refs}
+
+        def _impl(conn: imaplib.IMAP4) -> List[EmailMessage]:
+            self._ensure_selected(conn, mailbox, readonly=True)
+
+            uid_str = ",".join(str(r.uid) for r in refs)
+            typ, data = conn.uid("FETCH", uid_str, "(RFC822)")
+            if typ != "OK":
+                raise IMAPError(f"FETCH failed: {data}")
+            
             out: List[EmailMessage] = []
-            for r in refs:
-                typ, data = conn.uid("FETCH", str(r.uid), "(RFC822)")
-                if typ != "OK" or not data or not data[0]:
-                    continue
-                raw = data[0][1]
-                out.append(parse_rfc822(r, raw, include_attachments=include_attachments))
-            return out
-        finally:
-            if conn is not None:
-                try: conn.logout()
-                except Exception: pass
 
+            # data is a list of response tuples; we care about tuples (meta, raw_bytes)
+            for item in data:
+                if not item or not isinstance(item, tuple) or len(item) < 2:
+                    continue
+                meta, raw = item[0], item[1]
+                if not isinstance(meta, (bytes, bytearray)):
+                    continue
+                meta_str = meta.decode(errors="ignore")
+
+                m = re.search(r"UID\s+(\d+)", meta_str)
+                if not m:
+                    continue
+                uid = int(m.group(1))
+                ref = uid_to_ref.get(uid)
+                if ref is None:
+                    continue
+
+                out.append(parse_rfc822(ref, raw, include_attachments=include_attachments))
+
+            # Preserve original order of refs as much as possible
+            out_by_uid = {msg.ref.uid: msg for msg in out} if out and hasattr(out[0], "ref") else None
+            if out_by_uid:
+                ordered: List[EmailMessage] = []
+                for r in refs:
+                    msg = out_by_uid.get(r.uid)
+                    if msg is not None:
+                        ordered.append(msg)
+                return ordered
+
+            return out
+
+        return self._run_with_conn(_impl)
+
+    def fetch_overview(
+        self,
+        refs: Sequence["EmailRef"],
+        *,
+        preview_bytes: int = 1024,
+    ) -> List[EmailOverview]:
+        """
+        Lightweight fetch: only FLAGS, selected headers (From, To, Subject, Date, Message-ID),
+        and a small text preview from the body.
+        """
+        if not refs:
+            return []
+        mailbox = self._assert_same_mailbox(refs, "fetch_overview")
+
+        def _impl(conn: imaplib.IMAP4) -> List[EmailOverview]:
+            self._ensure_selected(conn, mailbox, readonly=True)
+
+            uid_str = ",".join(str(r.uid) for r in refs)
+            # FLAGS + headers + partial text body
+            attrs = (
+                f"(FLAGS "
+                "BODY.PEEK[HEADER.FIELDS (From To Subject Date Message-ID)] "
+                f"BODY.PEEK[TEXT]<0.{preview_bytes}>)"
+            )
+            typ, data = conn.uid("FETCH", uid_str, attrs)
+            if typ != "OK":
+                raise IMAPError(f"FETCH overview failed: {data}")
+
+            # Collect partial data per UID
+            partial: Dict[int, Dict[str, object]] = {}
+
+            for item in data:
+                if not item or not isinstance(item, tuple) or len(item) < 2:
+                    continue
+                meta_raw, payload = item[0], item[1]
+                if not isinstance(meta_raw, (bytes, bytearray)):
+                    continue
+                meta = meta_raw.decode(errors="ignore")
+
+                m_uid = re.search(r"UID\s+(\d+)", meta)
+                if not m_uid:
+                    continue
+                uid = int(m_uid.group(1))
+                bucket = partial.setdefault(uid, {"flags": set(), "headers": None, "preview": b""})
+
+                # FLAGS
+                m_flags = re.search(r"FLAGS\s*\(([^)]*)\)", meta)
+                if m_flags:
+                    flags_str = m_flags.group(1).strip()
+                    if flags_str:
+                        flags = {f for f in flags_str.split() if f}
+                        bucket["flags"] = flags
+
+                # Headers
+                if "BODY[HEADER.FIELDS" in meta:
+                    bucket["headers"] = payload
+
+                # Preview
+                if "BODY[TEXT]<0." in meta:
+                    # This may be one or more chunks; append
+                    prev = bucket.get("preview") or b""
+                    bucket["preview"] = prev + payload
+
+            # Build EmailOverview objects in the same order as refs
+            overviews: List[EmailOverview] = []
+            for r in refs:
+                info = partial.get(r.uid)
+                if not info:
+                    continue
+
+                flags = set(info["flags"]) if isinstance(info["flags"], set) else set()
+                header_bytes = info["headers"]
+                preview_bytes_val = info["preview"] or b""
+
+                subject = None
+                from_email = None
+                to_addrs: List[str] = []
+                headers: Dict[str, str] = {}
+
+                if isinstance(header_bytes, (bytes, bytearray)):
+                    msg = BytesParser(policy=default_policy).parsebytes(header_bytes)
+                    subject = msg.get("Subject")
+                    from_email = msg.get("From")
+                    to_raw = msg.get_all("To", [])
+                    # msg.get_all returns list; join and split by comma is simplistic but ok
+                    to_combined = ", ".join(to_raw)
+                    if to_combined:
+                        to_addrs = [addr.strip() for addr in to_combined.split(",") if addr.strip()]
+                    # Optionally copy all headers into a dict
+                    for k, v in msg.items():
+                        headers[k] = str(v)
+
+                preview_text = preview_bytes_val.decode("utf-8", errors="replace")
+
+                overviews.append(
+                    EmailOverview(
+                        ref=r,
+                        subject=subject,
+                        from_email=from_email,
+                        to=to_addrs,
+                        flags=flags,
+                        preview=preview_text,
+                        headers=headers,
+                    )
+                )
+
+            return overviews
+
+        return self._run_with_conn(_impl)
+    
     def append(
         self,
         mailbox: str,
@@ -99,13 +333,9 @@ class IMAPClient:
         """
         Append a message to `mailbox` and return an EmailRef.
         """
-        conn = None
-        try:
-            conn = self._connect()
-
+        def _impl(conn: imaplib.IMAP4) -> EmailRef:
             # Select mailbox to ensure it exists and we get a current UID set
-            if conn.select(mailbox)[0] != "OK":
-                raise IMAPError(f"select({mailbox}) failed for APPEND")
+            self._ensure_selected(conn, mailbox, readonly=False)
 
             # Build flags string like "(\\Draft \\Seen)" or None
             flags_arg = None
@@ -149,14 +379,7 @@ class IMAPClient:
 
             return EmailRef(uid=uid, mailbox=mailbox)
 
-        except imaplib.IMAP4.error as e:
-            raise IMAPError(f"IMAP APPEND failed: {e}") from e
-        finally:
-            if conn is not None:
-                try:
-                    conn.logout()
-                except Exception:
-                    pass
+        return self._run_with_conn(_impl)
 
     def add_flags(self, refs: Sequence["EmailRef"], *, flags: Set[str]) -> None:
         self._store(refs, mode="+FLAGS", flags=flags)
@@ -167,52 +390,36 @@ class IMAPClient:
     def _store(self, refs: Sequence["EmailRef"], *, mode: str, flags: Set[str]) -> None:
         if not refs:
             return
-        mailbox = refs[0].mailbox
-        conn = None
-        try:
-            conn = self._connect()
-            if conn.select(mailbox)[0] != "OK":
-                raise IMAPError(f"select({mailbox}) failed")
+        mailbox = self._assert_same_mailbox(refs, "_store")
+
+        def _impl(conn: imaplib.IMAP4) -> None:
+            self._ensure_selected(conn, mailbox, readonly=False)
             uids = ",".join(str(r.uid) for r in refs)
             flag_list = "(" + " ".join(sorted(flags)) + ")"
             typ, data = conn.uid("STORE", uids, mode, flag_list)
             if typ != "OK":
                 raise IMAPError(f"STORE failed: {data}")
-        finally:
-            if conn is not None:
-                try: conn.logout()
-                except Exception: pass
+
+        self._run_with_conn(_impl)
 
     def expunge(self, mailbox: str = "INBOX") -> None:
         """
         Permanently remove messages flagged as \\Deleted in the given mailbox.
         """
-        conn = None
-        try:
-            conn = self._connect()
-            if conn.select(mailbox)[0] != "OK":
-                raise IMAPError(f"select({mailbox}) failed for EXPUNGE")
+        def _impl(conn: imaplib.IMAP4) -> None:
+            self._ensure_selected(conn, mailbox, readonly=False)
 
             typ, data = conn.expunge()
             if typ != "OK":
                 raise IMAPError(f"EXPUNGE failed: {data}")
 
-        except imaplib.IMAP4.error as e:
-            raise IMAPError(f"IMAP EXPUNGE failed: {e}") from e
-        finally:
-            if conn is not None:
-                try:
-                    conn.logout()
-                except Exception:
-                    pass
+        self._run_with_conn(_impl)
 
     def list_mailboxes(self) -> List[str]:
         """
         Return a list of mailbox (folder) names.
         """
-        conn = None
-        try:
-            conn = self._connect()
+        def _impl(conn: imaplib.IMAP4) -> List[str]:
             typ, data = conn.list()
             if typ != "OK":
                 raise IMAPError(f"LIST failed: {data}")
@@ -224,41 +431,20 @@ class IMAPClient:
             for raw in data:
                 if not raw:
                     continue
-                # raw is usually bytes like: b'(\\HasNoChildren) "/" "INBOX"'
-                if isinstance(raw, bytes):
-                    s = raw.decode(errors="ignore")
-                else:
-                    s = str(raw)
-
-                # Split into: FLAGS, DELIM, NAME
-                parts = s.split(" ", 2)
-                if len(parts) < 3:
-                    continue
-                name = parts[2].strip()
-                # Strip surrounding quotes if present
-                if name.startswith('"') and name.endswith('"'):
-                    name = name[1:-1]
-                mailboxes.append(name)
+                name = parse_list_mailbox_name(raw)
+                if name is not None:
+                    mailboxes.append(name)
 
             return mailboxes
 
-        except imaplib.IMAP4.error as e:
-            raise IMAPError(f"IMAP LIST failed: {e}") from e
-        finally:
-            if conn is not None:
-                try:
-                    conn.logout()
-                except Exception:
-                    pass
+        return self._run_with_conn(_impl)
 
     def mailbox_status(self, mailbox: str = "INBOX") -> Dict[str, int]:
         """
         Return basic status counters for a mailbox, e.g.:
             {"messages": 1234, "unseen": 12}
         """
-        conn = None
-        try:
-            conn = self._connect()
+        def _impl(conn: imaplib.IMAP4) -> Dict[str, int]:
             typ, data = conn.status(mailbox, "(MESSAGES UNSEEN)")
             if typ != "OK":
                 raise IMAPError(f"STATUS {mailbox!r} failed: {data}")
@@ -300,14 +486,7 @@ class IMAPClient:
 
             return status
 
-        except imaplib.IMAP4.error as e:
-            raise IMAPError(f"IMAP STATUS failed: {e}") from e
-        finally:
-            if conn is not None:
-                try:
-                    conn.logout()
-                except Exception:
-                    pass
+        return self._run_with_conn(_impl)
 
     def move(
         self,
@@ -323,11 +502,8 @@ class IMAPClient:
             if r.mailbox != src_mailbox:
                 raise IMAPError("All EmailRef.mailbox must match src_mailbox for move()")
 
-        conn = None
-        try:
-            conn = self._connect()
-            if conn.select(src_mailbox)[0] != "OK":
-                raise IMAPError(f"select({src_mailbox}) failed")
+        def _impl(conn: imaplib.IMAP4) -> None:
+            self._ensure_selected(conn, src_mailbox, readonly=False)
 
             uids = ",".join(str(r.uid) for r in refs)
 
@@ -343,16 +519,11 @@ class IMAPClient:
             if typ_store != "OK":
                 raise IMAPError(f"STORE +FLAGS.SILENT \\Deleted failed: {data_store}")
 
-            conn.expunge()
+            typ_expunge, data_expunge = conn.expunge()
+            if typ_expunge != "OK":
+                raise IMAPError(f"EXPUNGE (after MOVE fallback) failed: {data_expunge}")
 
-        except imaplib.IMAP4.error as e:
-            raise IMAPError(f"IMAP MOVE failed: {e}") from e
-        finally:
-            if conn is not None:
-                try:
-                    conn.logout()
-                except Exception:
-                    pass
+        self._run_with_conn(_impl)
 
     def copy(
         self,
@@ -368,75 +539,51 @@ class IMAPClient:
             if r.mailbox != src_mailbox:
                 raise IMAPError("All EmailRef.mailbox must match src_mailbox for copy()")
 
-        conn = None
-        try:
-            conn = self._connect()
-            if conn.select(src_mailbox)[0] != "OK":
-                raise IMAPError(f"select({src_mailbox}) failed")
+        def _impl(conn: imaplib.IMAP4) -> None:
+            self._ensure_selected(conn, src_mailbox, readonly=False)
 
             uids = ",".join(str(r.uid) for r in refs)
             typ, data = conn.uid("COPY", uids, dst_mailbox)
             if typ != "OK":
                 raise IMAPError(f"COPY failed: {data}")
 
-        except imaplib.IMAP4.error as e:
-            raise IMAPError(f"IMAP COPY failed: {e}") from e
-        finally:
-            if conn is not None:
-                try:
-                    conn.logout()
-                except Exception:
-                    pass
+        self._run_with_conn(_impl)
 
     def create_mailbox(self, name: str) -> None:
-        
-        conn = None
-        try:
-            conn = self._connect()
+        def _impl(conn: imaplib.IMAP4) -> None:
             typ, data = conn.create(name)
             if typ != "OK":
                 raise IMAPError(f"CREATE {name!r} failed: {data}")
-        except imaplib.IMAP4.error as e:
-            raise IMAPError(f"IMAP CREATE failed: {e}") from e
-        finally:
-            if conn is not None:
-                try:
-                    conn.logout()
-                except Exception:
-                    pass
+
+        self._run_with_conn(_impl)
 
     def delete_mailbox(self, name: str) -> None:
-        conn = None
-        try:
-            conn = self._connect()
+        def _impl(conn: imaplib.IMAP4) -> None:
             typ, data = conn.delete(name)
             if typ != "OK":
                 raise IMAPError(f"DELETE {name!r} failed: {data}")
-        except imaplib.IMAP4.error as e:
-            raise IMAPError(f"IMAP DELETE failed: {e}") from e
-        finally:
-            if conn is not None:
-                try:
-                    conn.logout()
-                except Exception:
-                    pass
+
+        self._run_with_conn(_impl)
 
     def ping(self) -> None:
         """
         Minimal IMAP health check.
         Raises IMAPError if NOOP fails.
         """
-        conn = None
-        try:
-            conn = self._connect()
+        def _impl(conn: imaplib.IMAP4) -> None:
             typ, data = conn.noop()
             if typ != "OK":
                 raise IMAPError(f"NOOP failed: {data}")
-        except imaplib.IMAP4.error as e:
-            raise IMAPError(f"IMAP ping failed: {e}") from e
-        finally:
-            if conn is not None:
-                try:
-                    conn.logout()
-                except Exception:
-                    pass
+
+        self._run_with_conn(_impl)
+
+    def close(self) -> None:
+        with self._lock:
+            self._reset_conn()
+
+    def __enter__(self) -> "IMAPClient":
+        # lazy connect;
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
