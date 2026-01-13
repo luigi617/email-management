@@ -8,6 +8,7 @@ from email_management.assistants import (
     llm_summarize_single_email,
     llm_summarize_many_emails,
     llm_easy_imap_query_from_nl,
+    llm_reply_suggestions_for_email,
 )
 from email_management.email_manager import EmailManager
 from email_management.email_query import EasyIMAPQuery
@@ -15,13 +16,26 @@ from email_management.models import EmailMessage
 
 class EmailAssistant:
 
+    def generate_reply_suggestions(
+        self,
+        message: EmailMessage,
+        *,
+        model_path: str,
+    ) -> Tuple[List[str], Dict[str, Any]]:
+        return llm_reply_suggestions_for_email(
+            message,
+            model_path=model_path,
+        )
+    
     def generate_reply(
         self,
+        reply_context: str,
         message: EmailMessage,
         *,
         model_path: str,
     ) -> Tuple[str, Dict[str, Any]]:
         return llm_concise_reply_for_email(
+            reply_context,
             message,
             model_path=model_path,
         )

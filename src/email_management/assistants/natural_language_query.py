@@ -712,7 +712,7 @@ def llm_easy_imap_query_from_nl(
     model_path: str,
     manager: Optional[EmailManager],
     mailbox: str = "INBOX",
-) -> Tuple[Optional[EasyIMAPQuery], Dict[str, Any]]:
+) -> Tuple[EasyIMAPQuery, Dict[str, Any]]:
     """
     Use an LLM to translate a natural-language request into an EasyIMAPQuery,
     where the final LLM output schema is IMAPLowLevelPlan (a list of DNF clauses).
@@ -724,12 +724,10 @@ def llm_easy_imap_query_from_nl(
     result, llm_call_info = chain(
         EMAIL_IMAP_QUERY_PROMPT.format(user_request=user_request)
     )
-    if result:
-        plan = result
+    plan = result
 
-        easy = manager.imap_query(mailbox)
-        _apply_low_level_to_easy_query(easy, plan)
+    easy = manager.imap_query(mailbox)
+    _apply_low_level_to_easy_query(easy, plan)
 
-        return easy, llm_call_info
-    else:
-        return None, llm_call_info
+    return easy, llm_call_info
+

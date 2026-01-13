@@ -36,7 +36,7 @@ def get_model(
     max_delay: float = 30.0,
     timeout: int = 120,
     all_fail_raise: bool = True,
-) -> Callable[[str], Tuple[Optional[TModel], Dict[str, Any]]]:
+) -> Callable[[str], Tuple[TModel, Dict[str, Any]]]:
 
     chain = _get_base_llm(model_name, pydantic_model, temperature, timeout)
 
@@ -45,7 +45,7 @@ def get_model(
     
     history: List[Dict[str, str]] = []
     
-    def run(prompt_text: str) -> Tuple[Optional[TModel], Dict[str, Any]]:
+    def run(prompt_text: str) -> Tuple[TModel, Dict[str, Any]]:
         nonlocal history
         infinite = (retries == -1)
         max_tries = float("inf") if infinite else max(1, retries)
@@ -104,13 +104,6 @@ def get_model(
             if not infinite and attempt >= max_tries:
                 if all_fail_raise and last_exc is not None:
                     raise last_exc
-                llm_error_info = {
-                    "model": model_name,
-                    "prompt": prompt_text,
-                    "timestamp": time.strftime("%m/%d/%Y_%H:%M:%S"),
-                    "error": str(last_exc)
-                }
-                return None, llm_error_info
 
             sleep(delay + random() * 0.5)
             delay = min(delay * 2, max_delay)

@@ -228,6 +228,7 @@ def test_generate_reply_uses_llm(monkeypatch):
     )
 
     text, info = assistant.generate_reply(
+        "reply to this email politely.",
         msgs[0],
         model_path="fake-model",
     )

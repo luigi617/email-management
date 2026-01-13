@@ -1,101 +1,102 @@
-import os
-
 import pytest
+
 from email_management.auth import PasswordAuth
-from email_management.config import SMTPConfig, IMAPConfig
 from email_management.errors import AuthError
-from email_management.smtp.client import SMTPClient
-from email_management.imap.client import IMAPClient
-from email_management import EmailManager
-from email_management.models import EmailMessage
 
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
+
+class DummySMTPServer:
+    def __init__(self, should_fail: bool = False):
+        self.should_fail = should_fail
+        self.logged_in_with = None
+
+    def login(self, username, password):
+        self.logged_in_with = (username, password)
+        if self.should_fail:
+            raise Exception("Invalid SMTP credentials")
+
+
+class DummyIMAPConn:
+    def __init__(self, mode: str = "ok"):
+        """
+        mode:
+          - "ok": login succeeds and returns ("OK", _)
+          - "no": login returns non-OK typ
+          - "error": login raises an exception
+        """
+        self.mode = mode
+        self.logged_in_with = None
+
+    def login(self, username, password):
+        self.logged_in_with = (username, password)
+        if self.mode == "ok":
+            return "OK", [b"logged in"]
+        if self.mode == "no":
+            return "NO", [b"bad credentials"]
+        if self.mode == "error":
+            raise Exception("IMAP login error")
+        return "OK", [b"default"]
+
+
 def test_password_auth_with_correct_info():
-    username = os.environ.get("TEST_EMAIL_USERNAME")
-    password = os.environ.get("TEST_EMAIL_PASSWORD")
+    username = "test@example.com"
+    password = "correct-password"
+
     auth = PasswordAuth(
         username=username,
         password=password,
     )
 
-    smtp_cfg = SMTPConfig(
-        host="smtp.gmail.com",
-        port=587,
-        use_starttls=True,
-        from_email=username,
-        auth=auth,
-    )
+    smtp_server = DummySMTPServer(should_fail=False)
+    imap_conn = DummyIMAPConn(mode="ok")
 
-    imap_cfg = IMAPConfig(
-        host="imap.gmail.com",
-        port=993,
-        auth=auth,
-    )
+    # Should not raise
+    auth.apply_smtp(smtp_server, ctx=None)
+    auth.apply_imap(imap_conn, ctx=None)
 
-    smtp = SMTPClient.from_config(smtp_cfg)
-    imap = IMAPClient.from_config(imap_cfg)
-    manager = EmailManager(smtp=smtp, imap=imap)
+    assert smtp_server.logged_in_with == (username, password)
+    assert imap_conn.logged_in_with == (username, password)
 
-    messages = manager.fetch_latest(n=1)
-    assert len(messages) == 1
-    
+
 def test_password_auth_with_wrong_password():
-    username = os.environ.get("TEST_EMAIL_USERNAME")
+    username = "test@example.com"
     password = "1234567890"
+
     auth = PasswordAuth(
         username=username,
         password=password,
     )
 
-    smtp_cfg = SMTPConfig(
-        host="smtp.gmail.com",
-        port=587,
-        use_starttls=True,
-        from_email=username,
-        auth=auth,
-    )
+    # For SMTP, simulate the underlying server raising an error
+    smtp_server = DummySMTPServer(should_fail=True)
+    # For IMAP, simulate a non-OK response
+    imap_conn = DummyIMAPConn(mode="no")
 
-    imap_cfg = IMAPConfig(
-        host="imap.gmail.com",
-        port=993,
-        auth=auth,
-    )
+    with pytest.raises(AuthError, match="SMTP login failed"):
+        auth.apply_smtp(smtp_server, ctx=None)
 
-    smtp = SMTPClient.from_config(smtp_cfg)
-    imap = IMAPClient.from_config(imap_cfg)
-    manager = EmailManager(smtp=smtp, imap=imap)
+    with pytest.raises(AuthError, match="IMAP login failed"):
+        auth.apply_imap(imap_conn, ctx=None)
 
-    with pytest.raises(AuthError):
-        manager.fetch_latest(n=1)
-    
+
 def test_password_auth_with_wrong_username():
     username = "test@gmail.com"
-    password = os.environ.get("TEST_EMAIL_PASSWORD")
+    password = "correct-password"
+
     auth = PasswordAuth(
         username=username,
         password=password,
     )
 
-    smtp_cfg = SMTPConfig(
-        host="smtp.gmail.com",
-        port=587,
-        use_starttls=True,
-        from_email=username,
-        auth=auth,
-    )
+    # For SMTP, simulate the server rejecting username
+    smtp_server = DummySMTPServer(should_fail=True)
+    # For IMAP, simulate an exception during login
+    imap_conn = DummyIMAPConn(mode="error")
 
-    imap_cfg = IMAPConfig(
-        host="imap.gmail.com",
-        port=993,
-        auth=auth,
-    )
+    with pytest.raises(AuthError, match="SMTP login failed"):
+        auth.apply_smtp(smtp_server, ctx=None)
 
-    smtp = SMTPClient.from_config(smtp_cfg)
-    imap = IMAPClient.from_config(imap_cfg)
-    manager = EmailManager(smtp=smtp, imap=imap)
-
-    with pytest.raises(AuthError):
-        manager.fetch_latest(n=1)
-    
+    with pytest.raises(AuthError, match="IMAP login failed"):
+        auth.apply_imap(imap_conn, ctx=None)

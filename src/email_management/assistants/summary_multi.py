@@ -49,5 +49,5 @@ def llm_summarize_many_emails(
             emails_block=emails_block,
         )
     )
-    res = result.summary if result else None
-    return res, llm_call_info
+
+    return result.summary, llm_call_info
