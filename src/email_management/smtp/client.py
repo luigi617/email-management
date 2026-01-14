@@ -30,14 +30,11 @@ class SMTPClient:
             raise ConfigError("Choose use_ssl or use_starttls (not both)")
         return cls(config)
 
-    # ---------- helpers ----------
 
     def _from_email(self) -> str:
         if self.config.from_email:
             return self.config.from_email
-        if self.config.username:
-            return self.config.username
-        raise ConfigError("No from_email and no username set")
+        raise ConfigError("No from_email set")
 
     def _open_new_server(self) -> smtplib.SMTP:
         cfg = self.config
@@ -62,7 +59,6 @@ class SMTPClient:
             try:
                 cfg.auth.apply_smtp(server, AuthContext(host=cfg.host, port=cfg.port))
             except smtplib.SMTPAuthenticationError as e:
-                # Close server before raising
                 try:
                     server.quit()
                 except Exception:
@@ -74,7 +70,6 @@ class SMTPClient:
             return server
 
         except AuthError:
-            # already wrapped and cleaned up above
             raise
         except smtplib.SMTPException as e:
             raise SMTPError(f"SMTP connection failed: {e}") from e
@@ -108,13 +103,11 @@ class SMTPClient:
         """
         last_exc: BaseException | None = None
 
-        for attempt in range(2):  # at most 2 tries
+        for _ in range(2):
             with self._lock:
                 server = self._get_server()
                 try:
                     result = op(server)
-                    # If we've sent a lot of messages on this connection,
-                    # recycle it to avoid weird long-lived-connection issues.
                     if self._sent_since_connect >= self.max_messages_per_connection:
                         self._reset_server()
                     return result
@@ -122,12 +115,9 @@ class SMTPClient:
                     # Connection dropped; reset and retry with a fresh one.
                     last_exc = e
                     self._reset_server()
-                    # loop and retry
                 except AuthError:
-                    # Bad credentials / token; no point in retrying
                     raise
                 except smtplib.SMTPException as e:
-                    # Other SMTP errors are not recoverable by reconnecting
                     raise SMTPError(f"SMTP operation failed: {e}") from e
 
         # If we get here, we had repeated disconnects
@@ -138,8 +128,6 @@ class SMTPClient:
         Ensure From and recipients are present.
         Returns (cloned_msg, from_email, all_recipients).
         """
-        # Collect recipients from headers first (including Bcc),
-        # so we can pass them to send_message as the envelope recipients.
         to_all = (
             msg.get_all("To", [])
             + msg.get_all("Cc", [])
@@ -150,7 +138,6 @@ class SMTPClient:
 
         all_recipients = list(to_all)
 
-        # Determine From
         from_email = msg.get("From")
         needs_copy = False
 
@@ -158,20 +145,15 @@ class SMTPClient:
             from_email = self._from_email()
             needs_copy = True
 
-        # If we have a Bcc header, we need to strip it from the message
-        # we actually send over the wire, so we must copy.
         if "Bcc" in msg:
             needs_copy = True
 
-        # Make a deep copy if we're going to mutate headers
         if needs_copy:
             msg = copy.deepcopy(msg)
 
-        # Set From if we had to default it
         if "From" not in msg:
             msg["From"] = from_email
 
-        # Strip Bcc header (but keep recipients in all_recipients)
         if "Bcc" in msg:
             del msg["Bcc"]
 
@@ -187,7 +169,6 @@ class SMTPClient:
         return SendResult(ok=True, message_id=str(msg["Message-ID"]))
 
     def send(self, msg: PyEmailMessage) -> "SendResult":
-        # Prepare outside the lock/server to avoid doing it twice on retry
         prepped_msg, from_email, recipients = self._prepare_message(msg)
 
         def _impl(server: smtplib.SMTP) -> SendResult:
@@ -199,7 +180,6 @@ class SMTPClient:
         """
         Send multiple messages in a single (or minimal) SMTP session.
         """
-        # Prepare all first so that validation errors are raised before we touch the server
         prepared: list[tuple[PyEmailMessage, str, list[str]]] = [
             self._prepare_message(msg) for msg in messages
         ]
@@ -221,7 +201,6 @@ class SMTPClient:
     def ping(self) -> None:
         """
         Minimal SMTP health check.
-        Raises SMTPError if anything fails.
         """
         def _impl(server: smtplib.SMTP) -> None:
             try:
@@ -238,7 +217,7 @@ class SMTPClient:
             self._reset_server()
 
     def __enter__(self) -> "SMTPClient":
-        # lazy connect;:
+        # lazy connect;
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
