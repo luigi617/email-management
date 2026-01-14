@@ -30,12 +30,13 @@ class EmailMultiSummarySchema(BaseModel):
 def llm_summarize_many_emails(
     messages: Sequence[EmailMessage],
     *,
+    provider: str,
     model_path: str,
 ) -> Tuple[Optional[str], Dict[str, Any]]:
     """
     Generate a concise email reply using the LLM pipeline.
     """
-    chain = get_model(model_path, EmailMultiSummarySchema)
+    chain = get_model(provider, model_path, EmailMultiSummarySchema)
 
     blocks: List[str] = []
     for msg in messages:

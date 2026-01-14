@@ -53,6 +53,7 @@ class EmailPrioritySchema(BaseModel):
 def llm_prioritize_emails(
     messages: Sequence[EmailMessage],
     *,
+    provider: str,
     model_path: str,
 ) -> Tuple[List[float], Dict[str, Any]]:
     """
@@ -75,7 +76,7 @@ def llm_prioritize_emails(
         email_blocks=email_blocks,
     )
 
-    chain = get_model(model_path, EmailPrioritySchema)
+    chain = get_model(provider, model_path, EmailPrioritySchema)
     result, llm_call_info = chain(prompt)
 
     # Prepare an output list aligned to messages order

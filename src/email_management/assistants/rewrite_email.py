@@ -32,12 +32,13 @@ def llm_rewrite_email(
     draft_text: str,
     style: str,
     *,
+    provider: str,
     model_path: str,
 ) -> Tuple[str, dict[str, Any]]:
     """
     Rewrite an email draft according to a requested style.
     """
-    chain = get_model(model_path, RewriteEmailSchema)
+    chain = get_model(provider, model_path, RewriteEmailSchema)
     result, llm_call_info = chain(
         REWRITE_EMAIL_PROMPT.format(
             style=style,

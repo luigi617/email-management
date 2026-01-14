@@ -14,7 +14,10 @@ dependencies = [
     "pydantic",
     "langchain",
     "langchain-core",
-    "langchain-openai"
+    "langchain-openai",
+    "langchain-google-genai",
+    "langchain-xai",
+    "langchain-groq",
 ]
 
 # 👇 IMPORTANT PART

@@ -279,9 +279,9 @@ def test_with_attachments_hint_adds_body_hints():
     easy.with_attachments_hint()
     built = easy.query.build()
 
-    assert "Content-Disposition: attachment" in built
-    assert "filename=" in built
-    assert "name=" in built
+    assert 'HEADER "Content-Disposition" "attachment"' in built
+    assert 'HEADER "Content-Type" "name="' in built
+    assert 'HEADER "Content-Type" "filename="' in built
     assert "OR" in built
 
 

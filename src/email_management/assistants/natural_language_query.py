@@ -709,6 +709,7 @@ class _NullManager:
 def llm_easy_imap_query_from_nl(
     user_request: str,
     *,
+    provider: str,
     model_path: str,
     manager: Optional[EmailManager],
     mailbox: str = "INBOX",
@@ -720,7 +721,7 @@ def llm_easy_imap_query_from_nl(
     Returns:
         (easy_query, llm_call_info)
     """
-    chain = get_model(model_path, IMAPLowLevelPlan)
+    chain = get_model(provider, model_path, IMAPLowLevelPlan)
     result, llm_call_info = chain(
         EMAIL_IMAP_QUERY_PROMPT.format(user_request=user_request)
     )

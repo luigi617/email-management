@@ -28,12 +28,13 @@ class EmailReplySuggestionsSchema(BaseModel):
 def llm_reply_suggestions_for_email(
     msg: EmailMessage,
     *,
+    provider: str,
     model_path: str,
 ) -> Tuple[List[str], dict[str, Any]]:
     """
     Generate 2-3 short reply suggestions using the LLM pipeline.
     """
-    chain = get_model(model_path, EmailReplySuggestionsSchema)
+    chain = get_model(provider, model_path, EmailReplySuggestionsSchema)
     email_context = build_email_context(msg)
     result, llm_call_info = chain(
         EMAIL_REPLY_SUGGESTION_PROMPT.format(

@@ -27,12 +27,13 @@ class ComposeEmailSchema(BaseModel):
 def llm_compose_email(
     instructions: str,
     *,
+    provider: str,
     model_path: str,
 ) -> Tuple[str, dict[str, Any]]:
     """
     Compose a new email from natural-language instructions.
     """
-    chain = get_model(model_path, ComposeEmailSchema)
+    chain = get_model(provider, model_path, ComposeEmailSchema)
     result, llm_call_info = chain(
         COMPOSE_EMAIL_PROMPT.format(instructions=instructions)
     )

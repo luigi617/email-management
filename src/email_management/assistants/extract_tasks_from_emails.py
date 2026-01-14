@@ -4,23 +4,39 @@ from pydantic import BaseModel, Field
 from email_management.llm import get_model
 from email_management.models import EmailMessage
 from email_management.utils import build_email_context
+from email_management.models import Task
 
 
 TASK_EXTRACTION_PROMPT = """
-You are an assistant that extracts actionable tasks from emails.
+You extract only important actionable tasks from one or more emails.
 
-Instructions:
-- Read the email context carefully.
-- Identify concrete action items (things that someone should do).
-- Include tasks even if they are only implied but reasonably clear.
-- Each task should be specific enough that someone can act on it.
-- If due dates or deadlines are mentioned, capture them.
-- If a responsible person is clear, capture them as the assignee.
-- If there are no tasks, return an empty list.
+Rules:
+- Be selective. Prefer missing minor tasks over adding noise.
+- Return at most 3 tasks per email.
+- Ignore emails without clearly actionable requests.
+- If no important tasks exist, return an empty list.
+- Do NOT invent tasks.
+
+Important tasks:
+- Explicit or implied requests for the recipient to act.
+- Deliverables, follow-ups, decisions, or deadlines.
+- Items with urgency or due dates.
+
+Exclude:
+- Promotions, marketing, newsletters.
+- FYI/announcements with no request.
+- Low-importance suggestions or optional ideas.
+- Automated notifications with no follow-up needed.
+
+Task fields:
+- Capture due dates and assignees if stated or clearly implied.
+- Set priority only if urgency is explicit.
+- Status is usually "todo".
 
 Email context:
 {email_context}
 """
+
 
 class MetadataItem(BaseModel):
     key: str = Field(description="Metadata key.")
@@ -86,8 +102,9 @@ class TaskExtractionSchema(BaseModel):
 def llm_extract_tasks_from_emails(
     messages: Sequence[EmailMessage],
     *,
+    provider: str,
     model_path: str,
-) -> Tuple[List[Dict[str, Any]], dict[str, Any]]:
+) -> Tuple[List[Task], dict[str, Any]]:
     """
     Extract tasks from one or more emails using a generic task structure.
     """
@@ -99,11 +116,28 @@ def llm_extract_tasks_from_emails(
 
     email_context = "\n".join(parts)
 
-    chain = get_model(model_path, TaskExtractionSchema)
+    chain = get_model(provider, model_path, TaskExtractionSchema)
     result, llm_call_info = chain(
         TASK_EXTRACTION_PROMPT.format(email_context=email_context)
     )
 
     # Return as list of plain dicts so callers don't depend on Pydantic models.
-    tasks_dicts: List[Dict[str, Any]] = [t.model_dump() for t in result.tasks]
-    return tasks_dicts, llm_call_info
+    tasks: List[Task] = []
+    for t in result.tasks:
+        tasks.append(
+            Task(
+                id=t.id,
+                title=t.title,
+                description=t.description,
+                due_date=t.due_date,
+                priority=t.priority,
+                status=t.status,
+                assignee=t.assignee,
+                tags=t.tags,
+                source_system=t.source_system,
+                source_id=t.source_id,
+                source_link=t.source_link,
+                metadata={item.key: item.value for item in t.metadata}
+            )
+        )
+    return tasks, llm_call_info

@@ -32,6 +32,7 @@ def llm_translate_email(
     *,
     target_language: str,
     source_language: Optional[str],
+    provider: str,
     model_path: str,
 ) -> Tuple[str, dict[str, Any]]:
     """
@@ -42,7 +43,7 @@ def llm_translate_email(
     else:
         source_line = "Source language: auto-detect"
 
-    chain = get_model(model_path, TranslateEmailSchema)
+    chain = get_model(provider, model_path, TranslateEmailSchema)
     result, llm_call_info = chain(
         TRANSLATE_EMAIL_PROMPT.format(
             target_language=target_language,

@@ -11,6 +11,9 @@ from openai import APIConnectionError, APITimeoutError, RateLimitError
 from langchain_core.exceptions import OutputParserException
 
 from email_management.llm.gpt import get_openai
+from email_management.llm.gemini import get_gemini
+from email_management.llm.groq import get_groq
+from email_management.llm.xai import get_xai
 
 from email_management.llm.costs import TokenUsageCallback, compute_cost_usd
 
@@ -18,16 +21,25 @@ TModel = TypeVar("TModel", bound=BaseModel)
 
 @lru_cache(maxsize=None)
 def _get_base_llm(
+    provider: str,
     model_name: str,
     pydantic_model: Type[TModel],
     temperature: float = 0.1,
     timeout: int = 120,
 ):
-    if "gpt" in model_name:
+    if provider == "openai":
         return get_openai(model_name, pydantic_model, temperature, timeout)
+    if provider == "gemini":
+        return get_gemini(model_name, pydantic_model, temperature, timeout)
+    if provider == "xai":
+        return get_xai(model_name, pydantic_model, temperature, timeout)
+    if provider == "groq":
+        return get_groq(model_name, pydantic_model, temperature, timeout)
+    
     raise RuntimeError("LLM not available for the given model_name")
 
 def get_model(
+    provider: str,
     model_name: str,
     pydantic_model: Type[TModel],
     temperature: float = 0.1,
@@ -38,7 +50,7 @@ def get_model(
     all_fail_raise: bool = True,
 ) -> Callable[[str], Tuple[TModel, Dict[str, Any]]]:
 
-    chain = _get_base_llm(model_name, pydantic_model, temperature, timeout)
+    chain = _get_base_llm(provider, model_name, pydantic_model, temperature, timeout)
 
     TRANSIENT_EXC = (APIConnectionError, APITimeoutError, RateLimitError)
     PARSE_EXC = (JSONDecodeError, OutputParserException, ValidationError)
@@ -76,6 +88,7 @@ def get_model(
                 ]
 
                 cost_usd = compute_cost_usd(
+                    provider,
                     model_name,
                     prompt_tokens=usage_cb.prompt_tokens,
                     completion_tokens=usage_cb.completion_tokens,
