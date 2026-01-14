@@ -1,8 +1,6 @@
 from typing import Type
 from pydantic import BaseModel
-
-from langchain_openai import ChatOpenAI
-from langchain_xai import ChatXAI  # pip install langchain-xai
+from langchain_xai import ChatXAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 

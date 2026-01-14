@@ -1,7 +1,5 @@
-import os
 from typing import Type
 from pydantic import BaseModel
-
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 

@@ -31,12 +31,12 @@ class EmailMessage:
             f"subject={self.subject!r}, "
             f"from={self.from_email!r}, "
             f"to={list(self.to)!r}, "
+            f"date={self.date!r})"
             f"attachments={len(self.attachments)})"
         )
     
 @dataclass(frozen=True)
 class EmailOverview:
-    
     ref: EmailRef
     subject: Optional[str]
     from_email: Optional[str]
@@ -45,3 +45,12 @@ class EmailOverview:
     preview: str
     headers: Dict[str, str]
     date: Optional[datetime] = None
+
+    def __repr__(self) -> str:
+        return (
+            f"EmailOverview("
+            f"subject={self.subject!r}, "
+            f"from={self.from_email!r}, "
+            f"to={list(self.to)!r}, "
+            f"date={self.date!r})"
+        )

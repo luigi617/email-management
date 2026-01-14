@@ -4,7 +4,6 @@ from typing import Any, Callable, Dict, List, Tuple, Type, Optional, TypeVar
 from time import sleep
 from random import random
 from json import JSONDecodeError
-
 from pydantic import BaseModel, ValidationError
 from openai import APIConnectionError, APITimeoutError, RateLimitError
 
@@ -14,7 +13,6 @@ from email_management.llm.gpt import get_openai
 from email_management.llm.gemini import get_gemini
 from email_management.llm.groq import get_groq
 from email_management.llm.xai import get_xai
-
 from email_management.llm.costs import TokenUsageCallback, compute_cost_usd
 
 TModel = TypeVar("TModel", bound=BaseModel)

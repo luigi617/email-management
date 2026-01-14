@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Sequence, Set, Dict
 from email.message import EmailMessage as PyEmailMessage
 from email.policy import default as default_policy
+from email.utils import parsedate_to_datetime
 
 from email_management.auth import AuthContext
 from email_management import IMAPConfig
@@ -292,6 +293,12 @@ class IMAPClient:
                     msg = BytesParser(policy=default_policy).parsebytes(header_bytes)
                     subject = msg.get("Subject")
                     from_email = msg.get("From")
+                    date_raw = msg.get("Date")
+                    if date_raw:
+                        try:
+                            date = parsedate_to_datetime(date_raw)
+                        except (TypeError, ValueError, OverflowError):
+                            date = None
                     to_raw = msg.get_all("To", [])
                     # msg.get_all returns list; join and split by comma is simplistic but ok
                     to_combined = ", ".join(to_raw)
@@ -310,6 +317,7 @@ class IMAPClient:
                         from_email=from_email,
                         to=to_addrs,
                         flags=flags,
+                        date=date,
                         preview=preview_text,
                         headers=headers,
                     )
