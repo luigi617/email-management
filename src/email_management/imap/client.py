@@ -86,9 +86,9 @@ class IMAPClient:
         Cache the selected mailbox to avoid repeated SELECT/EXAMINE.
         - readonly=True -> EXAMINE
         - readonly=False -> SELECT (read-write)
-        Reuses a read-write selection for readonly operations, but not vice versa.
-        Must be called with self._lock held.
         """
+        # Must be called with self._lock held.
+
         if self._selected_mailbox == mailbox:
             if readonly or self._selected_readonly is False:
                 return
@@ -136,14 +136,12 @@ class IMAPClient:
                     # Connection died; reset and retry with a fresh one.
                     last_exc = e
                     self._reset_conn()
-                    # loop will retry
                 except imaplib.IMAP4.error as e:
                     # Non-abort protocol error; don't retry
                     raise IMAPError(f"IMAP operation failed: {e}") from e
             if attempt < attempts - 1 and self.backoff_seconds > 0:
                 time.sleep(self.backoff_seconds)
 
-        # If we get here, all attempts failed due to abort
         raise IMAPError(f"IMAP connection repeatedly aborted: {last_exc}") from last_exc
 
     def search(self, *, mailbox: str, query: IMAPQuery, limit: int = 50) -> List["EmailRef"]:
@@ -332,15 +330,12 @@ class IMAPClient:
         Append a message to `mailbox` and return an EmailRef.
         """
         def _impl(conn: imaplib.IMAP4) -> EmailRef:
-            # Select mailbox to ensure it exists and we get a current UID set
             self._ensure_selected(conn, mailbox, readonly=False)
 
-            # Build flags string like "(\\Draft \\Seen)" or None
             flags_arg = None
             if flags:
                 flags_arg = "(" + " ".join(sorted(flags)) + ")"
 
-            # imaplib.Time2Internaldate for the current time
             date_time = imaplib.Time2Internaldate(time.time())
             raw_bytes = msg.as_bytes()
 
@@ -348,7 +343,6 @@ class IMAPClient:
             if typ != "OK":
                 raise IMAPError(f"APPEND to {mailbox!r} failed: {data}")
 
-            # Try to parse UIDPLUS response: e.g. [b'[APPENDUID 38505 3955]']
             uid: Optional[int] = None
             if data and data[0]:
                 if isinstance(data[0], bytes):
@@ -359,7 +353,6 @@ class IMAPClient:
                 if m:
                     uid = int(m.group(1))
 
-            # Fallback: if UIDPLUS not available, search ALL and take max UID
             if uid is None:
                 typ_search, data_search = conn.uid("SEARCH", None, "ALL")
                 if typ_search == "OK" and data_search and data_search[0]:
@@ -372,7 +365,6 @@ class IMAPClient:
                         uid = max(all_uids)
 
             if uid is None:
-                # APPEND succeeded but we cannot produce a stable EmailRef
                 raise IMAPError("APPEND succeeded but could not determine UID")
 
             return EmailRef(uid=uid, mailbox=mailbox)
@@ -415,7 +407,7 @@ class IMAPClient:
 
     def list_mailboxes(self) -> List[str]:
         """
-        Return a list of mailbox (folder) names.
+        Return a list of mailbox names.
         """
         def _impl(conn: imaplib.IMAP4) -> List[str]:
             typ, data = conn.list()
@@ -566,7 +558,6 @@ class IMAPClient:
     def ping(self) -> None:
         """
         Minimal IMAP health check.
-        Raises IMAPError if NOOP fails.
         """
         def _impl(conn: imaplib.IMAP4) -> None:
             typ, data = conn.noop()

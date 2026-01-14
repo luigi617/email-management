@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from datetime import datetime
 import email
 from email import policy
 from email.header import decode_header, make_header
 from email.message import Message as PyMessage
-from email.utils import getaddresses
+from email.utils import getaddresses, parsedate_to_datetime
 from typing import Optional, Tuple, List, Dict
 
 from email_management.models import EmailMessage, Attachment
@@ -18,7 +19,6 @@ def _decode(value: Optional[str]) -> str:
     try:
         return str(make_header(decode_header(value)))
     except Exception:
-        # Fallback: return raw value if decoding fails
         return value
 
 
@@ -98,6 +98,14 @@ def parse_rfc822(ref: EmailRef, raw: bytes, *, include_attachments: bool = False
         # Capture all headers so future features can use them
         headers: Dict[str, str] = {k: _decode(str(v)) for k, v in pymsg.items()}
 
+        raw_date = pymsg.get("Date")
+        msg_date: Optional[datetime] = None
+        if raw_date:
+            try:
+                msg_date = parsedate_to_datetime(raw_date)
+            except Exception:
+                msg_date = None  # fall back to None if header is weird/invalid
+
         return EmailMessage(
             ref=ref,
             subject=_decode(pymsg.get("Subject")),
@@ -108,6 +116,7 @@ def parse_rfc822(ref: EmailRef, raw: bytes, *, include_attachments: bool = False
             text=text,
             html=html,
             attachments=atts,
+            date=msg_date,
             message_id=_decode(pymsg.get("Message-ID")),
             headers=headers,
         )

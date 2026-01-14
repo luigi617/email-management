@@ -482,6 +482,16 @@ class EmailManager:
     def imap_query(self, mailbox: str = "INBOX") -> EasyIMAPQuery:
         return EasyIMAPQuery(self, mailbox=mailbox)
 
+    def fetch_overview(
+        self,
+        *,
+        mailbox: str = "INBOX",
+        n: int = 50,
+        preview_bytes: int = 1024,
+    ) -> List[EmailMessage]:
+        q = self.imap_query(mailbox).limit(n)
+        return q.fetch_overview(preview_bytes=preview_bytes)
+    
     def fetch_latest(
         self,
         *,

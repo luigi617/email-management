@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional, Sequence, TYPE_CHECKING
 
-from email_management.models import EmailMessage
+from email_management.models import EmailMessage, EmailOverview
 from email_management.imap import IMAPQuery
 from email_management.types import EmailRef
 from email_management.utils import iso_days_ago
@@ -233,4 +233,8 @@ class EasyIMAPQuery:
     def fetch(self, *, include_attachments: bool = False) -> List[EmailMessage]:
         refs = self.search()
         return self._m.imap.fetch(refs, include_attachments=include_attachments)
+    
+    def fetch_overview(self, *, preview_bytes: int = 1024) -> List[EmailOverview]:
+        refs = self.search()
+        return self._m.imap.fetch_overview(refs, preview_bytes=preview_bytes)
 

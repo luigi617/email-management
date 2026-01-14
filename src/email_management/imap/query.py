@@ -13,7 +13,6 @@ def _imap_date(iso_yyyy_mm_dd: str) -> str:
 def _q(s: str) -> str:
     """
     Quote/escape a string for IMAP SEARCH.
-    IMAP uses double quotes for string literals; backslash can escape quotes.
     """
     s = s.replace("\\", "\\\\").replace('"', r"\"")
     return f'"{s}"'
@@ -168,9 +167,6 @@ class IMAPQuery:
 
     # --- exclude fields ---
     def _not(self, *tokens: str) -> IMAPQuery:
-        """
-        Negate a search key: NOT <tokens...>
-        """
         self.parts += ["NOT", *tokens]
         return self
     
