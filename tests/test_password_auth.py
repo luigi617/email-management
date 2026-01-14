@@ -3,10 +3,6 @@ import pytest
 from email_management.auth import PasswordAuth
 from email_management.errors import AuthError
 
-from dotenv import load_dotenv
-load_dotenv(override=True)
-
-
 class DummySMTPServer:
     def __init__(self, should_fail: bool = False):
         self.should_fail = should_fail
