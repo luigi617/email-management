@@ -1,12 +1,10 @@
 import html as _html
 from datetime import datetime, timezone, timedelta
-from email.message import EmailMessage as PyEmailMessage
 from email.utils import getaddresses, formataddr
 import re
-from typing import Optional, Sequence, Dict, Any, Set, Tuple, List
+from typing import Optional, Dict, List
 
 from email_management.models import EmailMessage
-from email_management.types import EmailRef
 
 
 def iso_days_ago(days: int) -> str:
@@ -204,5 +202,5 @@ def looks_binary(text: str) -> bool:
     """
     if not text:
         return False
-    control_chars = sum(ch < " " for ch in text)  # crude check
+    control_chars = sum(ch < " " for ch in text)
     return (control_chars / len(text)) > 0.3

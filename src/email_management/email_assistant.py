@@ -1,8 +1,7 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from email.message import EmailMessage as PyEmailMessage
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, TypedDict
-
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from email_management.assistants import (
     llm_classify_emails,
@@ -73,6 +72,9 @@ class EmailAssistant:
         provider: str,
         model_name: str,
     ) -> Tuple[List[str], Dict[str, Any]]:
+        """
+        Generate reply suggestions for an email.
+        """
         return llm_reply_suggestions_for_email(
             message,
             provider=provider,
@@ -88,6 +90,9 @@ class EmailAssistant:
         provider: str,
         model_name: str,
     ) -> Tuple[str, Dict[str, Any]]:
+        """
+        Generate a reply to an email.
+        """
         persona = self.profile.generate_prompt() if self.profile else ""
         enriched_context = f"{persona}\n\n{reply_context}".strip()
 
@@ -106,6 +111,9 @@ class EmailAssistant:
         provider: str,
         model_name: str,
     ) -> Tuple[str, Dict[str, Any]]:
+        """
+        Summarize a single email.
+        """
         return llm_summarize_single_email(
             message,
             provider=provider,
@@ -119,7 +127,9 @@ class EmailAssistant:
         provider: str,
         model_name: str,
     ) -> Tuple[str, Dict[str, Any]]:
-        
+        """
+        Summarize a list of emails.
+        """
         if not messages:
             return "No emails selected.", {}
 

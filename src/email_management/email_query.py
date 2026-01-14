@@ -1,7 +1,5 @@
 from __future__ import annotations
-
 from typing import List, Optional, Sequence, TYPE_CHECKING
-
 from email_management.models import EmailMessage, EmailOverview
 from email_management.imap import IMAPQuery
 from email_management.types import EmailRef

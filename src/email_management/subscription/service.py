@@ -1,8 +1,10 @@
-from email.message import EmailMessage as PyEmailMessage
-from typing import Dict, List, Optional
-
 import requests
+from typing import Dict, List, Optional
+from urllib.parse import urljoin
 
+from bs4 import BeautifulSoup
+
+from email.message import EmailMessage as PyEmailMessage
 from email_management.smtp import SMTPClient
 
 from email_management.models import (
@@ -11,12 +13,6 @@ from email_management.models import (
     UnsubscribeMethod,
 )
 from email_management.types import SendResult
-
-import requests
-from urllib.parse import urljoin
-
-from bs4 import BeautifulSoup  # make sure bs4 is in your deps
-
 
 def _http_unsubscribe_flow(url: str, timeout: int = 10) -> tuple[bool, str]:
     """
@@ -27,8 +23,6 @@ def _http_unsubscribe_flow(url: str, timeout: int = 10) -> tuple[bool, str]:
        - find and submit an 'unsubscribe' / 'opt out' form
        - otherwise, follow an 'unsubscribe' / 'opt out' link/button
     3. Fall back to treating the initial GET as the unsubscribe action.
-
-    Returns: (ok, detail)
     """
     session = requests.Session()
 
@@ -100,7 +94,7 @@ def _http_unsubscribe_flow(url: str, timeout: int = 10) -> tuple[bool, str]:
 
         soup2 = BeautifulSoup(r2.text, "html.parser")
         text = soup2.get_text(" ", strip=True)
-        text = " ".join(text.split())  # collapse extra whitespace
+        text = " ".join(text.split())
 
         ok = 200 <= r2.status_code < 300
         detail = (

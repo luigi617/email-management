@@ -1,8 +1,8 @@
+from __future__ import annotations
 from typing import List, Optional
 from email_management.imap import IMAPClient, IMAPQuery
 from email_management.models import UnsubscribeCandidate
 from email_management.subscription.parser import parse_list_unsubscribe
-
 
 class SubscriptionDetector:
     def __init__(self, imap: IMAPClient):

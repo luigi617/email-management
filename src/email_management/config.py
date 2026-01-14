@@ -1,10 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
-
 from email_management.auth import SMTPAuth, IMAPAuth
-
-
 
 @dataclass(frozen=True)
 class SMTPConfig:

@@ -4,7 +4,7 @@ from datetime import datetime
 import html as _html
 from dataclasses import dataclass
 from email.message import EmailMessage as PyEmailMessage
-from typing import Any, Dict, List, Optional, Sequence, Set
+from typing import Dict, List, Optional, Sequence, Set
 
 from .email_query import EasyIMAPQuery
 from email_management.models import UnsubscribeCandidate, EmailMessage, UnsubscribeActionResult, Attachment
@@ -515,7 +515,6 @@ class EmailManager:
         """
         Fetch messages belonging to the same thread as `root`.
         """
-        # If no Message-ID, we can't really find related messages reliably.
         if not root.message_id:
             return [root]
 
