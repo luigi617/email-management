@@ -1,13 +1,15 @@
 # Email-Manager
 
-Lightweight Python toolkit for working with email via IMAP (read/search) and SMTP (send), with optional AI assistant features (summaries, reply templates, and more).  
-Provides a simple high-level `EmailManager`, a flexible `EasyIMAPQuery` builder, and an `EmailAssistant` that wraps your LLM logic.
+Lightweight Python toolkit for working with email via IMAP (read/search) and SMTP (send), with optional LLM-enhanced workflows such as summarization, prioritization, task extraction, reply assistance, and MUCH MORE!
+
+Email-Manager provides a clean separation of concerns between:
+- transport (IMAP/SMTP)
+- query building
+- assistant logic
 
 ---
 
-## Installation
-
-Install from PyPI:
+## 📦 Installation
 
 ```
 pip install email-management
@@ -15,62 +17,40 @@ pip install email-management
 
 ---
 
-## Features
+## ✨ Features
 
-- Base functionality via SMTP and IMAP (send, search, fetch)
-- High-level `EmailManager` to coordinate IMAP/SMTP
-- `EasyIMAPQuery` builder for composing IMAP queries in a fluent way
-- Optional `EmailAssistant` for:
-  - generating concise reply drafts
-  - summarizing individual emails
-  - summarizing multiple emails into one digest
-- Designed to be minimal, testable, and framework-agnostic
+- IMAP + SMTP high-level convenience via `EmailManager`
+- Fluent IMAP builder via `EasyIMAPQuery`
+- Natural-language IMAP queries, email summarization, reply assistant, email analysis...
 
 ---
 
-## Core Concepts
+## 🧱 Core Components
 
-### `EmailManager`
+| Component | Responsibility |
+|---|---|
+| **EmailManager** | Coordinates SMTP & IMAP, handles sending, replying, forwarding, inbox triage |
+| **EasyIMAPQuery** | Fluent IMAP builder with optional NL search |
+| **EmailAssistant** | LLM entry point for summary, reply, task extraction, classification, etc. |
 
-`EmailManager` coordinates the IMAP and SMTP layers.  
-You create it once with the necessary clients/auth, then use it to send emails or navigate mailboxes.
-
----
-
-### `EasyIMAPQuery`
-
-`EasyIMAPQuery` is a query builder used to construct IMAP search expressions before executing them.  
-It abstracts away raw IMAP tokens, letting you express filters more naturally, and only hits the server when you call a `search`/`fetch` method on it (via the manager).
-
----
-
-### `EmailAssistant`
-
-`EmailAssistant` is a thin wrapper around the LLM helpers in `email_management.assistants`.  
-It gives you a clean entry point for AI-powered workflows such as:
-
-- generating a concise reply draft for an `EmailMessage`
-- summarizing a single email into a short description
-- aggregating multiple emails into a prioritized digest (highlighting important ones)
-
-You provide a `model_path` string that your LLM stack understands, and `EmailAssistant` calls into the underlying helpers accordingly.
+Detailed component documentation is provided in:
+- `docs/EmailAssistantProfile.md`
+- `docs/EmailManager.md`
+- `docs/EasyIMAPQuery.md`
 
 ---
 
-## Example Usage
-
-Initialize an `EmailManager` with your own IMAP/SMTP clients, and optionally an `EmailAssistant` for AI features:
+## 🔧 Quick Start Example
 
 ```
-from email_management.email_manager import EmailManager, EmailAssistant
 from email_management.smtp import SMTPClient
 from email_management.imap import IMAPClient
-from email_management.auth import PasswordAuth, OAuth2Auth
-from email_management.models import EmailMessage
+from email_management.auth import PasswordAuth
+from email_assistant import EmailAssistant, EmailAssistantProfile
+from email_manager import EmailManager
 
 # Password Authentication
-# Use when your provider allows direct username/password IMAP and SMTP login.
-auth = PasswordAuth(username="you@example.com", password="secret")
+auth = PasswordAuth(username="you@example.com", password="secret_app_password")
 
 # Or use OAuth2Auth (e.g. Gmail/Outlook with OAuth tokens).
 # def token_provider():
@@ -78,33 +58,114 @@ auth = PasswordAuth(username="you@example.com", password="secret")
 #     return get_access_token_somehow()
 # auth = OAuth2Auth(username="you@example.com", token_provider=token_provider)
 
-smtp = SMTPClient(host="smtp.example.com", port=587, auth=auth)
 imap = IMAPClient(host="imap.example.com", port=993, auth=auth)
+smtp = SMTPClient(host="smtp.example.com", port=587, auth=auth)
 
 mgr = EmailManager(imap=imap, smtp=smtp)
-assistant = EmailAssistant()
 
-# Example: summarize a single email (EmailMessage is your parsed message model)
-some_email: EmailMessage = ...
-summary, meta = assistant.summarize_email(
-    message=some_email,
-    model_path="your/model/path",
+profile = EmailAssistantProfile(
+    name="Alex",
+    role="Support Engineer",
+    company="ExampleCorp",
+    tone="friendly",
 )
 
-# Example: generate a reply suggestion
-reply_text, meta = assistant.generate_reply(
-    message=some_email,
-    model_path="your/model/path",
-)
+assistant = EmailAssistant(profile=profile)
 ```
-
-Now you can use:
-
-- `mgr` to send/browse email and build queries (via `EasyIMAPQuery`)
-- `assistant` to plug in your LLM backend for summaries and reply drafts
 
 ---
 
-## License
+## 📨 Searching & Fetching Email
+
+IMAP operations can be performed directly:
+
+```
+msgs = mgr.fetch_latest(unseen_only=True, n=20)
+```
+
+Or via fluent IMAP builder:
+
+```
+q = mgr.imap_query().from_any("alerts@example.com").recent_unread(3)
+msgs = q.fetch()
+```
+
+Natural-language searches are also supported:
+
+```
+query, info = assistant.search_emails(
+    "find unread security alerts from Google last week",
+    provider="openai",
+    model_name="gpt-4.1",
+    manager=mgr,
+)
+msgs = query.fetch()
+```
+
+---
+
+## 🤖 Summarization, Classification & Replies
+
+```
+summary, meta = assistant.summarize_email(
+    message=msgs[0],
+    provider="openai",
+    model_name="gpt-4.1",
+)
+
+reply_text, meta = assistant.generate_reply(
+    reply_context="Confirm resolution and next steps",
+    message=msgs[0],
+    provider="openai",
+    model_name="gpt-4.1",
+)
+```
+
+Utility tasks include:
+- `prioritize_emails()`
+- `classify_emails()`
+- `generate_follow_up()`
+- `extract_tasks()`
+- `summarize_thread()`
+- `detect_phishing()`
+- `evaluate_sender_trust()`
+
+---
+
+## 🧰 EmailManager Overview
+
+Supports:
+- Sending & composing
+- Drafts
+- Reply / Reply-all
+- Forwarding
+- Folder operations (move, copy, delete)
+- Flag operations (seen, answered, flagged, etc.)
+- Thread fetching
+- Unsubscribe helpers
+- Health checks
+
+Example:
+
+```
+mgr.reply(
+    original=msgs[0],
+    body="Thanks! We'll follow up shortly.",
+)
+```
+
+---
+
+## 🗂 Documentation Structure
+
+This README covers overall usage. Focused guides are in:
+
+- `docs/EmailAssistantProfile.md`
+- `docs/EmailManager.md`
+- `docs/EasyIMAPQuery.md`
+
+---
+
+## 🪪 License
 
 MIT
