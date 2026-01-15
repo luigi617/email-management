@@ -17,7 +17,7 @@ from email_management.smtp import SMTPClient
 from email_management.imap import IMAPClient
 from email_management.auth import PasswordAuth
 
-from email_manager import EmailManager
+from email_management import EmailManager
 
 auth = PasswordAuth(username="you@example.com", password="secret")
 

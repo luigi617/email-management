@@ -46,8 +46,7 @@ Detailed component documentation is provided in:
 from email_management.smtp import SMTPClient
 from email_management.imap import IMAPClient
 from email_management.auth import PasswordAuth
-from email_assistant import EmailAssistant, EmailAssistantProfile
-from email_manager import EmailManager
+from email_management import EmailManager, EmailAssistant, EmailAssistantProfile
 
 # Password Authentication
 auth = PasswordAuth(username="you@example.com", password="secret_app_password")
