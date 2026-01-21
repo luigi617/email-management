@@ -29,14 +29,12 @@ def ensure_reply_subject(subj: Optional[str]) -> str:
         return subj
     return f"Re: {subj}"
 
-
 def parse_addrs(*values: Optional[str]) -> List[tuple[str, str]]:
     out: List[tuple[str, str]] = []
     for v in values:
         if v:
             out.extend(getaddresses([v]))
     return out
-
 
 def dedup_addrs(pairs: List[tuple[str, str]]) -> List[str]:
     seen: set[str] = set()
@@ -49,13 +47,11 @@ def dedup_addrs(pairs: List[tuple[str, str]]) -> List[str]:
         result.append(formataddr((name, addr)) if name else addr)
     return result
 
-
 def remove_addr(pairs: List[tuple[str, str]], remove: Optional[str]) -> List[tuple[str, str]]:
     if not remove:
         return pairs
     rm_norm = remove.strip().lower()
     return [(n, a) for (n, a) in pairs if a.strip().lower() != rm_norm]
-
 
 def get_header(headers: Dict[str, str], key: str) -> Optional[str]:
     """Case-insensitive header lookup from EmailMessage.headers."""
@@ -65,15 +61,12 @@ def get_header(headers: Dict[str, str], key: str) -> Optional[str]:
             return v
     return None
 
-
 def build_references(existing_refs: Optional[str], orig_mid: str) -> str:
     if not existing_refs:
         return orig_mid
     if orig_mid in existing_refs:
         return existing_refs
     return f"{existing_refs} {orig_mid}"
-
-
 
 def build_email_context(msg: EmailMessage) -> str:
     """
@@ -145,7 +138,6 @@ def quote_original_html(original: EmailMessage) -> str:
 
     return f"<p>{header_html}</p>\n{body_html}"
 
-
 def parse_list_mailbox_name(raw: bytes | str) -> str | None:
         """
         Parse a single IMAP LIST response line and extract the mailbox name.
@@ -179,7 +171,6 @@ def parse_list_mailbox_name(raw: bytes | str) -> str | None:
 
         return name or None
 
-
 def safe_decode(data: bytes) -> Optional[str]:
     """
     Try UTF-8 decode, fallback to latin-1.
@@ -204,3 +195,45 @@ def looks_binary(text: str) -> bool:
         return False
     control_chars = sum(ch < " " for ch in text)
     return (control_chars / len(text)) > 0.3
+
+from datetime import datetime, timezone, timedelta
+from email.utils import parsedate_to_datetime
+
+def best_effort_date(date_header: str | None,
+                      internaldate_raw: str | None) -> datetime | None:
+    """
+    Pick the best possible date for an email, trying:
+    1. Header Date
+    2. IMAP INTERNALDATE
+    """
+
+    def _parse_one(raw: str | None) -> datetime | None:
+        if not raw:
+            return None
+        try:
+            dt = parsedate_to_datetime(raw)
+            if dt is None:
+                return None
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            else:
+                dt = dt.astimezone(timezone.utc)
+            return dt
+        except (TypeError, ValueError, OverflowError):
+            return None
+
+    header_dt = _parse_one(date_header)
+    internal_dt = _parse_one(internaldate_raw)
+
+    # Prefer header date if it looks sane
+    if header_dt is not None:
+        earliest = datetime(1970, 1, 1, tzinfo=timezone.utc)
+        latest = datetime.now(timezone.utc) + timedelta(days=1)
+        if earliest <= header_dt <= latest:
+            return header_dt
+
+    if internal_dt is not None:
+        return internal_dt
+
+    return None
+

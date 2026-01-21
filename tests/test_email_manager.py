@@ -109,7 +109,7 @@ def get_text_and_html_from_pymsg(msg: PyEmailMessage) -> tuple[str | None, str |
 # ---------------------------------------------------------------------------
 
 def test_compose_text_html_attachments(manager: EmailManager):
-    att = Attachment(filename="test.txt", content_type="text/plain", data=b"hello")
+    att = Attachment(id=1, filename="test.txt", content_type="text/plain", data=b"hello", data_size=len(b"hello"))
 
     msg = manager.compose(
         subject="Subject",
@@ -197,8 +197,8 @@ def test_save_draft_appends_to_drafts_with_flag(manager: EmailManager, fake_imap
 
 def test_fetch_message_by_ref_and_multi_refs(manager: EmailManager, fake_imap: FakeIMAPClient):
     # seed mailbox with two messages
-    m1 = make_email_message(uid=1, text="m1", attachments=[Attachment("a.txt", "text/plain", b"a")])
-    m2 = make_email_message(uid=2, text="m2", attachments=[Attachment("b.txt", "text/plain", b"b")])
+    m1 = make_email_message(uid=1, text="m1", attachments=[Attachment(id=1, filename="a.txt", content_type="text/plain", data=b"a", data_size=len(b"a"))])
+    m2 = make_email_message(uid=2, text="m2", attachments=[Attachment(id=2, filename="b.txt", content_type="text/plain", data=b"b", data_size=len(b"b"))])
     ref1 = fake_imap.add_parsed_message("INBOX", m1)
     ref2 = fake_imap.add_parsed_message("INBOX", m2)
 
@@ -312,7 +312,7 @@ def test_reply_all_builds_to_and_cc(manager: EmailManager, fake_smtp: FakeSMTPCl
 
 
 def test_forward_with_auto_html_and_attachments(manager: EmailManager, fake_smtp: FakeSMTPClient):
-    att = Attachment("file.txt", "text/plain", b"123")
+    att = Attachment(id=1, filename="file.txt", content_type="text/plain", data=b"123", data_size=len(b"123"))
     original = make_email_message(
         subject="Orig subject",
         from_email="alice@example.com",

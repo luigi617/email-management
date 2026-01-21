@@ -7,7 +7,11 @@ from email.message import EmailMessage as PyEmailMessage
 from typing import Dict, List, Optional, Sequence, Set
 
 from .email_query import EasyIMAPQuery
-from email_management.models import UnsubscribeCandidate, EmailMessage, UnsubscribeActionResult, Attachment
+from email_management.models import (UnsubscribeCandidate,
+                                     EmailMessage,
+                                     EmailOverview,
+                                     UnsubscribeActionResult,
+                                     Attachment)
 from email_management.subscription import SubscriptionService, SubscriptionDetector
 from email_management.imap import IMAPClient
 from email_management.smtp import SMTPClient
@@ -488,7 +492,7 @@ class EmailManager:
         mailbox: str = "INBOX",
         n: int = 50,
         preview_bytes: int = 1024,
-    ) -> List[EmailMessage]:
+    ) -> List[EmailOverview]:
         q = self.imap_query(mailbox).limit(n)
         return q.fetch_overview(preview_bytes=preview_bytes)
     

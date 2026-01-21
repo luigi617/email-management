@@ -7,6 +7,12 @@ class EmailRef:
     uid: int
     mailbox: str = "INBOX"
 
+    def to_dict(self) -> dict:
+        return {
+            "uid": self.uid,
+            "mailbox": self.mailbox,
+        }
+
 @dataclass(frozen=True)
 class SendResult:
     ok: bool

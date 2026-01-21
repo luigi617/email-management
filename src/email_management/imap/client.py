@@ -1,5 +1,4 @@
 from __future__ import annotations
-from email.parser import BytesParser
 import imaplib
 import time
 import re
@@ -8,7 +7,6 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Sequence, Set, Dict
 from email.message import EmailMessage as PyEmailMessage
 from email.policy import default as default_policy
-from email.utils import parsedate_to_datetime
 
 from email_management.auth import AuthContext
 from email_management import IMAPConfig
@@ -18,9 +16,13 @@ from email_management.types import EmailRef
 from email_management.utils import parse_list_mailbox_name
 
 from email_management.imap.query import IMAPQuery
-from email_management.imap.parser import parse_rfc822
+from email_management.imap.parser import parse_rfc822, parse_overview
 
-
+UID_RE = re.compile(r"UID\s+(\d+)", re.IGNORECASE)
+INTERNALDATE_RE = re.compile(r'INTERNALDATE\s+"([^"]+)"', re.IGNORECASE)
+FLAGS_RE = re.compile(r"FLAGS\s*\(([^)]*)\)", re.IGNORECASE)
+HEADER_TOKEN_RE = re.compile(r"BODY\[HEADER\.FIELDS", re.IGNORECASE)
+TEXT_TOKEN_RE = re.compile(r"BODY\[TEXT]", re.IGNORECASE)
 
 @dataclass
 class IMAPClient:
@@ -165,46 +167,97 @@ class IMAPClient:
 
         mailbox = self._assert_same_mailbox(refs, "fetch")
 
-        uid_to_ref: Dict[int, EmailRef] = {r.uid: r for r in refs}
+        required_uids = {r.uid for r in refs}
 
         def _impl(conn: imaplib.IMAP4) -> List[EmailMessage]:
             self._ensure_selected(conn, mailbox, readonly=True)
 
             uid_str = ",".join(str(r.uid) for r in refs)
-            typ, data = conn.uid("FETCH", uid_str, "(RFC822)")
+            typ, data = conn.uid("FETCH", uid_str, "(UID RFC822 INTERNALDATE)")
             if typ != "OK":
                 raise IMAPError(f"FETCH failed: {data}")
+            if not data:
+                return []
             
+            partial: Dict[int, Dict[str, object]] = {}
+            current_uid: Optional[int] = None
+
+            i = 0
+            n = len(data)
+            while i < n:
+                item = data[i]
+
+                # Closing markers like b')' – usually end of a message block
+                if isinstance(item, (bytes, bytearray)):
+                    if item.strip() == b')':
+                        current_uid = None
+                    i += 1
+                    continue
+
+                if not isinstance(item, tuple) or not item:
+                    i += 1
+                    continue
+
+                meta_raw = item[0]
+                if not isinstance(meta_raw, (bytes, bytearray)):
+                    i += 1
+                    continue
+
+                meta_str = meta_raw.decode(errors="ignore")
+
+                # Get payload; may be in item[1], or (on some servers) as next list element
+                raw = item[1] if len(item) > 1 and isinstance(item[1], (bytes, bytearray)) else None
+                used_next = False
+                if raw is None and i + 1 < n and isinstance(data[i + 1], (bytes, bytearray)):
+                    raw = data[i + 1]
+                    used_next = True
+
+                # New UID?
+                m_uid = UID_RE.search(meta_str)
+                if m_uid:
+                    uid = int(m_uid.group(1))
+                    # Only track UIDs we actually asked for
+                    current_uid = uid if uid in required_uids else None
+
+                if current_uid is None:
+                    # Nothing to associate this chunk with
+                    i += 2 if used_next else 1
+                    continue
+
+                bucket = partial.setdefault(
+                    current_uid,
+                    {"raw": b"", "internaldate": None},
+                )
+
+                # INTERNALDATE (might appear on first tuple only)
+                m_internal = INTERNALDATE_RE.search(meta_str)
+                if m_internal:
+                    bucket["internaldate"] = m_internal.group(1)
+
+                # RFC822 payload (can be chunked; append)
+                if "RFC822" in meta_str.upper() and isinstance(raw, (bytes, bytearray)):
+                    prev = bucket.get("raw") or b""
+                    bucket["raw"] = prev + raw
+
+                i += 2 if used_next else 1
+
+
             out: List[EmailMessage] = []
-
-            # data is a list of response tuples; we care about tuples (meta, raw_bytes)
-            for item in data:
-                if not item or not isinstance(item, tuple) or len(item) < 2:
-                    continue
-                meta, raw = item[0], item[1]
-                if not isinstance(meta, (bytes, bytearray)):
-                    continue
-                meta_str = meta.decode(errors="ignore")
-
-                m = re.search(r"UID\s+(\d+)", meta_str)
-                if not m:
-                    continue
-                uid = int(m.group(1))
-                ref = uid_to_ref.get(uid)
-                if ref is None:
+            for r in refs:
+                info = partial.get(r.uid)
+                if not info:
                     continue
 
-                out.append(parse_rfc822(ref, raw, include_attachments=include_attachments))
+                raw_bytes = info.get("raw") or b""
+                internaldate_raw = info.get("internaldate")
 
-            # Preserve original order of refs as much as possible
-            out_by_uid = {msg.ref.uid: msg for msg in out} if out and hasattr(out[0], "ref") else None
-            if out_by_uid:
-                ordered: List[EmailMessage] = []
-                for r in refs:
-                    msg = out_by_uid.get(r.uid)
-                    if msg is not None:
-                        ordered.append(msg)
-                return ordered
+                msg = parse_rfc822(
+                    r,
+                    raw_bytes,
+                    include_attachments=include_attachments,
+                    internaldate_raw=internaldate_raw,
+                )
+                out.append(msg)
 
             return out
 
@@ -230,48 +283,84 @@ class IMAPClient:
             uid_str = ",".join(str(r.uid) for r in refs)
             # FLAGS + headers + partial text body
             attrs = (
-                f"(FLAGS "
-                "BODY.PEEK[HEADER.FIELDS (From To Subject Date Message-ID)] "
+                f"(UID FLAGS INTERNALDATE "
+                "BODY.PEEK[HEADER.FIELDS (From To Subject Date Message-ID Content-Type Content-Transfer-Encoding)] "
                 f"BODY.PEEK[TEXT]<0.{preview_bytes}>)"
             )
             typ, data = conn.uid("FETCH", uid_str, attrs)
             if typ != "OK":
                 raise IMAPError(f"FETCH overview failed: {data}")
-
+            if not data:
+                return []
             # Collect partial data per UID
             partial: Dict[int, Dict[str, object]] = {}
+            current_uid: Optional[int] = None
+            i = 0
+            n = len(data)
+            while i < n:
+                item = data[i]
 
-            for item in data:
-                if not item or not isinstance(item, tuple) or len(item) < 2:
+                # Closing marker like b')' – end of current message
+                if isinstance(item, (bytes, bytearray)):
+                    # defensive: reset current_uid on “)” or similar terminators
+                    if item.strip() == b')':
+                        current_uid = None
+                    i += 1
                     continue
-                meta_raw, payload = item[0], item[1]
+
+                if not isinstance(item, tuple) or not item:
+                    i += 1
+                    continue
+
+                meta_raw = item[0]
                 if not isinstance(meta_raw, (bytes, bytearray)):
+                    i += 1
                     continue
+
                 meta = meta_raw.decode(errors="ignore")
 
-                m_uid = re.search(r"UID\s+(\d+)", meta)
-                if not m_uid:
-                    continue
-                uid = int(m_uid.group(1))
-                bucket = partial.setdefault(uid, {"flags": set(), "headers": None, "preview": b""})
+                payload = item[1] if len(item) > 1 and isinstance(item[1], (bytes, bytearray)) else None
 
-                # FLAGS
-                m_flags = re.search(r"FLAGS\s*\(([^)]*)\)", meta)
+                m_uid = UID_RE.search(meta)
+                if m_uid:
+                    current_uid = int(m_uid.group(1))
+
+                if current_uid is None:
+                    i += 1
+                    continue
+
+                bucket = partial.setdefault(
+                    current_uid,
+                    {
+                        "flags": set(),
+                        "headers": None,
+                        "preview": b"",
+                        "internaldate": None,
+                    },
+                )
+
+                # FLAGS (only present on the first tuple for the message)
+                m_flags = FLAGS_RE.search(meta)
                 if m_flags:
                     flags_str = m_flags.group(1).strip()
                     if flags_str:
-                        flags = {f for f in flags_str.split() if f}
-                        bucket["flags"] = flags
+                        bucket["flags"] = {f for f in flags_str.split() if f}
 
-                # Headers
-                if "BODY[HEADER.FIELDS" in meta:
+                # INTERNALDATE
+                m_internal = INTERNALDATE_RE.search(meta)
+                if m_internal:
+                    bucket["internaldate"] = m_internal.group(1)
+
+                # Headers (might be in a tuple with no UID, as in your sample)
+                if HEADER_TOKEN_RE.search(meta) and isinstance(payload, (bytes, bytearray)):
                     bucket["headers"] = payload
 
-                # Preview
-                if "BODY[TEXT]<0." in meta:
-                    # This may be one or more chunks; append
+                # Preview (BODY[TEXT] or BODY.PEEK[TEXT] etc.)
+                if TEXT_TOKEN_RE.search(meta) and isinstance(payload, (bytes, bytearray)):
                     prev = bucket.get("preview") or b""
                     bucket["preview"] = prev + payload
+
+                i += 1
 
             # Build EmailOverview objects in the same order as refs
             overviews: List[EmailOverview] = []
@@ -283,43 +372,15 @@ class IMAPClient:
                 flags = set(info["flags"]) if isinstance(info["flags"], set) else set()
                 header_bytes = info["headers"]
                 preview_bytes_val = info["preview"] or b""
-
-                subject = None
-                from_email = None
-                to_addrs: List[str] = []
-                headers: Dict[str, str] = {}
-
-                if isinstance(header_bytes, (bytes, bytearray)):
-                    msg = BytesParser(policy=default_policy).parsebytes(header_bytes)
-                    subject = msg.get("Subject")
-                    from_email = msg.get("From")
-                    date_raw = msg.get("Date")
-                    if date_raw:
-                        try:
-                            date = parsedate_to_datetime(date_raw)
-                        except (TypeError, ValueError, OverflowError):
-                            date = None
-                    to_raw = msg.get_all("To", [])
-                    # msg.get_all returns list; join and split by comma is simplistic but ok
-                    to_combined = ", ".join(to_raw)
-                    if to_combined:
-                        to_addrs = [addr.strip() for addr in to_combined.split(",") if addr.strip()]
-                    # Optionally copy all headers into a dict
-                    for k, v in msg.items():
-                        headers[k] = str(v)
-
-                preview_text = preview_bytes_val.decode("utf-8", errors="replace")
+                internaldate_raw = info.get("internaldate")
 
                 overviews.append(
-                    EmailOverview(
-                        ref=r,
-                        subject=subject,
-                        from_email=from_email,
-                        to=to_addrs,
-                        flags=flags,
-                        date=date,
-                        preview=preview_text,
-                        headers=headers,
+                    parse_overview(
+                        r,
+                        flags,
+                        header_bytes,
+                        preview_bytes_val,
+                        internaldate_raw=internaldate_raw,
                     )
                 )
 
