@@ -6,26 +6,23 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <header>
-    <h1>Email Management</h1>
-    <div class="header-right">
-      <span id="mailbox-name">INBOX</span>
-      <button id="refresh-btn" type="button">Refresh</button>
-    </div>
-  </header>
+  <!-- header removed on purpose -->
 
   <main class="layout">
-    <!-- LEFT: mailbox info + filters + legend -->
+    <!-- LEFT: filters + mailbox + legend -->
     <aside class="sidebar">
+      <!-- 1) Filters -->
       <section class="card">
-        <h2>Mailbox</h2>
-        <div id="mailbox-info">
-          <p><strong>Current mailbox:</strong> <span id="folder-label">INBOX</span></p>
-          <p><strong>Total emails:</strong> <span id="total-count">0</span></p>
-          <p><strong>Current filter:</strong> <span id="current-filter">All senders</span></p>
-        </div>
+        <h2>Search</h2>
+        <label class="block-label">
+          <input type="text" id="search-input" placeholder="Search" />
+        </label>
+        <button id="search-btn" type="button" class="secondary">
+          Search
+        </button>
       </section>
 
+      <!-- 2) Mailboxes (info + list) -->
       <section class="card">
         <h2>Mailboxes</h2>
         <div id="mailbox-list" class="mailbox-list">
@@ -33,17 +30,7 @@
         </div>
       </section>
 
-      <section class="card">
-        <h2>Filters</h2>
-        <label class="block-label">
-          Search subject/body
-          <input type="text" id="search-input" placeholder="Type to search..." />
-        </label>
-        <button id="clear-filters-btn" type="button" class="secondary">
-          Clear filters
-        </button>
-      </section>
-
+      <!-- 3) Legend (of logged emails) -->
       <section class="card legend-box">
         <div class="legend-header">
           <h2>Legend</h2>
@@ -66,16 +53,6 @@
             <button id="next-page-btn" type="button" class="secondary">&gt;</button>
           </div>
         </div>
-        <div class="list-header-bottom">
-          <label>
-            Per page:
-            <select id="page-size-select">
-              <option value="10">10</option>
-              <option value="20" selected>20</option>
-              <option value="50">50</option>
-            </select>
-          </label>
-        </div>
       </section>
 
       <section class="card list-container">
@@ -91,13 +68,38 @@
     <!-- RIGHT: full email detail -->
     <section class="detail">
       <section class="card detail-card">
-        <h2>Details</h2>
+        <!-- No "Details" header to save vertical space -->
+
         <div id="detail-placeholder">
           <p class="placeholder-text">
             Select an email from the middle column to see its full content here.
           </p>
         </div>
+
         <div id="email-detail" class="email-detail hidden">
+          <!-- Action toolbar -->
+          <div class="detail-toolbar">
+            <button type="button" class="icon-btn" id="btn-archive" title="Archive">📥</button>
+            <button type="button" class="icon-btn" id="btn-delete" title="Delete">🗑️</button>
+            <span class="toolbar-separator"></span>
+            <button type="button" class="icon-btn" id="btn-reply" title="Reply">↩️</button>
+            <button type="button" class="icon-btn" id="btn-reply-all" title="Reply all">🔁</button>
+            <button type="button" class="icon-btn" id="btn-forward" title="Forward">➡️</button>
+            <span class="toolbar-spacer"></span>
+            <button type="button" class="icon-btn" id="btn-move" title="Move">📂</button>
+          </div>
+
+          <!-- Move panel (toggles on Move) -->
+          <div id="move-panel" class="move-panel hidden">
+            <label>
+              Move to:
+              <select id="move-mailbox-select"></select>
+            </label>
+            <button type="button" class="secondary small" id="move-confirm">Move</button>
+            <button type="button" class="secondary small" id="move-cancel">Cancel</button>
+          </div>
+
+          <!-- Single detail header (no duplicate) -->
           <div class="detail-header">
             <span class="detail-badge" id="detail-color-badge"></span>
             <div class="detail-meta">
@@ -109,15 +111,14 @@
             </div>
           </div>
           <hr />
-          <pre id="detail-body" class="detail-body"></pre>
+
+          <!-- HTML and plain text bodies -->
+          <div id="detail-body-html" class="detail-body html hidden"></div>
+          <pre id="detail-body-text" class="detail-body text hidden"></pre>
         </div>
       </section>
     </section>
   </main>
-
-  <footer>
-    <p>Powered by FastAPI + email_management</p>
-  </footer>
 
   <script src="/static/app.js"></script>
 </body>

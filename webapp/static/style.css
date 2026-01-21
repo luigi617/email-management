@@ -24,54 +24,15 @@ body {
   color: var(--text-main);
 }
 
-header {
-  background: #111827;
-  color: #f9fafb;
-  padding: 0.85rem 1.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-header h1 {
-  margin: 0;
-  font-size: 1.3rem;
-  font-weight: 600;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 0.9rem;
-}
-
-#mailbox-name {
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-header button {
-  border: none;
-  border-radius: 999px;
-  padding: 0.4rem 0.9rem;
-  cursor: pointer;
-  font-size: 0.9rem;
-  background: var(--accent);
-  color: #fff;
-}
-
-header button:hover {
-  background: #1d4ed8;
-}
+/* Layout */
 
 main.layout {
   max-width: 1400px;
   margin: 1rem auto 2rem;
   padding: 0 1rem;
   display: grid;
-  grid-template-columns: 260px minmax(0, 1.1fr) minmax(0, 1.4fr);
+  /* sidebar + smaller middle + wider detail */
+  grid-template-columns: 260px minmax(0, 0.9fr) minmax(0, 1.7fr);
   gap: 1rem;
 }
 
@@ -173,7 +134,7 @@ button.secondary:hover {
   background: #e5e7eb;
 }
 
-/* Mailbox list */
+/* Mailbox list + collapsible groups */
 
 .mailbox-list {
   max-height: 220px;
@@ -182,22 +143,56 @@ button.secondary:hover {
   font-size: 0.85rem;
 }
 
+.mailbox-group {
+  margin-bottom: 0.25rem;
+}
+
 .mailbox-account {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0.2rem 0.35rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
   font-weight: 600;
   font-size: 0.83rem;
-  margin-top: 0.3rem;
-  margin-bottom: 0.15rem;
   color: var(--text-muted);
 }
 
+.mailbox-account:hover {
+  background: #f3f4f6;
+}
+
+.mailbox-account-chev {
+  font-size: 0.7rem;
+  transition: transform 0.15s ease;
+}
+
+.mailbox-account.collapsed .mailbox-account-chev {
+  transform: rotate(-90deg);
+}
+
+.mailbox-group-items {
+  margin-top: 0.05rem;
+}
+
+.mailbox-group-items.collapsed {
+  display: none;
+}
+
+/* each mailbox on its own line */
 .mailbox-item {
   padding: 0.18rem 0.35rem;
-  border-radius: 999px;
+  border-radius: 8px;
   cursor: pointer;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.35rem;
-  margin: 0.05rem 0.05rem;
+  margin: 0.05rem 0;
+  width: 100%;
 }
 
 .mailbox-dot {
@@ -216,7 +211,7 @@ button.secondary:hover {
   color: #1d4ed8;
 }
 
-/* Legend (floating, scrollable box) */
+/* Legend */
 
 .legend-box {
   position: sticky;
@@ -298,22 +293,13 @@ button.secondary:hover {
   font-size: 0.85rem;
 }
 
-.list-header-bottom {
-  margin-top: 0.5rem;
-  font-size: 0.8rem;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.list-header-bottom select {
+.page-size-inline select {
   width: auto;
 }
 
-/* Scrollable email list box */
-
 .list-container {
   padding: 0.5rem 0.6rem;
-  height: calc(100vh - 190px);
+  height: calc(100vh - 150px);
   display: flex;
   flex-direction: column;
 }
@@ -361,10 +347,11 @@ button.secondary:hover {
   gap: 0.2rem;
 }
 
+/* sender and date row, sender can wrap */
 .email-row-top {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 0.5rem;
 }
 
@@ -372,6 +359,10 @@ button.secondary:hover {
   font-size: 0.85rem;
   font-weight: 600;
   color: #111827;
+  flex: 1;
+  min-width: 0;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .email-subject {
@@ -385,12 +376,16 @@ button.secondary:hover {
   white-space: nowrap;
 }
 
+/* preview fixed to 2 lines */
 .email-snippet {
   font-size: 0.8rem;
   color: var(--text-muted);
-  white-space: nowrap;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  min-height: calc(1.25em * 2);
 }
 
 /* Right detail column */
@@ -401,7 +396,7 @@ button.secondary:hover {
 }
 
 .detail-card {
-  height: calc(100vh - 118px);
+  height: calc(100vh - 90px);
   display: flex;
   flex-direction: column;
 }
@@ -416,6 +411,57 @@ button.secondary:hover {
   flex-direction: column;
   height: 100%;
 }
+
+/* Toolbar + move panel */
+
+.detail-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.icon-btn {
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.3rem 0.45rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background: #f3f4f6;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border-soft);
+  margin: 0 0.25rem;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.move-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  background: #f9fafb;
+  border-radius: 10px;
+  font-size: 0.8rem;
+}
+
+button.secondary.small {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+/* Detail header + bodies */
 
 .detail-header {
   display: flex;
@@ -451,17 +497,28 @@ button.secondary:hover {
   font-size: 0.76rem;
 }
 
+/* shared shell for both text and html body */
 .detail-body {
   margin-top: 0.6rem;
   padding: 0.6rem 0.7rem;
   background: #f9fafb;
   border-radius: 10px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
-    monospace;
-  font-size: 0.82rem;
+  font-size: 0.88rem;
   flex: 1;
   overflow: auto;
+}
+
+/* plain-text body */
+.detail-body.text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
   white-space: pre-wrap;
+}
+
+/* html body */
+.detail-body.html {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  white-space: normal;
 }
 
 /* Generic */
@@ -475,11 +532,4 @@ button.secondary:hover {
 
 .hidden {
   display: none !important;
-}
-
-footer {
-  text-align: center;
-  padding: 0.6rem;
-  font-size: 0.78rem;
-  color: var(--text-muted);
 }

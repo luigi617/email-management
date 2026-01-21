@@ -1,16 +1,15 @@
-// webapp/static/app.js
-
 const state = {
   emails: [],          // EmailOverview[]
   filteredEmails: [],
   selectedId: null,    // uid of selected email
   selectedOverview: null,
-  filterSenderKey: null,
+  filterSenderKey: null, // now acts as "account filter"
   searchText: "",
   page: 1,
   pageSize: 20,
-  colorMap: {},        // sender/domain -> color
+  colorMap: {},        // key -> color (now keyed by account)
   currentMailbox: "INBOX",
+  mailboxData: {},     // user_email -> [mailbox, ...]
 };
 
 const COLOR_PALETTE = [
@@ -25,47 +24,123 @@ const COLOR_PALETTE = [
 ];
 
 document.addEventListener("DOMContentLoaded", () => {
-  const refreshBtn = document.getElementById("refresh-btn");
-  const pageSizeSelect = document.getElementById("page-size-select");
   const prevPageBtn = document.getElementById("prev-page-btn");
   const nextPageBtn = document.getElementById("next-page-btn");
   const searchInput = document.getElementById("search-input");
-  const clearFiltersBtn = document.getElementById("clear-filters-btn");
+  const searchBtn = document.getElementById("search-btn");
 
-  if (refreshBtn) refreshBtn.addEventListener("click", () => fetchOverview());
   if (prevPageBtn) prevPageBtn.addEventListener("click", () => changePage(-1));
   if (nextPageBtn) nextPageBtn.addEventListener("click", () => changePage(1));
-  if (pageSizeSelect) {
-    pageSizeSelect.addEventListener("change", () => {
-      state.pageSize = Number(pageSizeSelect.value || 20);
-      state.page = 1;
-      applyFiltersAndRender();
-    });
-  }
-  if (searchInput) {
-    searchInput.addEventListener("input", () => {
+  if (searchBtn && searchInput) {
+    searchBtn.addEventListener("click", () => {
       state.searchText = searchInput.value.trim().toLowerCase();
       state.page = 1;
       applyFiltersAndRender();
     });
-  }
-  if (clearFiltersBtn) {
-    clearFiltersBtn.addEventListener("click", () => {
-      state.filterSenderKey = null;
-      state.searchText = "";
-      state.page = 1;
-      const searchInput = document.getElementById("search-input");
-      if (searchInput) searchInput.value = "";
-      setCurrentFilterLabel();
-      applyFiltersAndRender();
-      highlightLegendSelection();
+
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        state.searchText = searchInput.value.trim().toLowerCase();
+        state.page = 1;
+        applyFiltersAndRender();
+      }
     });
   }
 
   // Initial load
   fetchMailboxes();
   fetchOverview();
+  initDetailActions();
 });
+
+/* ------------------ Detail toolbar / move panel ------------------ */
+
+function initDetailActions() {
+  const moveBtn = document.getElementById("btn-move");
+  const movePanel = document.getElementById("move-panel");
+  const moveCancel = document.getElementById("move-cancel");
+  const moveConfirm = document.getElementById("move-confirm");
+
+  if (moveBtn && movePanel) {
+    moveBtn.addEventListener("click", () => {
+      if (!state.selectedOverview) return;
+      populateMoveMailboxSelect();
+      movePanel.classList.toggle("hidden");
+    });
+  }
+
+  if (moveCancel && movePanel) {
+    moveCancel.addEventListener("click", () => {
+      movePanel.classList.add("hidden");
+    });
+  }
+
+  if (moveConfirm && movePanel) {
+    moveConfirm.addEventListener("click", () => {
+      const select = document.getElementById("move-mailbox-select");
+      if (!select || !state.selectedOverview) return;
+      const targetMailbox = select.value;
+
+      // TODO: implement backend call to move the email
+      console.log("Move email to mailbox:", targetMailbox, state.selectedOverview);
+
+      movePanel.classList.add("hidden");
+    });
+  }
+
+  // Optional: stub handlers for archive/delete/reply...
+  const archiveBtn = document.getElementById("btn-archive");
+  const deleteBtn = document.getElementById("btn-delete");
+  const replyBtn = document.getElementById("btn-reply");
+  const replyAllBtn = document.getElementById("btn-reply-all");
+  const forwardBtn = document.getElementById("btn-forward");
+
+  if (archiveBtn) archiveBtn.addEventListener("click", () => {
+    if (!state.selectedOverview) return;
+    console.log("Archive", state.selectedOverview);
+  });
+
+  if (deleteBtn) deleteBtn.addEventListener("click", () => {
+    if (!state.selectedOverview) return;
+    console.log("Delete", state.selectedOverview);
+  });
+
+  if (replyBtn) replyBtn.addEventListener("click", () => {
+    if (!state.selectedOverview) return;
+    console.log("Reply", state.selectedOverview);
+  });
+
+  if (replyAllBtn) replyAllBtn.addEventListener("click", () => {
+    if (!state.selectedOverview) return;
+    console.log("Reply all", state.selectedOverview);
+  });
+
+  if (forwardBtn) forwardBtn.addEventListener("click", () => {
+    if (!state.selectedOverview) return;
+    console.log("Forward", state.selectedOverview);
+  });
+}
+
+function populateMoveMailboxSelect() {
+  const select = document.getElementById("move-mailbox-select");
+  if (!select || !state.selectedOverview) return;
+
+  const email = state.selectedOverview;
+  const accountKey = findAccountForEmail(email);
+  const mailboxes = state.mailboxData[accountKey] || [];
+
+  select.innerHTML = "";
+
+  for (const mb of mailboxes) {
+    const opt = document.createElement("option");
+    opt.value = mb;
+    opt.textContent = mb;
+    if (mb === state.currentMailbox) {
+      opt.selected = true;
+    }
+    select.appendChild(opt);
+  }
+}
 
 /* ------------------ API calls ------------------ */
 
@@ -73,7 +148,9 @@ async function fetchMailboxes() {
   try {
     const res = await fetch("/api/emails/mailbox");
     if (!res.ok) throw new Error("Failed to fetch mailboxes");
-    const data = await res.json(); // { accountName: [mailbox1, mailbox2], ... }
+    const data = await res.json(); // { user_email: [mailbox1, mailbox2], ... }
+
+    state.mailboxData = data || {};
     renderMailboxList(data);
   } catch (err) {
     console.error("Error fetching mailboxes:", err);
@@ -82,7 +159,6 @@ async function fetchMailboxes() {
 
 async function fetchOverview() {
   try {
-    // adjust n if you want more than default 50
     const params = new URLSearchParams({
       mailbox: state.currentMailbox,
       n: "200",
@@ -114,7 +190,6 @@ async function fetchEmailDetail(overview) {
   const uid = ref.uid;
 
   if (!account || !mailbox || uid == null) {
-    // Fallback: cannot route to detail endpoint, show overview only
     renderDetailFromOverviewOnly(overview);
     return;
   }
@@ -138,17 +213,40 @@ async function fetchEmailDetail(overview) {
 
 /* ------------------ State utilities ------------------ */
 
+function getEmailId(email) {
+  if (!email) return "";
+  const ref = email.ref || {};
+  if (ref.uid != null) {
+    const account = ref.account || "";
+    const mailbox = ref.mailbox || "";
+    return `${account}:${mailbox}:${ref.uid}`;
+  }
+  if (email.uid != null) return String(email.uid);
+  return "";
+}
+
 function buildColorMap() {
   const map = {};
   let colorIndex = 0;
 
+  // First, assign colors to all known mailbox accounts
+  const mailboxAccounts = Object.keys(state.mailboxData || {});
+  for (const accountEmail of mailboxAccounts) {
+    if (!map[accountEmail]) {
+      map[accountEmail] = COLOR_PALETTE[colorIndex % COLOR_PALETTE.length];
+      colorIndex++;
+    }
+  }
+
+  // Then ensure any other keys (fallbacks) also get a color
   for (const email of state.emails) {
-    const key = getSenderKey(email);
+    const key = findAccountForEmail(email);
     if (!map[key]) {
       map[key] = COLOR_PALETTE[colorIndex % COLOR_PALETTE.length];
       colorIndex++;
     }
   }
+
   state.colorMap = map;
 }
 
@@ -165,8 +263,52 @@ function getSenderKey(email) {
   return addr.toLowerCase();
 }
 
+function getAccountKey(email) {
+  if (!email) return "unknown";
+  const ref = email.ref || {};
+  return (
+    ref.account ||
+    email.account ||
+    "unknown"
+  );
+}
+
+function findAccountForEmail(email) {
+  if (!email) return getAccountKey(email);
+
+  const mailboxAccounts = Object.keys(state.mailboxData || {});
+  if (!mailboxAccounts.length) return getAccountKey(email);
+
+  // Prefer structured `to` list
+  const toList = Array.isArray(email.to) ? email.to : [];
+  const toEmails = new Set(
+    toList
+      .map((a) => (a && a.email ? a.email.toLowerCase() : ""))
+      .filter(Boolean)
+  );
+
+  for (const accountEmail of mailboxAccounts) {
+    if (toEmails.has(String(accountEmail).toLowerCase())) {
+      return accountEmail;
+    }
+  }
+
+  // Optional: if backend sends a raw to_address field, also check that
+  if (email.to_address) {
+    const rawTo = String(email.to_address).toLowerCase();
+    for (const accountEmail of mailboxAccounts) {
+      if (rawTo.includes(String(accountEmail).toLowerCase())) {
+        return accountEmail;
+      }
+    }
+  }
+
+  // Fallback to the original account key
+  return getAccountKey(email);
+}
+
 function getColorForEmail(email) {
-  const key = getSenderKey(email);
+  const key = findAccountForEmail(email);
   return state.colorMap[key] || "#9ca3af";
 }
 
@@ -187,7 +329,9 @@ function applyFiltersAndRender() {
   let filtered = [...state.emails];
 
   if (state.filterSenderKey) {
-    filtered = filtered.filter((e) => getSenderKey(e) === state.filterSenderKey);
+    filtered = filtered.filter(
+      (e) => findAccountForEmail(e) === state.filterSenderKey
+    );
   }
 
   if (state.searchText) {
@@ -205,7 +349,6 @@ function applyFiltersAndRender() {
 
   state.filteredEmails = filtered;
   setTotalCountLabel();
-  setCurrentFilterLabel();
   renderListAndPagination();
   renderDetail();
 }
@@ -240,12 +383,15 @@ function renderListAndPagination() {
   for (const email of slice) {
     const card = document.createElement("div");
     card.className = "email-card";
+
     const ref = email.ref || {};
+    const emailId = getEmailId(email);
+
     card.dataset.uid = ref.uid != null ? ref.uid : "";
     card.dataset.account = ref.account || email.account || "";
     card.dataset.mailbox = ref.mailbox || email.mailbox || "";
 
-    if (email.uid === state.selectedId) {
+    if (emailId && emailId === state.selectedId) {
       card.classList.add("selected");
     }
 
@@ -255,7 +401,6 @@ function renderListAndPagination() {
       fromObj.name ||
       fromObj.email ||
       "(unknown sender)";
-    const toAddr = formatAddressList(email.to);
     const dateStr = formatDate(email.date);
     const subj = email.subject || "(no subject)";
     const snippet = email.preview || "";
@@ -273,10 +418,9 @@ function renderListAndPagination() {
     `;
 
     card.addEventListener("click", () => {
-      state.selectedId = email.uid;
+      state.selectedId = getEmailId(email);
       state.selectedOverview = email;
-      renderListAndPagination(); // update selection
-      // fetch detail from backend
+      renderListAndPagination();
       fetchEmailDetail(email);
     });
 
@@ -311,25 +455,27 @@ function renderDetail() {
     detail.classList.add("hidden");
     return;
   }
-
-  // Detail is rendered after we fetch from API (or from overview fallback)
 }
 
+/**
+ * Overview-only fallback (no full message)
+ */
 function renderDetailFromOverviewOnly(overview) {
   const placeholder = document.getElementById("detail-placeholder");
   const detail = document.getElementById("email-detail");
-  if (!placeholder || !detail || !overview) return;
-
-  placeholder.classList.add("hidden");
-  detail.classList.remove("hidden");
-
+  const bodyHtmlEl = document.getElementById("detail-body-html");
+  const bodyTextEl = document.getElementById("detail-body-text");
   const subjectEl = document.getElementById("detail-subject");
   const fromEl = document.getElementById("detail-from");
   const toEl = document.getElementById("detail-to");
   const dtEl = document.getElementById("detail-datetime");
   const accountEl = document.getElementById("detail-account");
-  const bodyEl = document.getElementById("detail-body");
   const badgeEl = document.getElementById("detail-color-badge");
+
+  if (!placeholder || !detail || !overview) return;
+
+  placeholder.classList.add("hidden");
+  detail.classList.remove("hidden");
 
   const fromObj = overview.from_email || {};
   const fromAddr =
@@ -352,15 +498,24 @@ function renderDetailFromOverviewOnly(overview) {
     accountEl.textContent = `Account: ${account} • Mailbox: ${mailbox}`;
   }
 
-  if (bodyEl) {
-    bodyEl.textContent =
+  if (badgeEl) badgeEl.style.background = color;
+
+  // body: show preview as text
+  if (bodyHtmlEl) {
+    bodyHtmlEl.classList.add("hidden");
+    bodyHtmlEl.innerHTML = "";
+  }
+  if (bodyTextEl) {
+    bodyTextEl.classList.remove("hidden");
+    bodyTextEl.textContent =
       overview.preview ||
       "(no body preview)";
   }
-  if (badgeEl) badgeEl.style.background = color;
 }
 
-
+/**
+ * Full message rendering: support both html + text
+ */
 function renderDetailFromMessage(overview, msg) {
   const placeholder = document.getElementById("detail-placeholder");
   const detail = document.getElementById("email-detail");
@@ -374,7 +529,8 @@ function renderDetailFromMessage(overview, msg) {
   const toEl = document.getElementById("detail-to");
   const dtEl = document.getElementById("detail-datetime");
   const accountEl = document.getElementById("detail-account");
-  const bodyEl = document.getElementById("detail-body");
+  const bodyHtmlEl = document.getElementById("detail-body-html");
+  const bodyTextEl = document.getElementById("detail-body-text");
   const badgeEl = document.getElementById("detail-color-badge");
 
   const subj = msg.subject || (overview && overview.subject) || "(no subject)";
@@ -391,18 +547,6 @@ function renderDetailFromMessage(overview, msg) {
   const dateVal = msg.date || (overview && overview.date);
   const dateVerbose = formatDate(dateVal, true);
 
-  let bodyText = msg.text || "";
-  if (!bodyText && msg.html) {
-    // crude HTML -> text fallback
-    bodyText = msg.html.replace(/<[^>]+>/g, "");
-  }
-  if (!bodyText && overview) {
-    bodyText = overview.preview || "(no body)";
-  }
-  if (!bodyText) {
-    bodyText = "(no body)";
-  }
-
   const color = getColorForEmail(overview || msg);
 
   if (subjectEl) subjectEl.textContent = subj;
@@ -417,10 +561,48 @@ function renderDetailFromMessage(overview, msg) {
     accountEl.textContent = `Account: ${account} • Mailbox: ${mailbox}`;
   }
 
-  if (bodyEl) bodyEl.textContent = bodyText;
   if (badgeEl) badgeEl.style.background = color;
-}
 
+  // Prepare bodies
+  let textBody = msg.text || "";
+  if (!textBody && msg.html) {
+    // crude HTML -> text fallback for text pane
+    textBody = msg.html.replace(/<[^>]+>/g, "");
+  }
+  if (!textBody && overview) {
+    textBody = overview.preview || "";
+  }
+
+  const htmlBody = msg.html || "";
+
+  // HTML body
+  if (bodyHtmlEl) {
+    if (htmlBody) {
+      bodyHtmlEl.classList.remove("hidden");
+      bodyHtmlEl.innerHTML = htmlBody;
+    } else {
+      bodyHtmlEl.classList.add("hidden");
+      bodyHtmlEl.innerHTML = "";
+    }
+  }
+
+  // Text body
+  if (bodyTextEl) {
+    if (textBody) {
+      bodyTextEl.classList.remove("hidden");
+      bodyTextEl.textContent = textBody;
+    } else {
+      bodyTextEl.classList.add("hidden");
+      bodyTextEl.textContent = "";
+    }
+  }
+
+  // If neither exists, show a simple fallback
+  if (!htmlBody && !textBody && bodyTextEl) {
+    bodyTextEl.classList.remove("hidden");
+    bodyTextEl.textContent = "(no body)";
+  }
+}
 
 /* ------------------ Mailbox list rendering ------------------ */
 
@@ -438,10 +620,19 @@ function renderMailboxList(mailboxData) {
   }
 
   for (const [account, mailboxes] of entries) {
-    const accTitle = document.createElement("div");
-    accTitle.className = "mailbox-account";
-    accTitle.textContent = account;
-    listEl.appendChild(accTitle);
+    const group = document.createElement("div");
+    group.className = "mailbox-group";
+
+    const accHeader = document.createElement("button");
+    accHeader.type = "button";
+    accHeader.className = "mailbox-account";
+    accHeader.innerHTML = `
+      <span class="mailbox-account-chev">▾</span>
+      <span>${escapeHtml(account)}</span>
+    `;
+
+    const mbContainer = document.createElement("div");
+    mbContainer.className = "mailbox-group-items";
 
     for (const m of mailboxes || []) {
       const item = document.createElement("div");
@@ -470,8 +661,17 @@ function renderMailboxList(mailboxData) {
         fetchOverview();
       });
 
-      listEl.appendChild(item);
+      mbContainer.appendChild(item);
     }
+
+    accHeader.addEventListener("click", () => {
+      const isCollapsed = mbContainer.classList.toggle("collapsed");
+      accHeader.classList.toggle("collapsed", isCollapsed);
+    });
+
+    group.appendChild(accHeader);
+    group.appendChild(mbContainer);
+    listEl.appendChild(group);
   }
 
   highlightMailboxSelection();
@@ -499,21 +699,6 @@ function setTotalCountLabel() {
   el.textContent = String(state.filteredEmails.length || 0);
 }
 
-function setCurrentFilterLabel() {
-  const el = document.getElementById("current-filter");
-  if (!el) return;
-
-  if (!state.filterSenderKey && !state.searchText) {
-    el.textContent = "All senders";
-  } else if (state.filterSenderKey && !state.searchText) {
-    el.textContent = `Sender: ${state.filterSenderKey}`;
-  } else if (!state.filterSenderKey && state.searchText) {
-    el.textContent = `Search: “${state.searchText}”`;
-  } else {
-    el.textContent = `Sender: ${state.filterSenderKey}, search: “${state.searchText}”`;
-  }
-}
-
 function updateMailboxLabels() {
   const headerName = document.getElementById("mailbox-name");
   const folderLabel = document.getElementById("folder-label");
@@ -529,32 +714,45 @@ function buildLegend() {
 
   legendEl.innerHTML = "";
 
+  const mailboxAccounts = Object.keys(state.mailboxData || {});
   const counts = {};
-  for (const email of state.emails) {
-    const key = getSenderKey(email);
-    counts[key] = (counts[key] || 0) + 1;
+
+  // Init counts for all mailbox accounts
+  for (const accountEmail of mailboxAccounts) {
+    counts[accountEmail] = 0;
   }
 
-  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]); // by count desc
+  // Count emails by which account appears in the To: field
+  for (const email of state.emails) {
+    const key = findAccountForEmail(email);
+    if (key in counts) {
+      counts[key] = (counts[key] || 0) + 1;
+    }
+  }
 
-  for (const [key, count] of entries) {
+  // Sort by count desc, then name
+  const entries = Object.entries(counts).sort((a, b) => {
+    if (b[1] !== a[1]) return b[1] - a[1];
+    return a[0].localeCompare(b[0]);
+  });
+
+  for (const [accountEmail] of entries) {
     const item = document.createElement("div");
     item.className = "legend-item";
-    item.dataset.key = key;
+    item.dataset.key = accountEmail;
 
-    const color = state.colorMap[key] || "#9ca3af";
+    const color = state.colorMap[accountEmail] || "#9ca3af";
 
     item.innerHTML = `
       <span class="legend-color-dot" style="background: ${color};"></span>
-      <span>${escapeHtml(key)}</span>
-      <span style="margin-left:auto; color:#9ca3af; font-size:0.75rem;">${count}</span>
+      <span>${escapeHtml(accountEmail)}</span>
     `;
 
     item.addEventListener("click", () => {
-      if (state.filterSenderKey === key) {
-        state.filterSenderKey = null; // toggle off
+      if (state.filterSenderKey === accountEmail) {
+        state.filterSenderKey = null;
       } else {
-        state.filterSenderKey = key;
+        state.filterSenderKey = accountEmail;
       }
       state.page = 1;
       applyFiltersAndRender();
