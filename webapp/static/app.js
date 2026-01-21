@@ -3,11 +3,11 @@ const state = {
   filteredEmails: [],
   selectedId: null,    // uid of selected email
   selectedOverview: null,
-  filterSenderKey: null, // now acts as "account filter"
+  filterSenderKey: null, // acts as "account filter"
   searchText: "",
   page: 1,
   pageSize: 20,
-  colorMap: {},        // key -> color (now keyed by account)
+  colorMap: {},        // account -> color
   currentMailbox: "INBOX",
   mailboxData: {},     // user_email -> [mailbox, ...]
 };
@@ -31,18 +31,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (prevPageBtn) prevPageBtn.addEventListener("click", () => changePage(-1));
   if (nextPageBtn) nextPageBtn.addEventListener("click", () => changePage(1));
+
   if (searchBtn && searchInput) {
-    searchBtn.addEventListener("click", () => {
+    const triggerSearch = () => {
       state.searchText = searchInput.value.trim().toLowerCase();
       state.page = 1;
       applyFiltersAndRender();
-    });
+    };
 
+    searchBtn.addEventListener("click", triggerSearch);
     searchInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
-        state.searchText = searchInput.value.trim().toLowerCase();
-        state.page = 1;
-        applyFiltersAndRender();
+        triggerSearch();
       }
     });
   }
@@ -250,31 +250,14 @@ function buildColorMap() {
   state.colorMap = map;
 }
 
-function getSenderKey(email) {
-  if (!email) return "unknown";
-
-  const fromObj = email.from_email || {};
-  const addr = fromObj.email || fromObj.name || "";
-
-  if (!addr) return "unknown";
-
-  const parts = String(addr).split("@");
-  if (parts.length === 2) return parts[1].toLowerCase();
-  return addr.toLowerCase();
-}
-
 function getAccountKey(email) {
   if (!email) return "unknown";
   const ref = email.ref || {};
-  return (
-    ref.account ||
-    email.account ||
-    "unknown"
-  );
+  return ref.account || email.account || "unknown";
 }
 
 function findAccountForEmail(email) {
-  if (!email) return getAccountKey(email);
+  if (!email) return "unknown";
 
   const mailboxAccounts = Object.keys(state.mailboxData || {});
   if (!mailboxAccounts.length) return getAccountKey(email);
@@ -348,7 +331,6 @@ function applyFiltersAndRender() {
   }
 
   state.filteredEmails = filtered;
-  setTotalCountLabel();
   renderListAndPagination();
   renderDetail();
 }
@@ -656,7 +638,6 @@ function renderMailboxList(mailboxData) {
         state.currentMailbox = m;
         state.selectedId = null;
         state.selectedOverview = null;
-        updateMailboxLabels();
         highlightMailboxSelection();
         fetchOverview();
       });
@@ -689,21 +670,6 @@ function highlightMailboxSelection() {
       item.classList.remove("active");
     }
   });
-}
-
-/* ------------------ Labels ------------------ */
-
-function setTotalCountLabel() {
-  const el = document.getElementById("total-count");
-  if (!el) return;
-  el.textContent = String(state.filteredEmails.length || 0);
-}
-
-function updateMailboxLabels() {
-  const headerName = document.getElementById("mailbox-name");
-  const folderLabel = document.getElementById("folder-label");
-  if (headerName) headerName.textContent = state.currentMailbox;
-  if (folderLabel) folderLabel.textContent = state.currentMailbox;
 }
 
 /* ------------------ Legend ------------------ */
@@ -789,12 +755,6 @@ function renderError(msg) {
     emptyEl.classList.remove("hidden");
     emptyEl.textContent = msg;
   }
-}
-
-function makeSnippet(text, maxLen = 120) {
-  const stripped = String(text).replace(/\s+/g, " ").trim();
-  if (stripped.length <= maxLen) return stripped;
-  return stripped.slice(0, maxLen - 3) + "...";
 }
 
 function formatDate(value, verbose = false) {

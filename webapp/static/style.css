@@ -293,10 +293,6 @@ button.secondary:hover {
   font-size: 0.85rem;
 }
 
-.page-size-inline select {
-  width: auto;
-}
-
 .list-container {
   padding: 0.5rem 0.6rem;
   height: calc(100vh - 150px);
@@ -361,13 +357,17 @@ button.secondary:hover {
   color: #111827;
   flex: 1;
   min-width: 0;
-  white-space: normal;
-  word-break: break-word;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .email-subject {
   font-size: 0.85rem;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .email-date {
