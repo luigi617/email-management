@@ -1,27 +1,28 @@
 const state = {
-  emails: [],          // EmailOverview[]
+  emails: [],          // EmailOverview[] for current page
   filteredEmails: [],
-  selectedId: null,    // uid of selected email
+  selectedId: null,    // uid composite key
   selectedOverview: null,
-  filterSenderKey: null, // acts as "account filter"
+  selectedMessage: null,
+  filterSenderKey: null, // legend filter (account)
   searchText: "",
-  page: 1,
-  pageSize: 20,
+  pageSize: 50,
+  currentPage: 1,
+  totalPages: 1,
+  nextCursor: null,
+  prevCursor: null,
   colorMap: {},        // account -> color
   currentMailbox: "INBOX",
-  mailboxData: {},     // user_email -> [mailbox, ...]
+  mailboxData: {},     // account -> [mailbox, ...]
+  composerMode: null,  // 'compose' | 'reply' | 'reply_all' | 'forward'
+  composerAttachmentsFiles: [],
 };
 
-const COLOR_PALETTE = [
-  "#f97316", // orange
-  "#22c55e", // green
-  "#0ea5e9", // sky
-  "#a855f7", // purple
-  "#ec4899", // pink
-  "#eab308", // yellow
-  "#10b981", // emerald
-  "#f97373", // soft red
-];
+// Shorthands to utils
+const formatDate = Utils.formatDate;
+const escapeHtml = Utils.escapeHtml;
+const formatAddress = Utils.formatAddress;
+const formatAddressList = Utils.formatAddressList;
 
 document.addEventListener("DOMContentLoaded", () => {
   const prevPageBtn = document.getElementById("prev-page-btn");
@@ -29,13 +30,23 @@ document.addEventListener("DOMContentLoaded", () => {
   const searchInput = document.getElementById("search-input");
   const searchBtn = document.getElementById("search-btn");
 
-  if (prevPageBtn) prevPageBtn.addEventListener("click", () => changePage(-1));
-  if (nextPageBtn) nextPageBtn.addEventListener("click", () => changePage(1));
+  if (prevPageBtn) {
+    prevPageBtn.addEventListener("click", () => {
+      if (!state.prevCursor) return;
+      fetchOverview("prev");
+    });
+  }
+
+  if (nextPageBtn) {
+    nextPageBtn.addEventListener("click", () => {
+      if (!state.nextCursor) return;
+      fetchOverview("next");
+    });
+  }
 
   if (searchBtn && searchInput) {
     const triggerSearch = () => {
       state.searchText = searchInput.value.trim().toLowerCase();
-      state.page = 1;
       applyFiltersAndRender();
     };
 
@@ -49,9 +60,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initial load
   fetchMailboxes();
-  fetchOverview();
+  fetchOverview();       // first page, no cursor
   initDetailActions();
+  initComposer();
 });
+
+/* ------------------ Small wrappers around utils ------------------ */
+
+function findAccountForEmail(email) {
+  return Utils.findAccountForEmail(email, state.mailboxData);
+}
+
+function buildColorMap() {
+  state.colorMap = Utils.buildColorMap(state.emails, state.mailboxData);
+}
+
+function getColorForEmail(email) {
+  return Utils.getColorForEmail(email, state.mailboxData, state.colorMap);
+}
+
+function getEmailId(email) {
+  return Utils.getEmailId(email);
+}
 
 /* ------------------ Detail toolbar / move panel ------------------ */
 
@@ -81,44 +111,51 @@ function initDetailActions() {
       if (!select || !state.selectedOverview) return;
       const targetMailbox = select.value;
 
-      // TODO: implement backend call to move the email
+      // TODO: wire move when backend endpoint exists
       console.log("Move email to mailbox:", targetMailbox, state.selectedOverview);
 
       movePanel.classList.add("hidden");
     });
   }
 
-  // Optional: stub handlers for archive/delete/reply...
   const archiveBtn = document.getElementById("btn-archive");
   const deleteBtn = document.getElementById("btn-delete");
   const replyBtn = document.getElementById("btn-reply");
   const replyAllBtn = document.getElementById("btn-reply-all");
   const forwardBtn = document.getElementById("btn-forward");
 
-  if (archiveBtn) archiveBtn.addEventListener("click", () => {
-    if (!state.selectedOverview) return;
-    console.log("Archive", state.selectedOverview);
-  });
+  if (archiveBtn) {
+    archiveBtn.addEventListener("click", () => {
+      archiveSelectedEmail();
+    });
+  }
 
-  if (deleteBtn) deleteBtn.addEventListener("click", () => {
-    if (!state.selectedOverview) return;
-    console.log("Delete", state.selectedOverview);
-  });
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", () => {
+      deleteSelectedEmail();
+    });
+  }
 
-  if (replyBtn) replyBtn.addEventListener("click", () => {
-    if (!state.selectedOverview) return;
-    console.log("Reply", state.selectedOverview);
-  });
+  if (replyBtn) {
+    replyBtn.addEventListener("click", () => {
+      if (!state.selectedOverview) return;
+      openComposer("reply");
+    });
+  }
 
-  if (replyAllBtn) replyAllBtn.addEventListener("click", () => {
-    if (!state.selectedOverview) return;
-    console.log("Reply all", state.selectedOverview);
-  });
+  if (replyAllBtn) {
+    replyAllBtn.addEventListener("click", () => {
+      if (!state.selectedOverview) return;
+      openComposer("reply_all");
+    });
+  }
 
-  if (forwardBtn) forwardBtn.addEventListener("click", () => {
-    if (!state.selectedOverview) return;
-    console.log("Forward", state.selectedOverview);
-  });
+  if (forwardBtn) {
+    forwardBtn.addEventListener("click", () => {
+      if (!state.selectedOverview) return;
+      openComposer("forward");
+    });
+  }
 }
 
 function populateMoveMailboxSelect() {
@@ -142,14 +179,468 @@ function populateMoveMailboxSelect() {
   }
 }
 
+/* ------------------ Composer (floating box) ------------------ */
+
+function initComposer() {
+  const composeBtn = document.getElementById("compose-btn");
+  const closeBtn = document.getElementById("composer-close");
+  const sendBtn = document.getElementById("composer-send");
+
+  const extraToggle = document.getElementById("composer-extra-toggle");
+  const extraMenu = document.getElementById("composer-extra-menu");
+
+  const sendLaterToggle = document.getElementById("composer-send-later-toggle");
+  const sendLaterMenu = document.getElementById("composer-send-later-menu");
+
+  const attachBtn = document.getElementById("composer-attach");
+  const attachInput = document.getElementById("composer-attachment-input");
+
+  const resizeZone = document.getElementById("composer-resize-zone");
+  const composerEl = document.getElementById("composer");
+
+  if (composeBtn) {
+    composeBtn.addEventListener("click", () => openComposer("compose"));
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => closeComposer());
+  }
+
+  if (sendBtn) {
+    sendBtn.addEventListener("click", () => {
+      sendCurrentComposer();
+    });
+  }
+
+  // Extra fields (Cc/Bcc/Reply-To/Priority)
+  // Extra fields (Cc/Bcc/Reply-To/Priority) – checkbox popup
+  if (extraToggle && extraMenu) {
+    const syncExtraMenuFromRows = () => {
+      const checkboxes = extraMenu.querySelectorAll(
+        'input[type="checkbox"][data-field]'
+      );
+      checkboxes.forEach((cb) => {
+        const field = cb.getAttribute("data-field");
+        const row = document.querySelector(
+          `.composer-row-extra[data-field="${field}"]`
+        );
+        // checked if row is currently visible
+        cb.checked = !!(row && !row.classList.contains("hidden"));
+      });
+    };
+
+    extraToggle.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      syncExtraMenuFromRows();
+      extraMenu.classList.toggle("hidden");
+    });
+
+    // When a checkbox is changed, show/hide the corresponding row
+    extraMenu.addEventListener("change", (ev) => {
+      const cb = ev.target.closest('input[type="checkbox"][data-field]');
+      if (!cb) return;
+      const field = cb.getAttribute("data-field");
+      const row = document.querySelector(
+        `.composer-row-extra[data-field="${field}"]`
+      );
+      if (!row) return;
+
+      if (cb.checked) {
+        row.classList.remove("hidden");
+      } else {
+        row.classList.add("hidden");
+      }
+    });
+
+    // click outside closes the popup
+    document.addEventListener("click", (ev) => {
+      if (extraMenu.classList.contains("hidden")) return;
+      const inside =
+        ev.target.closest("#composer-extra-menu") ||
+        ev.target.closest("#composer-extra-toggle");
+      if (!inside) extraMenu.classList.add("hidden");
+    });
+  }
+
+
+  // Send later popup
+  if (sendLaterToggle && sendLaterMenu) {
+    sendLaterToggle.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      sendLaterMenu.classList.toggle("hidden");
+    });
+
+    sendLaterMenu.addEventListener("click", (ev) => {
+      const btn = ev.target.closest("button[data-delay]");
+      if (!btn) return;
+      const label = btn.textContent.trim();
+      sendLaterMenu.classList.add("hidden");
+      // UI only for now – backend scheduling not implemented
+      alert(`"Send later" (${label}) is not wired to the backend yet.`);
+    });
+
+    document.addEventListener("click", (ev) => {
+      if (sendLaterMenu.classList.contains("hidden")) return;
+      const inside =
+        ev.target.closest("#composer-send-later-menu") ||
+        ev.target.closest("#composer-send-later-toggle");
+      if (!inside) sendLaterMenu.classList.add("hidden");
+    });
+  }
+
+  // Attachments: open file dialog and render pills
+  if (attachBtn && attachInput) {
+    attachBtn.addEventListener("click", () => {
+      attachInput.click();
+    });
+
+    attachInput.addEventListener("change", () => {
+      state.composerAttachmentsFiles = Array.from(attachInput.files || []);
+      renderComposerAttachments();
+    });
+  }
+
+  // Resize by dragging the top-right handle
+  if (resizeZone && composerEl) {
+    let isResizing = false;
+    let startX = 0;
+    let startY = 0;
+    let startWidth = 0;
+    let startHeight = 0;
+    const minWidth = 420;
+    const minHeight = 260;
+
+    const onMouseMove = (e) => {
+      if (!isResizing) return;
+      // drag top-left: moving left/up grows the window
+      const dx = startX - e.clientX;
+      const dy = startY - e.clientY;
+
+      const newWidth = Math.max(minWidth, startWidth + dx);
+      const newHeight = Math.max(minHeight, startHeight + dy);
+
+      composerEl.style.width = newWidth + "px";
+      composerEl.style.height = newHeight + "px";
+    };
+
+    const onMouseUp = () => {
+      if (!isResizing) return;
+      isResizing = false;
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+
+    resizeZone.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      isResizing = true;
+
+      const rect = composerEl.getBoundingClientRect();
+      startX = e.clientX;
+      startY = e.clientY;
+      startWidth = rect.width;
+      startHeight = rect.height;
+
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    });
+  }
+}
+
+function openComposer(mode) {
+  const composer = document.getElementById("composer");
+  const titleEl = document.getElementById("composer-title");
+  const toInput = document.getElementById("composer-to");
+  const subjInput = document.getElementById("composer-subject");
+  const bodyInput = document.getElementById("composer-body");
+  const attachmentInput = document.getElementById("composer-attachment-input");
+  const extraRows = document.querySelectorAll(".composer-row-extra");
+  const extraMenu = document.getElementById("composer-extra-menu");
+  const sendLaterMenu = document.getElementById("composer-send-later-menu");
+
+  if (!composer || !titleEl || !toInput || !subjInput || !bodyInput) return;
+
+  // reset extra fields and menus
+  // if (extraRows && extraRows.length) {
+  //   extraRows.forEach((row) => row.classList.add("hidden"));
+  // }
+  if (extraMenu) extraMenu.classList.add("hidden");
+  if (sendLaterMenu) sendLaterMenu.classList.add("hidden");
+
+  // reset attachments
+  state.composerAttachmentsFiles = [];
+  if (attachmentInput) attachmentInput.value = "";
+  renderComposerAttachments();
+
+  state.composerMode = mode || "compose";
+  composer.classList.remove("hidden");
+
+  let subj = "";
+  let toStr = "";
+  let body = "";
+
+  const ov = state.selectedOverview;
+  const msg = state.selectedMessage;
+  const originalSubj = (msg && msg.subject) || (ov && ov.subject) || "";
+
+  if (mode === "compose") {
+    titleEl.textContent = "New message";
+  } else if (mode === "reply") {
+    titleEl.textContent = "Reply";
+    const fromObj = (msg && msg.from_email) || (ov && ov.from_email) || {};
+    if (fromObj.email || fromObj.name) {
+      toStr = formatAddress(fromObj);
+    }
+    subj =
+      originalSubj && originalSubj.toLowerCase().startsWith("re:")
+        ? originalSubj
+        : originalSubj
+        ? `Re: ${originalSubj}`
+        : "";
+  } else if (mode === "reply_all") {
+    titleEl.textContent = "Reply all";
+    const fromObj = (msg && msg.from_email) || (ov && ov.from_email) || {};
+    const toList = (msg && msg.to) || (ov && ov.to) || [];
+    const ccList = (msg && msg.cc) || [];
+    const allRecipients = [];
+    if (fromObj && (fromObj.email || fromObj.name)) {
+      allRecipients.push(fromObj);
+    }
+    allRecipients.push(...toList, ...ccList);
+    toStr = formatAddressList(allRecipients);
+    subj =
+      originalSubj && originalSubj.toLowerCase().startsWith("re:")
+        ? originalSubj
+        : originalSubj
+        ? `Re: ${originalSubj}`
+        : "";
+  } else if (mode === "forward") {
+    titleEl.textContent = "Forward";
+    subj =
+      originalSubj && originalSubj.toLowerCase().startsWith("fwd:")
+        ? originalSubj
+        : originalSubj
+        ? `Fwd: ${originalSubj}`
+        : "";
+  } else {
+    titleEl.textContent = "Message";
+  }
+
+  toInput.value = toStr;
+  subjInput.value = subj;
+  bodyInput.value = body;
+  bodyInput.focus();
+}
+
+function renderComposerAttachments() {
+  const container = document.getElementById("composer-attachments");
+  if (!container) return;
+
+  const files = state.composerAttachmentsFiles || [];
+
+  if (!files.length) {
+    container.classList.add("hidden");
+    container.innerHTML = "";
+    return;
+  }
+
+  container.classList.remove("hidden");
+  container.innerHTML = "";
+
+  files.forEach((file, index) => {
+    const pill = document.createElement("div");
+    pill.className = "attachment-pill";
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "attachment-pill-name";
+    nameSpan.textContent = file.name;
+
+    const actions = document.createElement("div");
+    actions.className = "attachment-pill-actions";
+
+    const previewBtn = document.createElement("button");
+    previewBtn.type = "button";
+    previewBtn.textContent = "Preview";
+    previewBtn.className = "attachment-pill-btn";
+    previewBtn.addEventListener("click", () => {
+      const url = URL.createObjectURL(file);
+      window.open(url, "_blank");
+    });
+
+    const downloadBtn = document.createElement("button");
+    downloadBtn.type = "button";
+    downloadBtn.textContent = "Download";
+    downloadBtn.className = "attachment-pill-btn";
+    downloadBtn.addEventListener("click", () => {
+      const url = URL.createObjectURL(file);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name || "attachment";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.textContent = "×";
+    removeBtn.className =
+      "attachment-pill-btn attachment-pill-remove";
+    removeBtn.addEventListener("click", () => {
+      const current = state.composerAttachmentsFiles || [];
+      current.splice(index, 1);
+      state.composerAttachmentsFiles = current;
+      renderComposerAttachments();
+    });
+
+    actions.appendChild(previewBtn);
+    actions.appendChild(downloadBtn);
+    actions.appendChild(removeBtn);
+
+    pill.appendChild(nameSpan);
+    pill.appendChild(actions);
+
+    container.appendChild(pill);
+  });
+}
+
+
+function closeComposer() {
+  const composer = document.getElementById("composer");
+  if (!composer) return;
+  composer.classList.add("hidden");
+  state.composerMode = null;
+}
+
+async function sendCurrentComposer() {
+  const mode = state.composerMode;
+  const toInput = document.getElementById("composer-to");
+  const subjInput = document.getElementById("composer-subject");
+  const bodyInput = document.getElementById("composer-body");
+  const sendBtn = document.getElementById("composer-send");
+
+  if (!mode || !toInput || !subjInput || !bodyInput || !sendBtn) return;
+
+  if (mode === "compose") {
+    // No generic compose/send API is defined in the provided backend.
+    alert("Compose/send is not wired to a backend endpoint yet.");
+    return;
+  }
+
+  const ref = getSelectedRef();
+  if (!ref) {
+    alert("No email selected.");
+    return;
+  }
+
+  const { account, mailbox, uid } = ref;
+  const bodyText = bodyInput.value || "";
+
+  try {
+    sendBtn.disabled = true;
+
+    if (mode === "reply") {
+      await Api.replyEmail({
+        account,
+        mailbox,
+        uid,
+        body: bodyText,
+        bodyHtml: null,
+        fromAddr: null,
+        quoteOriginal: true,
+      });
+    } else if (mode === "reply_all") {
+      await Api.replyAllEmail({
+        account,
+        mailbox,
+        uid,
+        body: bodyText,
+        bodyHtml: null,
+        fromAddr: null,
+        quoteOriginal: true,
+      });
+    } else if (mode === "forward") {
+      const rawTo = (toInput.value || "").trim();
+      if (!rawTo) {
+        alert("Please specify at least one recipient.");
+        return;
+      }
+      const toList = rawTo
+        .split(/[;,]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      await Api.forwardEmail({
+        account,
+        mailbox,
+        uid,
+        to: toList,
+        body: bodyText || null,
+        bodyHtml: null,
+        fromAddr: null,
+        includeAttachments: true,
+      });
+    } else {
+      alert("Unknown composer mode.");
+      return;
+    }
+
+    closeComposer();
+    alert("Message sent.");
+  } catch (err) {
+    console.error("Error sending:", err);
+    alert("Failed to send message.");
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+/* ------------------ Archive / Delete helpers ------------------ */
+
+async function archiveSelectedEmail() {
+  const ref = getSelectedRef();
+  if (!ref) {
+    alert("No email selected.");
+    return;
+  }
+  const { account, mailbox, uid } = ref;
+
+  if (!confirm("Archive this email?")) return;
+
+  try {
+    await Api.archiveEmail({ account, mailbox, uid });
+    state.currentPage = 1;
+    fetchOverview();
+  } catch (err) {
+    console.error("Error archiving:", err);
+    alert("Error archiving email.");
+  }
+}
+
+async function deleteSelectedEmail() {
+  const ref = getSelectedRef();
+  if (!ref) {
+    alert("No email selected.");
+    return;
+  }
+  const { account, mailbox, uid } = ref;
+
+  if (!confirm("Permanently delete this email?")) return;
+
+  try {
+    await Api.deleteEmail({ account, mailbox, uid });
+    state.currentPage = 1;
+    fetchOverview();
+  } catch (err) {
+    console.error("Error deleting:", err);
+    alert("Error deleting email.");
+  }
+}
+
 /* ------------------ API calls ------------------ */
 
 async function fetchMailboxes() {
   try {
-    const res = await fetch("/api/emails/mailbox");
-    if (!res.ok) throw new Error("Failed to fetch mailboxes");
-    const data = await res.json(); // { user_email: [mailbox1, mailbox2], ... }
-
+    const data = await Api.getMailboxes(); // { account: [mb1, ...] }
     state.mailboxData = data || {};
     renderMailboxList(data);
   } catch (err) {
@@ -157,19 +648,58 @@ async function fetchMailboxes() {
   }
 }
 
-async function fetchOverview() {
+/**
+ * Fetch a page of overview data from backend.
+ * direction: null | "next" | "prev"
+ * uses cursor-based pagination from meta.next_cursor / meta.prev_cursor
+ */
+async function fetchOverview(direction = null) {
   try {
-    const params = new URLSearchParams({
+    const args = {
       mailbox: state.currentMailbox,
-      n: "200",
-    });
-    const res = await fetch(`/api/emails/overview?${params.toString()}`);
-    if (!res.ok) throw new Error("Failed to fetch emails overview");
-    const data = await res.json();
-    state.emails = Array.isArray(data) ? data : [];
+      limit: state.pageSize,
+    };
+
+    if (direction === "next" && state.nextCursor) {
+      args.cursor = state.nextCursor;
+    } else if (direction === "prev" && state.prevCursor) {
+      args.cursor = state.prevCursor;
+    }
+
+    const payload = await Api.getOverview(args);
+    const list = Array.isArray(payload.data) ? payload.data : [];
+    const meta = payload.meta || {};
+
+    state.emails = list;
+    state.selectedId = null;
+    state.selectedOverview = null;
+    state.selectedMessage = null;
+
+    state.nextCursor = meta.next_cursor || null;
+    state.prevCursor = meta.prev_cursor || null;
+
+    const totalCount =
+      typeof meta.total_count === "number" ? meta.total_count : null;
+
+    if (!direction || !state.currentPage) {
+      state.currentPage = 1;
+    } else if (direction === "next") {
+      state.currentPage += 1;
+    } else if (direction === "prev") {
+      state.currentPage = Math.max(1, state.currentPage - 1);
+    }
+
+    if (totalCount != null && state.pageSize > 0) {
+      state.totalPages = Math.max(
+        1,
+        Math.ceil(totalCount / state.pageSize)
+      );
+    } else {
+      state.totalPages = state.currentPage || 1;
+    }
+
     buildColorMap();
     buildLegend();
-    state.page = 1;
     applyFiltersAndRender();
   } catch (err) {
     console.error("Error fetching overview:", err);
@@ -184,9 +714,8 @@ async function fetchEmailDetail(overview) {
   }
 
   const ref = overview.ref || {};
-
   const account = ref.account || overview.account;
-  const mailbox = ref.mailbox || overview.mailbox;
+  const mailbox = ref.mailbox || overview.mailbox || state.currentMailbox;
   const uid = ref.uid;
 
   if (!account || !mailbox || uid == null) {
@@ -194,16 +723,10 @@ async function fetchEmailDetail(overview) {
     return;
   }
 
-  const accountEnc = encodeURIComponent(account);
-  const mailboxEnc = encodeURIComponent(mailbox);
-  const uidEnc = encodeURIComponent(uid);
-
   try {
-    const res = await fetch(
-      `/api/accounts/${accountEnc}/mailboxes/${mailboxEnc}/emails/${uidEnc}`
-    );
-    if (!res.ok) throw new Error("Failed to fetch email detail");
-    const msg = await res.json();
+    state.selectedMessage = null;
+    const msg = await Api.getEmail({ account, mailbox, uid });
+    state.selectedMessage = msg;
     renderDetailFromMessage(overview, msg);
   } catch (err) {
     console.error("Error fetching email detail:", err);
@@ -213,97 +736,16 @@ async function fetchEmailDetail(overview) {
 
 /* ------------------ State utilities ------------------ */
 
-function getEmailId(email) {
-  if (!email) return "";
-  const ref = email.ref || {};
-  if (ref.uid != null) {
-    const account = ref.account || "";
-    const mailbox = ref.mailbox || "";
-    return `${account}:${mailbox}:${ref.uid}`;
-  }
-  if (email.uid != null) return String(email.uid);
-  return "";
-}
+function getSelectedRef() {
+  const ov = state.selectedOverview;
+  if (!ov) return null;
+  const ref = ov.ref || {};
+  const account = ref.account || ov.account;
+  const mailbox = ref.mailbox || ov.mailbox || state.currentMailbox;
+  const uid = ref.uid;
 
-function buildColorMap() {
-  const map = {};
-  let colorIndex = 0;
-
-  // First, assign colors to all known mailbox accounts
-  const mailboxAccounts = Object.keys(state.mailboxData || {});
-  for (const accountEmail of mailboxAccounts) {
-    if (!map[accountEmail]) {
-      map[accountEmail] = COLOR_PALETTE[colorIndex % COLOR_PALETTE.length];
-      colorIndex++;
-    }
-  }
-
-  // Then ensure any other keys (fallbacks) also get a color
-  for (const email of state.emails) {
-    const key = findAccountForEmail(email);
-    if (!map[key]) {
-      map[key] = COLOR_PALETTE[colorIndex % COLOR_PALETTE.length];
-      colorIndex++;
-    }
-  }
-
-  state.colorMap = map;
-}
-
-function getAccountKey(email) {
-  if (!email) return "unknown";
-  const ref = email.ref || {};
-  return ref.account || email.account || "unknown";
-}
-
-function findAccountForEmail(email) {
-  if (!email) return "unknown";
-
-  const mailboxAccounts = Object.keys(state.mailboxData || {});
-  if (!mailboxAccounts.length) return getAccountKey(email);
-
-  // Prefer structured `to` list
-  const toList = Array.isArray(email.to) ? email.to : [];
-  const toEmails = new Set(
-    toList
-      .map((a) => (a && a.email ? a.email.toLowerCase() : ""))
-      .filter(Boolean)
-  );
-
-  for (const accountEmail of mailboxAccounts) {
-    if (toEmails.has(String(accountEmail).toLowerCase())) {
-      return accountEmail;
-    }
-  }
-
-  // Optional: if backend sends a raw to_address field, also check that
-  if (email.to_address) {
-    const rawTo = String(email.to_address).toLowerCase();
-    for (const accountEmail of mailboxAccounts) {
-      if (rawTo.includes(String(accountEmail).toLowerCase())) {
-        return accountEmail;
-      }
-    }
-  }
-
-  // Fallback to the original account key
-  return getAccountKey(email);
-}
-
-function getColorForEmail(email) {
-  const key = findAccountForEmail(email);
-  return state.colorMap[key] || "#9ca3af";
-}
-
-function formatAddress(addr) {
-  if (!addr) return "";
-  if (addr.name) return `${addr.name} <${addr.email || ""}>`.trim();
-  return addr.email || "";
-}
-
-function formatAddressList(list) {
-  if (!Array.isArray(list)) return "";
-  return list.map(formatAddress).filter(Boolean).join(", ");
+  if (!account || uid == null) return null;
+  return { account, mailbox, uid };
 }
 
 /* ------------------ Filtering & rendering ------------------ */
@@ -332,7 +774,6 @@ function applyFiltersAndRender() {
 
   state.filteredEmails = filtered;
   renderListAndPagination();
-  renderDetail();
 }
 
 function renderListAndPagination() {
@@ -345,24 +786,15 @@ function renderListAndPagination() {
   if (!listEl || !emptyEl || !pageInfoEl) return;
 
   const total = state.filteredEmails.length;
-  const pageSize = state.pageSize || 20;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-  if (state.page > totalPages) state.page = totalPages;
-
-  const startIndex = (state.page - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const slice = state.filteredEmails.slice(startIndex, endIndex);
-
   listEl.innerHTML = "";
 
-  if (!slice.length) {
+  if (!total) {
     emptyEl.classList.remove("hidden");
   } else {
     emptyEl.classList.add("hidden");
   }
 
-  for (const email of slice) {
+  for (const email of state.filteredEmails) {
     const card = document.createElement("div");
     card.className = "email-card";
 
@@ -402,27 +834,22 @@ function renderListAndPagination() {
     card.addEventListener("click", () => {
       state.selectedId = getEmailId(email);
       state.selectedOverview = email;
-      renderListAndPagination();
-      fetchEmailDetail(email);
+      state.selectedMessage = null;
+      renderListAndPagination(); // refresh selected state
+      fetchEmailDetail(email);   // get full message from backend
     });
 
     listEl.appendChild(card);
   }
 
-  pageInfoEl.textContent = `Page ${state.page} / ${totalPages}`;
+  let pageText = `Page ${state.currentPage || 1}`;
+  if (state.totalPages) {
+    pageText += ` / ${state.totalPages}`;
+  }
+  pageInfoEl.textContent = pageText;
 
-  if (prevBtn) prevBtn.disabled = state.page <= 1;
-  if (nextBtn) nextBtn.disabled = state.page >= totalPages;
-}
-
-function changePage(delta) {
-  const total = state.filteredEmails.length;
-  const pageSize = state.pageSize || 20;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const newPage = state.page + delta;
-  if (newPage < 1 || newPage > totalPages) return;
-  state.page = newPage;
-  renderListAndPagination();
+  if (prevBtn) prevBtn.disabled = !state.prevCursor;
+  if (nextBtn) nextBtn.disabled = !state.nextCursor;
 }
 
 /* ------------------ Detail rendering ------------------ */
@@ -482,7 +909,6 @@ function renderDetailFromOverviewOnly(overview) {
 
   if (badgeEl) badgeEl.style.background = color;
 
-  // body: show preview as text
   if (bodyHtmlEl) {
     bodyHtmlEl.classList.add("hidden");
     bodyHtmlEl.innerHTML = "";
@@ -516,19 +942,16 @@ function renderDetailFromMessage(overview, msg) {
   const badgeEl = document.getElementById("detail-color-badge");
 
   const subj = msg.subject || (overview && overview.subject) || "(no subject)";
-
   const fromObj = msg.from_email || (overview && overview.from_email) || {};
   const fromAddr =
     fromObj.name ||
     fromObj.email ||
     "(unknown sender)";
-
   const toList = msg.to || (overview && overview.to) || [];
   const toAddr = formatAddressList(toList);
 
   const dateVal = msg.date || (overview && overview.date);
   const dateVerbose = formatDate(dateVal, true);
-
   const color = getColorForEmail(overview || msg);
 
   if (subjectEl) subjectEl.textContent = subj;
@@ -545,10 +968,8 @@ function renderDetailFromMessage(overview, msg) {
 
   if (badgeEl) badgeEl.style.background = color;
 
-  // Prepare bodies
   let textBody = msg.text || "";
   if (!textBody && msg.html) {
-    // crude HTML -> text fallback for text pane
     textBody = msg.html.replace(/<[^>]+>/g, "");
   }
   if (!textBody && overview) {
@@ -557,39 +978,40 @@ function renderDetailFromMessage(overview, msg) {
 
   const htmlBody = msg.html || "";
 
-  // HTML body
-  if (bodyHtmlEl) {
-    if (htmlBody) {
-      bodyHtmlEl.classList.remove("hidden");
-      bodyHtmlEl.innerHTML = htmlBody;
-    } else {
-      bodyHtmlEl.classList.add("hidden");
-      bodyHtmlEl.innerHTML = "";
-    }
-  }
+  if (htmlBody && bodyHtmlEl) {
+    // Show HTML, hide text
+    bodyHtmlEl.classList.remove("hidden");
+    bodyHtmlEl.innerHTML = htmlBody;
 
-  // Text body
-  if (bodyTextEl) {
-    if (textBody) {
-      bodyTextEl.classList.remove("hidden");
-      bodyTextEl.textContent = textBody;
-    } else {
+    if (bodyTextEl) {
       bodyTextEl.classList.add("hidden");
       bodyTextEl.textContent = "";
     }
-  }
-
-  // If neither exists, show a simple fallback
-  if (!htmlBody && !textBody && bodyTextEl) {
+  } else if (textBody && bodyTextEl) {
+    // No HTML: show text, hide HTML
     bodyTextEl.classList.remove("hidden");
-    bodyTextEl.textContent = "(no body)";
+    bodyTextEl.textContent = textBody;
+
+    if (bodyHtmlEl) {
+      bodyHtmlEl.classList.add("hidden");
+      bodyHtmlEl.innerHTML = "";
+    }
+  } else {
+    // No body at all → simple fallback
+    if (bodyHtmlEl) {
+      bodyHtmlEl.classList.add("hidden");
+      bodyHtmlEl.innerHTML = "";
+    }
+    if (bodyTextEl) {
+      bodyTextEl.classList.remove("hidden");
+      bodyTextEl.textContent = "(no body)";
+    }
   }
 }
 
 /* ------------------ Mailbox list rendering ------------------ */
 
 function renderMailboxList(mailboxData) {
-  // mailboxData: { accountName: [mb1, mb2, ...] }
   const listEl = document.getElementById("mailbox-list");
   if (!listEl) return;
 
@@ -638,8 +1060,10 @@ function renderMailboxList(mailboxData) {
         state.currentMailbox = m;
         state.selectedId = null;
         state.selectedOverview = null;
+        state.selectedMessage = null;
+        state.currentPage = 1;
         highlightMailboxSelection();
-        fetchOverview();
+        fetchOverview(); // restart pagination from first page for selected mailbox
       });
 
       mbContainer.appendChild(item);
@@ -683,12 +1107,10 @@ function buildLegend() {
   const mailboxAccounts = Object.keys(state.mailboxData || {});
   const counts = {};
 
-  // Init counts for all mailbox accounts
-  for (const accountEmail of mailboxAccounts) {
-    counts[accountEmail] = 0;
+  for (const account of mailboxAccounts) {
+    counts[account] = 0;
   }
 
-  // Count emails by which account appears in the To: field
   for (const email of state.emails) {
     const key = findAccountForEmail(email);
     if (key in counts) {
@@ -696,7 +1118,6 @@ function buildLegend() {
     }
   }
 
-  // Sort by count desc, then name
   const entries = Object.entries(counts).sort((a, b) => {
     if (b[1] !== a[1]) return b[1] - a[1];
     return a[0].localeCompare(b[0]);
@@ -720,7 +1141,6 @@ function buildLegend() {
       } else {
         state.filterSenderKey = accountEmail;
       }
-      state.page = 1;
       applyFiltersAndRender();
       highlightLegendSelection();
     });
@@ -757,33 +1177,5 @@ function renderError(msg) {
   }
 }
 
-function formatDate(value, verbose = false) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
 
-  if (verbose) {
-    return date.toLocaleString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
 
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}

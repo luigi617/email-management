@@ -34,10 +34,10 @@
       <section class="card legend-box">
         <div class="legend-header">
           <h2>Legend</h2>
-          <span class="legend-sub">Click to filter by sender (domain)</span>
+          <span class="legend-sub">Click to filter by sender (account)</span>
         </div>
         <div id="legend-list" class="legend-list">
-          <!-- Filled by JS with senders + colors -->
+          <!-- Filled by JS with accounts + colors -->
         </div>
       </section>
     </aside>
@@ -47,10 +47,13 @@
       <section class="card list-header">
         <div class="list-header-top">
           <h2>Emails</h2>
-          <div class="page-controls">
-            <button id="prev-page-btn" type="button" class="secondary">&lt;</button>
-            <span id="page-info">Page 1 / 1</span>
-            <button id="next-page-btn" type="button" class="secondary">&gt;</button>
+          <div class="list-header-right">
+            <button id="compose-btn" type="button" class="secondary">Compose</button>
+            <div class="page-controls">
+              <button id="prev-page-btn" type="button" class="secondary">&lt;</button>
+              <span id="page-info">Page 1 / 1</span>
+              <button id="next-page-btn" type="button" class="secondary">&gt;</button>
+            </div>
           </div>
         </div>
       </section>
@@ -120,6 +123,209 @@
     </section>
   </main>
 
+    <!-- Floating composer (bottom-right) -->
+
+    <!-- Floating composer (bottom-right) -->
+  <div id="composer" class="composer hidden">
+    <!-- invisible resize hotspot in the top-left corner -->
+    <div id="composer-resize-zone" class="composer-resize-zone"></div>
+
+    <div class="composer-header">
+      <div class="composer-header-left">
+        <!-- attachment + emoji + format -->
+        <button
+          type="button"
+          id="composer-attach"
+          class="composer-icon-btn"
+          title="Add attachment"
+        >
+          📎
+        </button>
+        <input
+          type="file"
+          id="composer-attachment-input"
+          class="composer-file-input"
+          multiple
+        />
+
+        <button
+          type="button"
+          id="composer-emoji"
+          class="composer-icon-btn"
+          title="Add emoji"
+        >
+          😊
+        </button>
+
+        <button
+          type="button"
+          id="composer-format"
+          class="composer-icon-btn"
+          title="Format text"
+        >
+          Aa
+        </button>
+
+        <!-- used by JS to set title, not visible -->
+        <span id="composer-title" class="composer-title-hidden"></span>
+      </div>
+
+      <div class="composer-header-right">
+        <!-- popup to choose extra fields (Cc/Bcc/Reply-To/Priority) -->
+        <button
+          type="button"
+          id="composer-extra-toggle"
+          class="composer-icon-btn composer-icon-btn--secondary"
+          title="Show fields"
+        >
+          🙂
+        </button>
+
+        <div id="composer-extra-menu" class="composer-extra-menu hidden">
+          <label class="composer-extra-item">
+            <input type="checkbox" data-field="cc" />
+            Cc
+          </label>
+          <label class="composer-extra-item">
+            <input type="checkbox" data-field="bcc" />
+            Bcc
+          </label>
+          <label class="composer-extra-item">
+            <input type="checkbox" data-field="replyto" />
+            Reply-To
+          </label>
+          <label class="composer-extra-item">
+            <input type="checkbox" data-field="priority" />
+            Priority
+          </label>
+        </div>
+
+
+        <!-- simple web-style close -->
+        <button
+          type="button"
+          id="composer-close"
+          class="composer-header-link"
+          title="Close"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+
+    <div class="composer-main">
+      <div class="composer-meta">
+        <label class="composer-row">
+          <span class="composer-label">To:</span>
+          <input
+            type="text"
+            id="composer-to"
+            placeholder="Recipients (comma or semicolon separated)"
+          />
+        </label>
+
+        <label
+          class="composer-row composer-row-extra hidden"
+          data-field="cc"
+        >
+          <span class="composer-label">Cc:</span>
+          <input
+            type="text"
+            id="composer-cc"
+            placeholder="Cc"
+          />
+        </label>
+
+        <label
+          class="composer-row composer-row-extra hidden"
+          data-field="bcc"
+        >
+          <span class="composer-label">Bcc:</span>
+          <input
+            type="text"
+            id="composer-bcc"
+            placeholder="Bcc"
+          />
+        </label>
+
+        <label class="composer-row">
+          <span class="composer-label">Subject:</span>
+          <input
+            type="text"
+            id="composer-subject"
+            placeholder="Subject"
+          />
+        </label>
+
+        <label
+          class="composer-row composer-row-extra hidden"
+          data-field="replyto"
+        >
+          <span class="composer-label">Reply-To:</span>
+          <input
+            type="text"
+            id="composer-replyto"
+            placeholder="Reply-To"
+          />
+        </label>
+
+        <label
+          class="composer-row composer-row-extra hidden"
+          data-field="priority"
+        >
+          <span class="composer-label">Priority:</span>
+          <select id="composer-priority">
+            <option value="">Default</option>
+            <option value="high">High</option>
+            <option value="low">Low</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="composer-editor">
+        <textarea id="composer-body" placeholder=""></textarea>
+      </div>
+    </div>
+
+    <!-- attachments shown between message and footer -->
+    <div id="composer-attachments" class="composer-attachments hidden">
+      <!-- pills added by JS -->
+    </div>
+
+    <div class="composer-footer">
+      <button type="button" id="composer-send" class="primary">Send</button>
+
+      <div class="send-later-wrapper">
+        <!-- not a second send button, just a popup selector -->
+        <button
+          type="button"
+          id="composer-send-later-toggle"
+          class="secondary"
+        >
+          Send later ▾
+        </button>
+
+        <div
+          id="composer-send-later-menu"
+          class="composer-send-later-menu hidden"
+        >
+          <button type="button" data-delay="10m">In 10 minutes</button>
+          <button type="button" data-delay="1h">In 1 hour</button>
+          <button type="button" data-delay="tomorrow_morning">
+            Tomorrow morning
+          </button>
+          <button type="button" data-delay="custom">
+            Pick date &amp; time…
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <script src="/static/utils.js"></script>
+  <script src="/static/api.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>
