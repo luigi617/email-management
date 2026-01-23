@@ -18,3 +18,10 @@ class SendResult:
     ok: bool
     message_id: Optional[str] = None
     detail: Optional[str] = None
+
+    def to_dict(self) -> dict:
+        return {
+            "ok": self.ok,
+            "message_id": self.message_id,
+            "detail": self.detail,
+        }
