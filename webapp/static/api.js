@@ -22,11 +22,18 @@
       return getJSON("/api/emails/mailbox");
     },
 
-    async getOverview({ mailbox, limit, cursor }) {
+    async getOverview({ mailbox, limit, cursor, accounts }) {
       const params = new URLSearchParams();
       if (mailbox) params.set("mailbox", mailbox);
       if (limit != null) params.set("limit", String(limit));
       if (cursor) params.set("cursor", cursor);
+
+      // accounts is a list → repeat "accounts=" in query string
+      if (!cursor && Array.isArray(accounts) && accounts.length) {
+        for (const acc of accounts) {
+          params.append("accounts", acc);
+        }
+      }
 
       const qs = params.toString();
       const url = `/api/emails/overview${qs ? "?" + qs : ""}`;

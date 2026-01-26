@@ -4,7 +4,7 @@ const state = {
   selectedId: null,    // uid composite key
   selectedOverview: null,
   selectedMessage: null,
-  filterSenderKey: null, // legend filter (account)
+  filterAccounts: [], // legend filter (account)
   searchText: "",
   pageSize: 50,
   currentPage: 1,
@@ -683,9 +683,22 @@ async function fetchOverview(direction = null) {
     };
 
     if (direction === "next" && state.nextCursor) {
+      // follow "next" cursor; accounts are encoded in cursor
       args.cursor = state.nextCursor;
     } else if (direction === "prev" && state.prevCursor) {
+      // follow "prev" cursor; accounts are encoded in cursor
       args.cursor = state.prevCursor;
+    } else {
+      // Fresh load (initial, mailbox change, legend change, etc.)
+      delete args.cursor;
+      state.nextCursor = null;
+      state.prevCursor = null;
+      state.currentPage = 1;
+
+      // If user selected accounts in the legend, restrict to those accounts
+      if (Array.isArray(state.filterAccounts) && state.filterAccounts.length > 0) {
+        args.accounts = [...state.filterAccounts];
+      }
     }
 
     const payload = await Api.getOverview(args);
@@ -703,12 +716,12 @@ async function fetchOverview(direction = null) {
     const totalCount =
       typeof meta.total_count === "number" ? meta.total_count : null;
 
-    if (!direction || !state.currentPage) {
-      state.currentPage = 1;
-    } else if (direction === "next") {
+    if (direction === "next") {
       state.currentPage += 1;
     } else if (direction === "prev") {
       state.currentPage = Math.max(1, state.currentPage - 1);
+    } else if (!state.currentPage) {
+      state.currentPage = 1;
     }
 
     if (totalCount != null && state.pageSize > 0) {
@@ -774,12 +787,6 @@ function getSelectedRef() {
 
 function applyFiltersAndRender() {
   let filtered = [...state.emails];
-
-  if (state.filterSenderKey) {
-    filtered = filtered.filter(
-      (e) => findAccountForEmail(e) === state.filterSenderKey
-    );
-  }
 
   if (state.searchText) {
     filtered = filtered.filter((e) => {
@@ -1053,9 +1060,49 @@ function renderMailboxList(mailboxData) {
 
   listEl.innerHTML = "";
 
+  // 🔹 "All inboxes" section at the very top
+  const allGroup = document.createElement("div");
+  allGroup.className = "mailbox-group";
+
+  const allItem = document.createElement("div");
+  allItem.className = "mailbox-item mailbox-item-all";
+  allItem.dataset.mailbox = "INBOX";
+  allItem.dataset.account = ""; // empty = all accounts
+
+  const allDot = document.createElement("span");
+  allDot.className = "mailbox-dot";
+
+  const allLabel = document.createElement("span");
+  allLabel.textContent = "All inboxes";
+
+  allItem.appendChild(allDot);
+  allItem.appendChild(allLabel);
+
+  allItem.addEventListener("click", () => {
+    // mailbox: INBOX, no account filter → all account inboxes
+    state.currentMailbox = "INBOX";
+    state.filterAccounts = [];
+
+    state.selectedId = null;
+    state.selectedOverview = null;
+    state.selectedMessage = null;
+    state.currentPage = 1;
+    state.nextCursor = null;
+    state.prevCursor = null;
+
+    highlightMailboxSelection();
+    fetchOverview();
+  });
+
+  allGroup.appendChild(allItem);
+  listEl.appendChild(allGroup);
+  // 🔹 end "All inboxes" block
+
   const entries = Object.entries(mailboxData || {});
   if (!entries.length) {
-    listEl.textContent = "No mailboxes available.";
+    const msg = document.createElement("div");
+    msg.textContent = "No mailboxes available.";
+    listEl.appendChild(msg);
     return;
   }
 
@@ -1078,6 +1125,7 @@ function renderMailboxList(mailboxData) {
       const item = document.createElement("div");
       item.className = "mailbox-item";
       item.dataset.mailbox = m;
+      item.dataset.account = account;
 
       const dot = document.createElement("span");
       dot.className = "mailbox-dot";
@@ -1088,18 +1136,30 @@ function renderMailboxList(mailboxData) {
       item.appendChild(dot);
       item.appendChild(label);
 
-      if (m === state.currentMailbox) {
+      const isActive =
+        m === state.currentMailbox &&
+        (state.filterAccounts.length === 0
+          ? false // when no filterAccounts we want only "All inboxes" active
+          : state.filterAccounts.includes(account));
+
+      if (isActive) {
         item.classList.add("active");
       }
 
       item.addEventListener("click", () => {
         state.currentMailbox = m;
+        // This mailbox’s account only
+        state.filterAccounts = [account];
+
         state.selectedId = null;
         state.selectedOverview = null;
         state.selectedMessage = null;
         state.currentPage = 1;
+        state.nextCursor = null;
+        state.prevCursor = null;
+
         highlightMailboxSelection();
-        fetchOverview(); // restart pagination from first page for selected mailbox
+        fetchOverview();
       });
 
       mbContainer.appendChild(item);
@@ -1118,19 +1178,40 @@ function renderMailboxList(mailboxData) {
   highlightMailboxSelection();
 }
 
+
 function highlightMailboxSelection() {
   const listEl = document.getElementById("mailbox-list");
   if (!listEl) return;
+
   const items = listEl.querySelectorAll(".mailbox-item");
+  const activeAccounts = new Set(state.filterAccounts || []);
+
   items.forEach((item) => {
     const mb = item.dataset.mailbox;
-    if (mb === state.currentMailbox) {
+    const acc = item.dataset.account || "";
+    const isAllItem = item.classList.contains("mailbox-item-all");
+
+    let isActive = false;
+
+    if (!activeAccounts.size) {
+      // No account filter → only the special "All inboxes" gets active
+      isActive = isAllItem && mb === state.currentMailbox;
+    } else {
+      // Account‐specific mailbox selection
+      isActive = !isAllItem &&
+        mb === state.currentMailbox &&
+        acc &&
+        activeAccounts.has(acc);
+    }
+
+    if (isActive) {
       item.classList.add("active");
     } else {
       item.classList.remove("active");
     }
   });
 }
+
 
 /* ------------------ Legend ------------------ */
 
@@ -1171,16 +1252,6 @@ function buildLegend() {
       <span>${escapeHtml(accountEmail)}</span>
     `;
 
-    item.addEventListener("click", () => {
-      if (state.filterSenderKey === accountEmail) {
-        state.filterSenderKey = null;
-      } else {
-        state.filterSenderKey = accountEmail;
-      }
-      applyFiltersAndRender();
-      highlightLegendSelection();
-    });
-
     legendEl.appendChild(item);
   }
 
@@ -1191,9 +1262,12 @@ function highlightLegendSelection() {
   const legendEl = document.getElementById("legend-list");
   if (!legendEl) return;
   const items = legendEl.querySelectorAll(".legend-item");
+
+  const activeSet = new Set(state.filterAccounts || []);
+
   items.forEach((item) => {
     const key = item.dataset.key;
-    if (key && key === state.filterSenderKey) {
+    if (key && activeSet.has(key)) {
       item.classList.add("active");
     } else {
       item.classList.remove("active");

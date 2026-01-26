@@ -3,6 +3,7 @@ import os
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 from pydantic import BaseModel
+from urllib.parse import unquote
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, HTTPException, Query, APIRouter
@@ -253,13 +254,13 @@ def get_email_mailbox() -> Dict[str, List[str]]:
         res[acc_name] = mailbox_list
     return res
 
-@app.get("/api/accounts/{account}/mailboxes/{mailbox}/emails/{email_id}")
+@app.get("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}")
 def get_email(account: str, mailbox: str, email_id: int) -> dict:
     """
     Fetch a single email by UID for a given account and mailbox.
-    Example:
-        GET /api/accounts/work/mailboxes/INBOX/emails/123
     """
+    account = unquote(account)
+    mailbox = unquote(mailbox)
     manager = ACCOUNTS.get(account)
     if manager is None:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -270,7 +271,9 @@ def get_email(account: str, mailbox: str, email_id: int) -> dict:
     )
     return message.to_dict()
 
-@app.post("/api/accounts/{account}/mailboxes/{mailbox}/emails/{email_id}/archive")
+
+
+@app.post("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/archive")
 def archive_email(account: str, mailbox: str, email_id: int) -> dict:
     """
     Archive a single email by moving it out of the current mailbox.
@@ -278,6 +281,8 @@ def archive_email(account: str, mailbox: str, email_id: int) -> dict:
     Here we define "archive" as moving the message to an "Archive" mailbox.
     If that mailbox does not exist, we create it.
     """
+    account = unquote(account)
+    mailbox = unquote(mailbox)
     manager = ACCOUNTS.get(account)
     if manager is None:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -295,11 +300,13 @@ def archive_email(account: str, mailbox: str, email_id: int) -> dict:
     return {"status": "ok", "action": "archive", "account": account, "mailbox": mailbox, "email_id": email_id}
 
 
-@app.delete("/api/accounts/{account}/mailboxes/{mailbox}/emails/{email_id}")
+@app.delete("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}")
 def delete_email(account: str, mailbox: str, email_id: int) -> dict:
     """
     Delete a single email (mark as \\Deleted and expunge from the mailbox).
     """
+    account = unquote(account)
+    mailbox = unquote(mailbox)
     manager = ACCOUNTS.get(account)
     if manager is None:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -312,7 +319,7 @@ def delete_email(account: str, mailbox: str, email_id: int) -> dict:
     return {"status": "ok", "action": "delete", "account": account, "mailbox": mailbox, "email_id": email_id}
 
 
-@app.post("/api/accounts/{account}/mailboxes/{mailbox}/emails/{email_id}/reply")
+@app.post("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/reply")
 def reply_email(
     account: str,
     mailbox: str,
@@ -322,6 +329,8 @@ def reply_email(
     """
     Reply to an email (given account, mailbox, email_id).
     """
+    account = unquote(account)
+    mailbox = unquote(mailbox)
     manager = ACCOUNTS.get(account)
     if manager is None:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -342,7 +351,7 @@ def reply_email(
     return {"status": "ok", "action": "reply", "account": account, "mailbox": mailbox, "email_id": email_id, "result": result.to_dict()}
 
 
-@app.post("/api/accounts/{account}/mailboxes/{mailbox}/emails/{email_id}/reply-all")
+@app.post("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/reply-all")
 def reply_all_email(
     account: str,
     mailbox: str,
@@ -352,6 +361,8 @@ def reply_all_email(
     """
     Reply-all to an email (given account, mailbox, email_id).
     """
+    account = unquote(account)
+    mailbox = unquote(mailbox)
     manager = ACCOUNTS.get(account)
     if manager is None:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -372,7 +383,7 @@ def reply_all_email(
     return {"status": "ok", "action": "reply_all", "account": account, "mailbox": mailbox, "email_id": email_id, "result": result.to_dict()}
 
 
-@app.post("/api/accounts/{account}/mailboxes/{mailbox}/emails/{email_id}/forward")
+@app.post("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/forward")
 def forward_email(
     account: str,
     mailbox: str,
@@ -382,6 +393,8 @@ def forward_email(
     """
     Forward an email (given account, mailbox, email_id).
     """
+    account = unquote(account)
+    mailbox = unquote(mailbox)
     manager = ACCOUNTS.get(account)
     if manager is None:
         raise HTTPException(status_code=404, detail="Account not found")

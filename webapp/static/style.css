@@ -267,6 +267,10 @@ button.primary:hover {
   margin-bottom: 0.35rem;
 }
 
+.mailbox-item-all {
+  font-weight: 600;
+}
+
 .mailbox-account {
   width: 100%;
   border: none;
@@ -369,16 +373,7 @@ button.primary:hover {
   gap: 0.4rem;
   padding: 0.20rem 0.45rem;
   border-radius: 12px;
-  cursor: pointer;
   font-size: 0.78rem;
-}
-
-.legend-item:hover {
-  background: rgba(255, 255, 255, 0.55);
-}
-
-.legend-item.active {
-  background: var(--accent-soft);
 }
 
 .legend-color-dot {
@@ -502,9 +497,20 @@ button.primary:hover {
 
 .email-subject {
   font-size: 0.83rem;
-  white-space: nowrap;
+  line-height: 1.25em;
+
+  /* Allow wrapping */
+  white-space: normal;
   overflow: hidden;
-  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;         /* show max 2 lines */
+  -webkit-box-orient: vertical;
+
+  /* Reserve space for 2 lines */
+  min-height: calc(2 * 1.25em);
+
+  /* Optional for consistent wrap behavior */
+  word-break: break-word;
 }
 
 .email-date {
