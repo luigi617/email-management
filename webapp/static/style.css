@@ -86,6 +86,10 @@ main.layout {
   height: 18px;
 }
 
+/* small inline "x" icon inside pills can reuse .icon-img size if needed */
+
+/* --- Cards --- */
+
 .card {
   background: var(--detail-bg);
   border-radius: var(--radius-lg);
@@ -724,6 +728,10 @@ button.secondary.small {
   gap: 0.25rem;
 }
 
+.composer-header-left {
+  position: relative;
+}
+
 .composer-icon-btn {
   border: none;
   background: transparent;
@@ -760,10 +768,6 @@ button.secondary.small {
 }
 
 /* extra-fields menu */
-
-.composer-header-right {
-  position: relative;
-}
 
 .composer-extra-menu {
   position: absolute;
@@ -890,6 +894,7 @@ button.secondary.small {
   color: var(--text-muted);
 }
 
+/* default inline field */
 .composer-row input[type="text"],
 .composer-row select {
   flex: 1;
@@ -905,6 +910,67 @@ button.secondary.small {
   outline: none;
   border-bottom-color: var(--accent);
 }
+
+/* address pill wrapper for To/Cc/Bcc */
+
+.composer-address-wrapper {
+  flex: 1;
+  min-height: 1.8rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.15rem 0;
+  border-bottom: 1px solid transparent;
+}
+
+.composer-address-wrapper.focused {
+  border-bottom-color: var(--accent);
+}
+
+.composer-address-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.composer-address-wrapper input[type="text"] {
+  flex: 1;
+  min-width: 120px;
+  border-bottom: none !important;
+  padding: 0;
+  margin: 0;
+}
+
+/* individual address pill */
+
+.composer-address-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  background: #e5e5ea;
+  font-size: 0.78rem;
+  max-width: 200px;
+}
+
+.composer-address-pill-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.composer-address-pill-remove {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.8rem;
+  margin-left: 0.2rem;
+  padding: 0;
+  line-height: 1;
+}
+
+/* body */
 
 .composer-editor {
   flex: 1;
@@ -972,6 +1038,19 @@ button.secondary.small {
   background: #f3f4f6;
 }
 
+/* minimized composer */
+
+.composer.composer--minimized {
+  min-height: auto;
+  height: auto;
+}
+
+.composer.composer--minimized .composer-main,
+.composer.composer--minimized .composer-footer,
+.composer.composer--minimized #composer-attachments {
+  display: none;
+}
+
 @media (max-width: 640px) {
   .composer {
     right: 0.75rem;
@@ -979,4 +1058,43 @@ button.secondary.small {
     width: auto;
     max-width: none;
   }
+}
+
+/* modal: save draft confirmation */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: 0.9rem 1rem 0.85rem;
+  min-width: 260px;
+  max-width: 360px;
+}
+
+.modal h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.modal p {
+  margin: 0 0 0.7rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.35rem;
 }

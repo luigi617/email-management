@@ -227,7 +227,40 @@
 
     <div class="composer-header">
       <div class="composer-header-left">
-        <!-- attachment + emoji + format -->
+        <!-- extra fields + attachment + emoji + format -->
+        <button
+          type="button"
+          id="composer-extra-toggle"
+          class="composer-icon-btn composer-icon-btn--secondary"
+          title="Show fields"
+        >
+          <img
+            src="/static/svg/list.svg"
+            alt=""
+            aria-hidden="true"
+            class="icon-img"
+          />
+        </button>
+
+        <div id="composer-extra-menu" class="composer-extra-menu hidden">
+          <label class="composer-extra-item">
+            <input type="checkbox" data-field="cc" />
+            Cc
+          </label>
+          <label class="composer-extra-item">
+            <input type="checkbox" data-field="bcc" />
+            Bcc
+          </label>
+          <label class="composer-extra-item">
+            <input type="checkbox" data-field="replyto" />
+            Reply-To
+          </label>
+          <label class="composer-extra-item">
+            <input type="checkbox" data-field="priority" />
+            Priority
+          </label>
+        </div>
+
         <button
           type="button"
           id="composer-attach"
@@ -276,39 +309,20 @@
       </div>
 
       <div class="composer-header-right">
-        <!-- popup to choose extra fields (Cc/Bcc/Reply-To/Priority) -->
+        <!-- minimize next to close -->
         <button
           type="button"
-          id="composer-extra-toggle"
-          class="composer-icon-btn composer-icon-btn--secondary"
-          title="Show fields"
+          id="composer-minimize"
+          class="composer-icon-btn"
+          title="Minimize"
         >
           <img
-            src="/static/svg/list.svg"
+            src="/static/svg/minimize.svg"
             alt=""
             aria-hidden="true"
             class="icon-img"
           />
         </button>
-
-        <div id="composer-extra-menu" class="composer-extra-menu hidden">
-          <label class="composer-extra-item">
-            <input type="checkbox" data-field="cc" />
-            Cc
-          </label>
-          <label class="composer-extra-item">
-            <input type="checkbox" data-field="bcc" />
-            Bcc
-          </label>
-          <label class="composer-extra-item">
-            <input type="checkbox" data-field="replyto" />
-            Reply-To
-          </label>
-          <label class="composer-extra-item">
-            <input type="checkbox" data-field="priority" />
-            Priority
-          </label>
-        </div>
 
         <!-- simple web-style close -->
         <button
@@ -327,6 +341,7 @@
         </button>
       </div>
     </div>
+
 
     <div class="composer-main">
       <div class="composer-meta">
@@ -395,7 +410,14 @@
             <option value="low">Low</option>
           </select>
         </label>
+
+        <!-- From moved to be the last row -->
+        <label class="composer-row">
+          <span class="composer-label">From:</span>
+          <select id="composer-from"></select>
+        </label>
       </div>
+
 
       <div class="composer-editor">
         <textarea id="composer-body" placeholder=""></textarea>
@@ -433,6 +455,25 @@
             Pick date &amp; time…
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Close confirmation modal -->
+  <div id="composer-close-confirm" class="modal-backdrop hidden">
+    <div class="modal">
+      <h3>Save draft?</h3>
+      <p>Do you want to save this message as a draft?</p>
+      <div class="modal-actions">
+        <button type="button" id="composer-confirm-save" class="primary">
+          Save
+        </button>
+        <button type="button" id="composer-confirm-discard" class="secondary">
+          Don't save
+        </button>
+        <button type="button" id="composer-confirm-cancel" class="secondary">
+          Cancel
+        </button>
       </div>
     </div>
   </div>

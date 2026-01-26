@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import html as _html
 from dataclasses import dataclass
 from email.message import EmailMessage as PyEmailMessage
@@ -83,6 +83,23 @@ class EmailManager:
                     filename=filename,
                 )
     
+    def _extract_envelope_recipients(self, msg: PyEmailMessage) -> list[str]:
+        addr_headers = []
+        addr_headers.extend(msg.get_all("To", []))
+        addr_headers.extend(msg.get_all("Cc", []))
+        addr_headers.extend(msg.get_all("Bcc", []))
+
+        pairs = parse_addrs(*addr_headers)
+        # simple dedup by lowercase address
+        seen = set()
+        result: list[str] = []
+        for _, addr in pairs:
+            norm = addr.strip().lower()
+            if norm and norm not in seen:
+                seen.add(norm)
+                result.append(addr)
+        return result
+    
     def fetch_message_by_ref(
         self,
         ref: EmailRef,
@@ -111,7 +128,15 @@ class EmailManager:
         return list(self.imap.fetch(refs, include_attachments=include_attachments))
 
     def send(self, msg: PyEmailMessage) -> SendResult:
-        return self.smtp.send(msg)
+        recipients = self._extract_envelope_recipients(msg)
+
+        if "Bcc" in msg:
+            del msg["Bcc"]
+        
+        if not recipients:
+            raise ValueError("send(): no recipients found in To/Cc/Bcc")
+    
+        return self.smtp.send(msg, recipients)
     
     def send_later(
         self,
@@ -131,6 +156,17 @@ class EmailManager:
         Build an email intended for future sending.
         Caller can store/send later via EmailManager.send(msg).
         """
+        if not to and not cc and not bcc:
+            raise ValueError(
+                "send_later(): at least one of to/cc/bcc must contain a recipient"
+            )
+        
+        if scheduled_at.tzinfo is None:
+            # Treat naive datetime as UTC by default
+            scheduled_at = scheduled_at.replace(tzinfo=timezone.utc)
+        else:
+            scheduled_at = scheduled_at.astimezone(timezone.utc)
+    
         msg = self.compose(
             subject=subject,
             to=to,
@@ -142,7 +178,7 @@ class EmailManager:
             attachments=attachments,
             extra_headers=extra_headers,
         )
-        msg["X-Scheduled-At"] = scheduled_at.isoformat()
+        msg["X-Scheduled-At"] = scheduled_at.isoformat().replace("+00:00", "Z")
         return msg
 
     def compose(
@@ -166,8 +202,6 @@ class EmailManager:
         - attachments: list of your Attachment models
         - extra_headers: optional extra headers (e.g. Reply-To)
         """
-        if not to:
-            raise ValueError("compose(): 'to' must contain at least one recipient")
 
         msg = PyEmailMessage()
 
@@ -208,6 +242,12 @@ class EmailManager:
         """
         Convenience wrapper: compose a new email and send it.
         """
+
+        if not to and not cc and not bcc:
+            raise ValueError(
+                "compose_and_send(): at least one of to/cc/bcc must contain a recipient"
+            )
+    
         msg = self.compose(
             subject=subject,
             to=to,

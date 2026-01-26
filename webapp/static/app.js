@@ -16,6 +16,11 @@ const state = {
   mailboxData: {},     // account -> [mailbox, ...]
   composerMode: null,  // 'compose' | 'reply' | 'reply_all' | 'forward'
   composerAttachmentsFiles: [],
+  composerAddresses: { // tokenised addresses for To/Cc/Bcc
+    to: [],
+    cc: [],
+    bcc: [],
+  },
 };
 
 // Shorthands to utils
@@ -208,12 +213,17 @@ function initComposer() {
     composerMain.appendChild(attachmentsBar);
   }
 
+  // Enhance To/Cc/Bcc with token chips
+  ["to", "cc", "bcc"].forEach((field) => setupAddressField(field));
+
   if (composeBtn) {
     composeBtn.addEventListener("click", () => openComposer("compose"));
   }
 
   if (closeBtn) {
-    closeBtn.addEventListener("click", () => closeComposer());
+    closeBtn.addEventListener("click", () => {
+      handleComposerCloseRequest();
+    });
   }
 
   if (sendBtn) {
@@ -351,19 +361,76 @@ function initComposer() {
       document.addEventListener("mouseup", onMouseUp);
     });
   }
+
+  // Minimize / restore composer
+  const minimizeBtn = document.getElementById("composer-minimize");
+  if (minimizeBtn && composerEl) {
+    minimizeBtn.addEventListener("click", () => {
+      const isNowMinimized = !composerEl.classList.contains("composer--minimized");
+      if (isNowMinimized) {
+        const rect = composerEl.getBoundingClientRect();
+        composerEl.dataset.prevHeight = rect.height + "px";
+        composerEl.classList.add("composer--minimized");
+        composerEl.style.height = "auto";
+      } else {
+        composerEl.classList.remove("composer--minimized");
+        const prevHeight = composerEl.dataset.prevHeight;
+        if (prevHeight) {
+          composerEl.style.height = prevHeight;
+        }
+      }
+    });
+  }
+
+  // Close confirmation modal
+  const confirmModal = document.getElementById("composer-close-confirm");
+  const confirmSaveBtn = document.getElementById("composer-confirm-save");
+  const confirmDiscardBtn = document.getElementById("composer-confirm-discard");
+  const confirmCancelBtn = document.getElementById("composer-confirm-cancel");
+
+  if (confirmSaveBtn) {
+    confirmSaveBtn.addEventListener("click", () => {
+      hideComposerCloseConfirm();
+      // TODO: hook up to backend draft-saving endpoint
+      console.log("Save draft: not wired to backend yet.");
+      closeComposer();
+    });
+  }
+
+  if (confirmDiscardBtn) {
+    confirmDiscardBtn.addEventListener("click", () => {
+      hideComposerCloseConfirm();
+      resetComposerFields();
+      closeComposer();
+    });
+  }
+
+  if (confirmCancelBtn) {
+    confirmCancelBtn.addEventListener("click", () => {
+      hideComposerCloseConfirm();
+    });
+  }
 }
 
 function openComposer(mode) {
   const composer = document.getElementById("composer");
   const titleEl = document.getElementById("composer-title");
   const toInput = document.getElementById("composer-to");
+  const ccInput = document.getElementById("composer-cc");
+  const bccInput = document.getElementById("composer-bcc");
   const subjInput = document.getElementById("composer-subject");
   const bodyInput = document.getElementById("composer-body");
+  const replyToInput = document.getElementById("composer-replyto");
+  const prioritySelect = document.getElementById("composer-priority");
   const attachmentInput = document.getElementById("composer-attachment-input");
   const extraMenu = document.getElementById("composer-extra-menu");
   const sendLaterMenu = document.getElementById("composer-send-later-menu");
+  const fromSelect = document.getElementById("composer-from");
 
   if (!composer || !titleEl || !toInput || !subjInput || !bodyInput) return;
+
+  // restore from minimized if needed
+  composer.classList.remove("composer--minimized");
 
   // reset menus
   if (extraMenu) extraMenu.classList.add("hidden");
@@ -373,6 +440,16 @@ function openComposer(mode) {
   state.composerAttachmentsFiles = [];
   if (attachmentInput) attachmentInput.value = "";
   renderComposerAttachments();
+
+  // reset address tokens + basic fields
+  resetComposerAddresses();
+  if (toInput) toInput.value = "";
+  if (ccInput) ccInput.value = "";
+  if (bccInput) bccInput.value = "";
+  if (subjInput) subjInput.value = "";
+  if (bodyInput) bodyInput.value = "";
+  if (replyToInput) replyToInput.value = "";
+  if (prioritySelect) prioritySelect.value = "";
 
   state.composerMode = mode || "compose";
   composer.classList.remove("hidden");
@@ -384,6 +461,21 @@ function openComposer(mode) {
   const ov = state.selectedOverview;
   const msg = state.selectedMessage;
   const originalSubj = (msg && msg.subject) || (ov && ov.subject) || "";
+
+  // choose default From account
+  let defaultFrom = null;
+  if (mode === "reply" || mode === "reply_all" || mode === "forward") {
+    const ref = getSelectedRef();
+    defaultFrom = ref ? ref.account : null;
+  } else if (mode === "compose") {
+    if (Array.isArray(state.filterAccounts) && state.filterAccounts.length === 1) {
+      defaultFrom = state.filterAccounts[0];
+    } else {
+      const allAccounts = Object.keys(state.mailboxData || {});
+      defaultFrom = allAccounts[0] || null;
+    }
+  }
+  populateComposerFromOptions(defaultFrom);
 
   if (mode === "compose") {
     titleEl.textContent = "New message";
@@ -428,11 +520,80 @@ function openComposer(mode) {
     titleEl.textContent = "Message";
   }
 
-  toInput.value = toStr;
+  if (mode === "reply" || mode === "reply_all" || mode === "forward") {
+    body = buildQuotedOriginalBody();
+  }
+
+  // pre-fill To as pills when applicable
+  if (toStr) {
+    setAddressesFromString("to", toStr);
+  } else {
+    setAddressesFromString("to", "");
+  }
+
   subjInput.value = subj;
   bodyInput.value = body;
   bodyInput.focus();
 }
+
+function buildQuotedOriginalBody() {
+  const ov = state.selectedOverview;
+  const msg = state.selectedMessage;
+
+  if (!ov && !msg) return "";
+
+  const fromObj = (msg && msg.from_email) || (ov && ov.from_email) || {};
+  let who;
+  if (fromObj.name && fromObj.email) {
+    who = `${fromObj.name} <${fromObj.email}>`;
+  } else {
+    who = fromObj.name || fromObj.email || "unknown sender";
+  }
+
+  const dateVal = (msg && msg.date) || (ov && ov.date);
+  let headerLine = "";
+
+  if (dateVal) {
+    const d = new Date(dateVal);
+    if (!isNaN(d.getTime())) {
+      const dateStr = d.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+      const timeStr = d.toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      });
+      headerLine = `On ${dateStr}, at ${timeStr}, ${who} wrote:\n`;
+    } else {
+      headerLine = `On ${dateVal}, ${who} wrote:\n`;
+    }
+  } else {
+    headerLine = `${who} wrote:\n`;
+  }
+
+  let originalText = "";
+  if (msg && (msg.text || msg.html)) {
+    originalText = msg.text || msg.html.replace(/<[^>]+>/g, "");
+  } else if (ov && ov.snippet) {
+    originalText = ov.snippet;
+  }
+
+  if (!originalText) {
+    // At least show the header
+    return `\n\n${headerLine}`;
+  }
+
+  const quoted = originalText
+    .split(/\r?\n/)
+    .map((line) => (line ? `> ${line}` : ">"))
+    .join("\n");
+
+  // Blank line before to separate from the user’s new text
+  return `\n\n${headerLine}${quoted}\n`;
+}
+
 
 function renderComposerAttachments() {
   const container = document.getElementById("composer-attachments");
@@ -515,11 +676,277 @@ function renderComposerAttachments() {
   });
 }
 
+/* address chip helpers ------------------------------------------------- */
+
+function setupAddressField(field) {
+  const input = document.getElementById(`composer-${field}`);
+  if (!input) return;
+
+  if (input.parentElement && input.parentElement.classList.contains("composer-address-wrapper")) {
+    // already enhanced
+    return;
+  }
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "composer-address-wrapper";
+  wrapper.dataset.field = field;
+
+  const pillsContainer = document.createElement("div");
+  pillsContainer.className = "composer-address-pills";
+
+  input.parentNode.insertBefore(wrapper, input);
+  wrapper.appendChild(pillsContainer);
+  wrapper.appendChild(input);
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === ";" || e.key === "Enter") {
+      e.preventDefault();
+      commitAddressInput(field);
+    } else if (e.key === "Backspace" && !input.value) {
+      const arr = state.composerAddresses[field] || [];
+      if (arr.length > 0) {
+        arr.pop();
+        renderAddressPills(field);
+      }
+    }
+  });
+
+  input.addEventListener("blur", () => {
+    wrapper.classList.remove("focused");
+  });
+
+  input.addEventListener("focus", () => {
+    wrapper.classList.add("focused");
+  });
+
+  renderAddressPills(field);
+}
+
+function commitAddressInput(field) {
+  const input = document.getElementById(`composer-${field}`);
+  if (!input) return;
+
+  const raw = input.value || "";
+  const parts = raw
+    .split(/[;,]/)           // split on comma or semicolon
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (!parts.length) return;
+
+  if (!state.composerAddresses[field]) {
+    state.composerAddresses[field] = [];
+  }
+
+  // append all tokens as separate addresses
+  state.composerAddresses[field].push(...parts);
+
+  // clear the input so user can type the next address
+  input.value = "";
+  renderAddressPills(field);
+}
+
+
+function renderAddressPills(field) {
+  const wrapper = document.querySelector(
+    `.composer-address-wrapper[data-field="${field}"]`
+  );
+  if (!wrapper) return;
+
+  const pillsContainer = wrapper.querySelector(".composer-address-pills");
+  if (!pillsContainer) return;
+
+  pillsContainer.innerHTML = "";
+  const list = state.composerAddresses[field] || [];
+
+  list.forEach((val) => {
+    const pill = document.createElement("span");
+    pill.className = "composer-address-pill";
+
+    const textSpan = document.createElement("span");
+    textSpan.className = "composer-address-pill-text";
+    textSpan.textContent = val;
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "composer-address-pill-remove";
+    removeBtn.title = "Remove";
+    removeBtn.textContent = "×";
+
+    removeBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Find the pill that was actually clicked
+      const pills = Array.from(
+        pillsContainer.querySelectorAll(".composer-address-pill")
+      );
+      const idx = pills.indexOf(pill);
+      if (idx === -1) return;
+
+      const arr = state.composerAddresses[field] || [];
+      arr.splice(idx, 1); // remove only the clicked pill
+      state.composerAddresses[field] = arr;
+      renderAddressPills(field);
+    });
+
+    pill.appendChild(textSpan);
+    pill.appendChild(removeBtn);
+    pillsContainer.appendChild(pill);
+  });
+}
+
+
+
+function resetComposerAddresses() {
+  if (!state.composerAddresses) {
+    state.composerAddresses = { to: [], cc: [], bcc: [] };
+  } else {
+    state.composerAddresses.to = [];
+    state.composerAddresses.cc = [];
+    state.composerAddresses.bcc = [];
+  }
+  ["to", "cc", "bcc"].forEach((field) => renderAddressPills(field));
+}
+
+function setAddressesFromString(field, raw) {
+  if (!state.composerAddresses) {
+    state.composerAddresses = { to: [], cc: [], bcc: [] };
+  }
+  const parts = (raw || "")
+    .split(/[;,]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  state.composerAddresses[field] = parts;
+  renderAddressPills(field);
+
+  const input = document.getElementById(`composer-${field}`);
+  if (input) input.value = "";
+}
+
+function getAllAddressesForField(field) {
+  const arr = (state.composerAddresses && state.composerAddresses[field]) || [];
+  const input = document.getElementById(`composer-${field}`);
+  let values = [...arr];
+  if (input && input.value.trim()) {
+    const extra = input.value
+      .split(/[;,]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    values = values.concat(extra);
+  }
+  return values;
+}
+
+/* close confirmation helpers ----------------------------------------- */
+
+function composerHasContent() {
+  const fields = ["to", "cc", "bcc"];
+  const subjInput = document.getElementById("composer-subject");
+  const bodyInput = document.getElementById("composer-body");
+  const replyToInput = document.getElementById("composer-replyto");
+
+  let hasAddresses = false;
+  for (const field of fields) {
+    const list = (state.composerAddresses && state.composerAddresses[field]) || [];
+    if (list.length) {
+      hasAddresses = true;
+      break;
+    }
+    const input = document.getElementById(`composer-${field}`);
+    if (input && input.value.trim()) {
+      hasAddresses = true;
+      break;
+    }
+  }
+
+  const hasSubject = subjInput && subjInput.value.trim().length > 0;
+  const hasBody = bodyInput && bodyInput.value.trim().length > 0;
+  const hasReplyTo = replyToInput && replyToInput.value.trim().length > 0;
+  const hasAttachments =
+    Array.isArray(state.composerAttachmentsFiles) &&
+    state.composerAttachmentsFiles.length > 0;
+
+  return hasAddresses || hasSubject || hasBody || hasReplyTo || hasAttachments;
+}
+
+function handleComposerCloseRequest() {
+  const composer = document.getElementById("composer");
+  if (!composer || composer.classList.contains("hidden")) return;
+
+  if (!composerHasContent()) {
+    closeComposer();
+    return;
+  }
+  showComposerCloseConfirm();
+}
+
+function showComposerCloseConfirm() {
+  const modal = document.getElementById("composer-close-confirm");
+  if (!modal) {
+    closeComposer();
+    return;
+  }
+  modal.classList.remove("hidden");
+}
+
+function hideComposerCloseConfirm() {
+  const modal = document.getElementById("composer-close-confirm");
+  if (!modal) return;
+  modal.classList.add("hidden");
+}
+
+function resetComposerFields() {
+  const ids = ["to", "cc", "bcc", "subject", "replyto"];
+  ids.forEach((id) => {
+    const el = document.getElementById(`composer-${id}`);
+    if (el) el.value = "";
+  });
+  const body = document.getElementById("composer-body");
+  if (body) body.value = "";
+  const prioritySelect = document.getElementById("composer-priority");
+  if (prioritySelect) prioritySelect.value = "";
+  state.composerAttachmentsFiles = [];
+  renderComposerAttachments();
+  resetComposerAddresses();
+}
+
 function closeComposer() {
   const composer = document.getElementById("composer");
   if (!composer) return;
   composer.classList.add("hidden");
   state.composerMode = null;
+}
+
+/* From: accounts list -------------------------------------------------- */
+
+function populateComposerFromOptions(selectedAccount) {
+  const select = document.getElementById("composer-from");
+  if (!select) return;
+  const accounts = Object.keys(state.mailboxData || {});
+  select.innerHTML = "";
+
+  if (!accounts.length) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "(no accounts)";
+    select.appendChild(opt);
+    return;
+  }
+
+  accounts.forEach((acc) => {
+    const opt = document.createElement("option");
+    opt.value = acc;
+    opt.textContent = acc;
+    if (selectedAccount && acc === selectedAccount) {
+      opt.selected = true;
+    }
+    select.appendChild(opt);
+  });
+
+  if (selectedAccount == null) {
+    select.selectedIndex = 0;
+  }
 }
 
 async function sendCurrentComposer() {
@@ -528,8 +955,11 @@ async function sendCurrentComposer() {
   const subjInput = document.getElementById("composer-subject");
   const bodyInput = document.getElementById("composer-body");
   const sendBtn = document.getElementById("composer-send");
+  const fromSelect = document.getElementById("composer-from");
 
   if (!mode || !toInput || !subjInput || !bodyInput || !sendBtn) return;
+
+  const fromAddr = fromSelect && fromSelect.value ? fromSelect.value : null;
 
   if (mode === "compose") {
     // No generic compose/send API is defined in the provided backend.
@@ -556,7 +986,7 @@ async function sendCurrentComposer() {
         uid,
         body: bodyText,
         bodyHtml: null,
-        fromAddr: null,
+        fromAddr: fromAddr,
         quoteOriginal: true,
       });
     } else if (mode === "reply_all") {
@@ -566,19 +996,15 @@ async function sendCurrentComposer() {
         uid,
         body: bodyText,
         bodyHtml: null,
-        fromAddr: null,
+        fromAddr: fromAddr,
         quoteOriginal: true,
       });
     } else if (mode === "forward") {
-      const rawTo = (toInput.value || "").trim();
-      if (!rawTo) {
+      const toList = getAllAddressesForField("to");
+      if (!toList.length) {
         alert("Please specify at least one recipient.");
         return;
       }
-      const toList = rawTo
-        .split(/[;,]/)
-        .map((s) => s.trim())
-        .filter(Boolean);
 
       await Api.forwardEmail({
         account,
@@ -587,7 +1013,7 @@ async function sendCurrentComposer() {
         to: toList,
         body: bodyText || null,
         bodyHtml: null,
-        fromAddr: null,
+        fromAddr: fromAddr,
         includeAttachments: true,
       });
     } else {
@@ -654,6 +1080,8 @@ async function fetchMailboxes() {
     const data = await Api.getMailboxes(); // { account: [mb1, ...] }
     state.mailboxData = data || {};
     renderMailboxList(data);
+    // also update "From" select for composer
+    populateComposerFromOptions(null);
   } catch (err) {
     console.error("Error fetching mailboxes:", err);
   }
@@ -996,6 +1424,14 @@ function renderDetailFromMessage(overview, msg) {
           }
           body {
             margin: 0;
+          }
+            
+          /* Quoted previous messages: colored left tab */
+          blockquote {
+            margin: 0.25rem 0;
+            padding-left: 0.6rem;
+            border-left: 3px solid #c4d0ff;
+            color: #4b5563;
           }
         </style>
         ${htmlBody}
