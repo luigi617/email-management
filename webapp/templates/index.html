@@ -463,19 +463,21 @@
     </div>
   </div>
 
-  <div id="app-alert-modal" class="modal hidden">
-    <div class="modal-dialog">
-      <div class="modal-header">
-        <h2 id="app-alert-title">Notice</h2>
+  <!-- App modal (for alerts, confirms, composer close, etc.) -->
+  <div id="app-alert-modal" class="app-modal-backdrop hidden">
+    <div class="app-modal-dialog">
+      <div class="app-modal-header">
+        <h2 id="app-alert-title" class="app-modal-title">Notice</h2>
       </div>
-      <div class="modal-body">
+      <div class="app-modal-body">
         <p id="app-alert-message"></p>
       </div>
-      <div class="modal-footer" id="app-alert-footer">
-        <!-- buttons will be injected via JS -->
+      <div class="app-modal-footer" id="app-alert-footer">
+        <!-- buttons injected by JS -->
       </div>
     </div>
   </div>
+
 
 
   <script src="/static/utils.js"></script>

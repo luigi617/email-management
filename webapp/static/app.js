@@ -115,17 +115,45 @@ function initDetailActions() {
   }
 
   if (moveConfirm && movePanel) {
-    moveConfirm.addEventListener("click", () => {
+    moveConfirm.addEventListener("click", async () => {
       const select = document.getElementById("move-mailbox-select");
       if (!select || !state.selectedOverview) return;
+
       const targetMailbox = select.value;
+      const ref = getSelectedRef();
+      if (!ref) {
+        showDetailError("No email selected to move.");
+        return;
+      }
 
-      // TODO: wire move when backend endpoint exists
-      console.log("Move email to mailbox:", targetMailbox, state.selectedOverview);
+      const { account, mailbox, uid } = ref;
 
-      movePanel.classList.add("hidden");
+      if (!targetMailbox || targetMailbox === mailbox) {
+        movePanel.classList.add("hidden");
+        return;
+      }
+
+      try {
+        clearDetailError();
+        await Api.moveEmail({
+          account,
+          mailbox,
+          uid,
+          destinationMailbox: targetMailbox,
+        });
+
+        movePanel.classList.add("hidden");
+
+        // Refresh list (stay in current mailbox view)
+        state.currentPage = 1;
+        fetchOverview();
+      } catch (err) {
+        console.error("Error moving email:", err);
+        showDetailError("Error moving email. Please try again.");
+      }
     });
   }
+
 
   const archiveBtn = document.getElementById("btn-archive");
   const deleteBtn = document.getElementById("btn-delete");
@@ -222,9 +250,52 @@ function initComposer() {
 
   if (closeBtn) {
     closeBtn.addEventListener("click", () => {
-      handleComposerCloseRequest();
+      const composer = document.getElementById("composer");
+      if (!composer || composer.classList.contains("hidden")) return;
+
+      // No content? Just close directly.
+      if (!composerHasContent()) {
+        closeComposer();
+        return;
+      }
+
+      // Use the generic app modal
+      showAppDialog({
+        title: "Close message?",
+        message: "You have unsent changes. Do you want to save this message as a draft?",
+        buttons: [
+          {
+            label: "Save draft",
+            variant: "primary",
+            // can be async; we don't need to await it here
+            onClick: async () => {
+              const ok = await saveCurrentComposerAsDraft();
+              if (ok) {
+                resetComposerFields();
+                closeComposer();
+              }
+            },
+          },
+          {
+            label: "Discard",
+            variant: "danger",
+            onClick: () => {
+              resetComposerFields();
+              closeComposer();
+            },
+          },
+          {
+            label: "Cancel",
+            variant: "secondary",
+            onClick: () => {
+              // do nothing; just close the modal
+            },
+          },
+        ],
+      });
     });
   }
+
 
   if (sendBtn) {
     sendBtn.addEventListener("click", () => {
@@ -388,19 +459,31 @@ function initComposer() {
   }
 
   // Close confirmation modal
-  const confirmModal = document.getElementById("composer-close-confirm");
   const confirmSaveBtn = document.getElementById("composer-confirm-save");
   const confirmDiscardBtn = document.getElementById("composer-confirm-discard");
   const confirmCancelBtn = document.getElementById("composer-confirm-cancel");
 
   if (confirmSaveBtn) {
-    confirmSaveBtn.addEventListener("click", () => {
-      hideComposerCloseConfirm();
-      // TODO: hook up to backend draft-saving endpoint
-      console.log("Save draft: not wired to backend yet.");
-      closeComposer();
+    confirmSaveBtn.addEventListener("click", async () => {
+      if (confirmSaveBtn.disabled) return;
+      confirmSaveBtn.disabled = true;
+
+      try {
+        const ok = await saveCurrentComposerAsDraft();
+        if (ok) {
+          hideComposerCloseConfirm();
+          resetComposerFields();
+          closeComposer();
+        } else {
+          // keep the modal open so the user sees the error in composer
+          hideComposerCloseConfirm();
+        }
+      } finally {
+        confirmSaveBtn.disabled = false;
+      }
     });
   }
+
 
   if (confirmDiscardBtn) {
     confirmDiscardBtn.addEventListener("click", () => {
@@ -1065,6 +1148,32 @@ function showConfirmDialog({
   });
 }
 
+function showComposerCloseDialog() {
+  return new Promise((resolve) => {
+    showAppDialog({
+      title: "Close message?",
+      message: "You have unsent changes. Do you want to save this message as a draft?",
+      buttons: [
+        {
+          label: "Save draft",
+          variant: "primary",
+          onClick: () => resolve("save"),
+        },
+        {
+          label: "Discard",
+          variant: "danger",
+          onClick: () => resolve("discard"),
+        },
+        {
+          label: "Cancel",
+          variant: "secondary",
+          onClick: () => resolve("cancel"),
+        },
+      ],
+    });
+  });
+}
+
 
 /* close confirmation helpers ----------------------------------------- */
 
@@ -1097,32 +1206,6 @@ function composerHasContent() {
     state.composerAttachmentsFiles.length > 0;
 
   return hasAddresses || hasSubject || hasBody || hasReplyTo || hasAttachments;
-}
-
-function handleComposerCloseRequest() {
-  const composer = document.getElementById("composer");
-  if (!composer || composer.classList.contains("hidden")) return;
-
-  if (!composerHasContent()) {
-    closeComposer();
-    return;
-  }
-  showComposerCloseConfirm();
-}
-
-function showComposerCloseConfirm() {
-  const modal = document.getElementById("composer-close-confirm");
-  if (!modal) {
-    closeComposer();
-    return;
-  }
-  modal.classList.remove("hidden");
-}
-
-function hideComposerCloseConfirm() {
-  const modal = document.getElementById("composer-close-confirm");
-  if (!modal) return;
-  modal.classList.add("hidden");
 }
 
 function resetComposerFields() {
@@ -1177,6 +1260,7 @@ function populateComposerFromOptions(selectedAccount) {
     select.selectedIndex = 0;
   }
 }
+
 
 async function sendCurrentComposer() {
   const mode = state.composerMode;
@@ -1324,6 +1408,71 @@ async function sendCurrentComposer() {
     sendBtn.disabled = false;
   }
 }
+
+async function saveCurrentComposerAsDraft() {
+  const fromSelect = document.getElementById("composer-from");
+  const subjInput = document.getElementById("composer-subject");
+  const replyToInput = document.getElementById("composer-replyto");
+  const prioritySelect = document.getElementById("composer-priority");
+
+  clearComposerError();
+
+  const fromAccount = fromSelect && fromSelect.value ? fromSelect.value : null;
+  if (!fromAccount) {
+    showComposerError("Please select a From account before saving a draft.");
+    return false;
+  }
+
+  const bodyText = getComposerBodyTextContent();
+  const bodyHtml = getComposerBodyHtmlContent();
+
+  const payloadBodyText =
+    bodyText && bodyText.trim().length ? bodyText : "";
+  const payloadBodyHtml =
+    bodyHtml && typeof bodyHtml === "string" && bodyHtml.trim().length
+      ? bodyHtml
+      : null;
+
+  const subject = subjInput ? subjInput.value || "" : "";
+
+  const toList = getAllAddressesForField("to");
+  const ccList = getAllAddressesForField("cc");
+  const bccList = getAllAddressesForField("bcc");
+
+  const replyToRaw = replyToInput ? replyToInput.value : "";
+  const replyToList = (replyToRaw || "")
+    .split(/[;,]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const priority =
+    prioritySelect && prioritySelect.value ? prioritySelect.value : null;
+
+  const attachments = state.composerAttachmentsFiles || [];
+
+  try {
+    await Api.saveDraft({
+      account: fromAccount,
+      subject,
+      to: toList,
+      fromAddr: fromAccount,
+      cc: ccList,
+      bcc: bccList,
+      text: payloadBodyText,
+      html: payloadBodyHtml,
+      replyTo: replyToList,
+      priority,
+      draftsMailbox: "Drafts",
+      attachments,
+    });
+    return true;
+  } catch (err) {
+    console.error("Error saving draft:", err);
+    showComposerError("Failed to save draft. Please try again.");
+    return false;
+  }
+}
+
 
 
 /* ------------------ Archive / Delete helpers ------------------ */

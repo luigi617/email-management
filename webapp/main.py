@@ -39,11 +39,7 @@ def get_email_overview(
     limit: int = 50,
     cursor: Optional[str] = Query(
         default=None,
-        description=(
-            "Opaque pagination cursor. "
-            "Use the value from meta.next_cursor or meta.prev_cursor "
-            "from a previous response."
-        ),
+        description="Opaque pagination cursor.",
     ),
     # Optional; can be omitted to use all accounts.
     accounts: Optional[List[str]] = Query(
@@ -55,11 +51,9 @@ def get_email_overview(
     Multi-account email overview with per-account pagination.
 
     Cursor format (opaque to clients, but documented here):
-
         {
           "direction": "next" | "prev",
           "mailbox": "<mailbox>",
-          "limit": <int>,
           "accounts": {
             "<account_id>": {
               "next_before_uid": <int or null>,  # older-page anchor
@@ -73,7 +67,6 @@ def get_email_overview(
     if limit < 1:
         raise HTTPException(status_code=400, detail="limit must be >= 1")
 
-    # ---------- Decode / init cursor state ----------
     if cursor:
         try:
             cursor_state = decode_cursor(cursor)
@@ -81,9 +74,8 @@ def get_email_overview(
             raise HTTPException(status_code=400, detail="Invalid cursor")
 
         try:
-            direction = cursor_state["direction"]  # "next" or "prev"
+            direction = cursor_state["direction"]
             mailbox = cursor_state["mailbox"]
-            limit = cursor_state["limit"]
             account_state: Dict[str, Dict[str, Optional[int]]] = cursor_state["accounts"]
         except KeyError:
             raise HTTPException(status_code=400, detail="Malformed cursor")
@@ -116,9 +108,6 @@ def get_email_overview(
     combined_entries: List[Tuple[str, "EmailOverview"]] = []
     total_count = 0
 
-    per_account_meta: Dict[str, "PagedSearchResult"] = {}
-    per_account_overviews: Dict[str, List["EmailOverview"]] = {}
-
     is_first_page = cursor is None
 
     # ---------- Fetch page per account ----------
@@ -136,65 +125,81 @@ def get_email_overview(
 
         page_meta, overview_list = manager.fetch_overview(
             mailbox=mailbox,
-            n=limit,  # page_size per account
+            n=limit,
             before_uid=before_uid,
             after_uid=after_uid,
             refresh=is_first_page,
         )
 
-        per_account_meta[acc_id] = page_meta
-        per_account_overviews[acc_id] = overview_list
-        total_count += page_meta.total or len(overview_list)
+        total_count += page_meta.total
 
         for ov in overview_list:
             combined_entries.append((acc_id, ov))
 
-    # ---------- Global merge & slice ----------
-    # Always present the page newest-first in the response.
-    combined_entries.sort(
-        key=lambda pair: pair[1].date or datetime.min.replace(tzinfo=timezone.utc),
-        reverse=True,
-    )
+    page_entries: list[Tuple[str, EmailOverview]] = []
+    if direction == "next":
+        combined_entries.sort(
+            key=lambda pair: pair[1].date or datetime.min.replace(tzinfo=timezone.utc),
+            reverse=True,
+        )
+        page_entries = combined_entries[:limit]
+    else:
+        combined_entries.sort(
+            key=lambda pair: pair[1].date or datetime.min.replace(tzinfo=timezone.utc),
+            reverse=False,
+        )
+        page_entries = combined_entries[:limit]
+        page_entries.reverse()
 
-    page_entries = combined_entries[:limit]
     result_count = len(page_entries)
 
-    # Track which overviews from each account are in THIS page
     contributed: Dict[str, List["EmailOverview"]] = {}
     for acc_id, ov in page_entries:
         contributed.setdefault(acc_id, []).append(ov)
 
-    # ---------- Build response payload ----------
     data = []
     for acc_id, ov in page_entries:
         d = ov.to_dict()
-
-        # Put account on the ref object if it exists
-        ref = d.get("ref")
-        if isinstance(ref, dict):
-            ref.setdefault("account", acc_id)
-        else:
-            d.setdefault("account", acc_id)
-
+        ref: dict = d["ref"]
+        ref.setdefault("account", acc_id)
         data.append(d)
 
-    # ---------- Build per-account anchors for NEXT calls ----------
-    # For each account, we simply take its page_meta anchors:
-    #   - next_before_uid: cursor for going older (direction="next")
-    #   - prev_after_uid: cursor for going newer (direction="prev")
+    
     new_state_accounts: Dict[str, Dict[str, Optional[int]]] = {}
 
     for acc_id in account_ids:
-        page_meta = per_account_meta[acc_id]
-
-        new_state_accounts[acc_id] = {
-            "next_before_uid": page_meta.next_before_uid,
-            "prev_after_uid": page_meta.prev_after_uid,
+        prev_state = account_state.get(acc_id, {"next_before_uid": None, "prev_after_uid": None})
+        state = {
+            "next_before_uid": prev_state.get("next_before_uid"),
+            "prev_after_uid": prev_state.get("prev_after_uid"),
         }
 
-    # Aggregate has_next / has_prev across accounts
-    any_has_next = any(meta.has_next for meta in per_account_meta.values())
-    any_has_prev = any(meta.has_prev for meta in per_account_meta.values())
+        contrib_list = contributed.get(acc_id, [])
+        if contrib_list:
+            uids = [ov.ref.uid for ov in contrib_list]
+            uids = [u for u in uids if u is not None]
+
+            if uids:
+                oldest_uid = min(uids)
+                newest_uid = max(uids)
+
+                state["next_before_uid"] = max(oldest_uid - 1, 1)
+                state["prev_after_uid"] = newest_uid + 1
+        else:
+            if direction == "next":
+                state["prev_after_uid"] = state["next_before_uid"]
+            else:
+                state["next_before_uid"] = state["prev_after_uid"]
+
+        new_state_accounts[acc_id] = state
+
+    # Aggregate has_next / has_prev across accounts based on anchors
+    any_has_next = result_count > 0 and any(
+        s.get("next_before_uid") is not None for s in new_state_accounts.values()
+    )
+    any_has_prev = result_count > 0 and any(
+        s.get("prev_after_uid") is not None for s in new_state_accounts.values()
+    )
 
     next_cursor = None
     prev_cursor = None
@@ -378,7 +383,7 @@ async def save_draft(
         "action": "save_draft",
         "account": account,
         "mailbox": drafts_mailbox,
-        "result": getattr(save_result, "to_dict", lambda: str(save_result))(),
+        "result": save_result.to_dict(),
     }
 
 @app.post("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/reply")
@@ -433,7 +438,7 @@ async def reply_email(
         "account": account,
         "mailbox": mailbox,
         "email_id": email_id,
-        "result": getattr(send_result, "to_dict", lambda: str(send_result))(),
+        "result": send_result.to_dict(),
     }
 
 @app.post("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/reply-all")
@@ -488,7 +493,7 @@ async def reply_all_email(
         "account": account,
         "mailbox": mailbox,
         "email_id": email_id,
-        "result": getattr(send_result, "to_dict", lambda: str(send_result))(),
+        "result": send_result.to_dict(),
     }
 
 @app.post("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/forward")
@@ -545,7 +550,7 @@ async def forward_email(
         "account": account,
         "mailbox": mailbox,
         "email_id": email_id,
-        "result": getattr(send_result, "to_dict", lambda: str(send_result))(),
+        "result": send_result.to_dict(),
     }
 
 @app.post("/api/accounts/{account:path}/send")
@@ -587,5 +592,5 @@ async def send_email(
         "status": "ok",
         "action": "send",
         "account": account,
-        "result": getattr(send_result, "to_dict", lambda: str(send_result))(),
+        "result": send_result.to_dict(),
     }

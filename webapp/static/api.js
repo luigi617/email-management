@@ -28,7 +28,6 @@
       if (limit != null) params.set("limit", String(limit));
       if (cursor) params.set("cursor", cursor);
 
-      // accounts is a list → repeat "accounts=" in query string
       if (!cursor && Array.isArray(accounts) && accounts.length) {
         for (const acc of accounts) {
           params.append("accounts", acc);
@@ -53,6 +52,16 @@
     async deleteEmail({ account, mailbox, uid }) {
       const url = buildEmailUrl(account, mailbox, uid, "");
       return getJSON(url, { method: "DELETE" });
+    },
+
+    async moveEmail({ account, mailbox, uid, destinationMailbox }) {
+      const url = buildEmailUrl(account, mailbox, uid, "/move");
+      const form = new FormData();
+      form.append("destination_mailbox", destinationMailbox);
+      return getJSON(url, {
+        method: "POST",
+        body: form,
+      });
     },
 
     async replyEmail({
@@ -96,7 +105,7 @@
       });
     },
 
-        async replyAllEmail({
+    async replyAllEmail({
       account,
       mailbox,
       uid,
@@ -137,7 +146,6 @@
       });
     },
 
-
     async forwardEmail({
       account,
       mailbox,
@@ -163,7 +171,10 @@
       if (bodyHtml) form.append("body_html", bodyHtml);
       if (fromAddr) form.append("from_addr", fromAddr);
       form.append("include_original", includeOriginal ? "true" : "false");
-      form.append("include_attachments", includeAttachments !== false ? "true" : "false");
+      form.append(
+        "include_attachments",
+        includeAttachments !== false ? "true" : "false"
+      );
       if (subject) form.append("subject", subject);
 
       (cc || []).forEach((addr) => form.append("cc", addr));
@@ -218,7 +229,44 @@
       });
     },
 
+    async saveDraft({
+      account,
+      subject,
+      to,
+      fromAddr,
+      cc,
+      bcc,
+      text,
+      html,
+      replyTo,
+      priority,
+      draftsMailbox,
+      attachments,
+    }) {
+      const a = encodeURIComponent(account);
+      const url = `/api/accounts/${a}/draft`;
+      const form = new FormData();
 
+      if (subject != null) form.append("subject", subject);
+      (to || []).forEach((addr) => form.append("to", addr));
+      if (fromAddr) form.append("from_addr", fromAddr);
+      (cc || []).forEach((addr) => form.append("cc", addr));
+      (bcc || []).forEach((addr) => form.append("bcc", addr));
+      if (text != null) form.append("text", text);
+      if (html) form.append("html", html);
+      (replyTo || []).forEach((addr) => form.append("reply_to", addr));
+      if (priority) form.append("priority", priority);
+      if (draftsMailbox) form.append("drafts_mailbox", draftsMailbox);
+
+      (attachments || []).forEach((file) => {
+        form.append("attachments", file);
+      });
+
+      return getJSON(url, {
+        method: "POST",
+        body: form,
+      });
+    },
   };
 
   global.Api = Api;
