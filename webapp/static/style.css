@@ -1136,3 +1136,14 @@ button.secondary.small {
   justify-content: flex-end;
   gap: 0.35rem;
 }
+
+.inline-error,
+.composer-error {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #b91c1c;
+}
+
+.composer-error {
+  margin-left: 1rem;
+}

@@ -299,6 +299,88 @@ def delete_email(account: str, mailbox: str, email_id: int) -> dict:
 
     return {"status": "ok", "action": "delete", "account": account, "mailbox": mailbox, "email_id": email_id}
 
+@app.post("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/move")
+def move_email(
+    account: str,
+    mailbox: str,
+    email_id: int,
+    destination_mailbox: str = Form(..., description="Target mailbox to move the message into"),
+) -> dict:
+    """
+    Move a single email to another mailbox.
+    """
+    account = unquote(account)
+    mailbox = unquote(mailbox)
+
+    manager = ACCOUNTS.get(account)
+    if manager is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    ref = EmailRef(mailbox=mailbox, uid=email_id)
+
+    mailboxes = manager.list_mailboxes()
+    if destination_mailbox not in mailboxes:
+        manager.create_mailbox(destination_mailbox)
+
+    manager.move([ref], src_mailbox=mailbox, dst_mailbox=destination_mailbox)
+
+    return {
+        "status": "ok",
+        "action": "move",
+        "account": account,
+        "src_mailbox": mailbox,
+        "dst_mailbox": destination_mailbox,
+        "email_id": email_id,
+    }
+
+@app.post("/api/accounts/{account:path}/draft")
+async def save_draft(
+    account: str,
+    subject: Optional[str] = Form(None),
+    to: Optional[List[str]] = Form(None),
+    from_addr: Optional[str] = Form(None),
+    cc: Optional[List[str]] = Form(None),
+    bcc: Optional[List[str]] = Form(None),
+    text: Optional[str] = Form(None),
+    html: Optional[str] = Form(None),
+    reply_to: Optional[List[str]] = Form(None),
+    priority: Optional[str] = Form(None),
+    drafts_mailbox: str = Form("Drafts", description="Mailbox where the draft will be stored"),
+    attachments: List[UploadFile] = File([]),
+) -> dict:
+    """
+    Save a draft email instead of sending it.
+    """
+    account = unquote(account)
+
+    manager = ACCOUNTS.get(account)
+    if manager is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    attachment_models = await uploadfiles_to_attachments(attachments)
+    extra_headers = build_extra_headers(reply_to=reply_to, priority=priority)
+
+    save_result = manager.save_draft(
+        subject=subject,
+        to=to or [],
+        from_addr=from_addr or account,
+        cc=cc or [],
+        bcc=bcc or [],
+        text=text,
+        html=html,
+        attachments=attachment_models or None,
+        extra_headers=extra_headers or None,
+        mailbox=drafts_mailbox,
+    )
+
+    return {
+        "status": "ok",
+        "action": "save_draft",
+        "account": account,
+        "mailbox": drafts_mailbox,
+        "result": getattr(save_result, "to_dict", lambda: str(save_result))(),
+    }
+
 @app.post("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/reply")
 async def reply_email(
     account: str,
@@ -353,7 +435,6 @@ async def reply_email(
         "email_id": email_id,
         "result": getattr(send_result, "to_dict", lambda: str(send_result))(),
     }
-
 
 @app.post("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/reply-all")
 async def reply_all_email(

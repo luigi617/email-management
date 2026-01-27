@@ -293,7 +293,12 @@ function initComposer() {
       const label = btn.textContent.trim();
       sendLaterMenu.classList.add("hidden");
       // UI only for now – backend scheduling not implemented
-      alert(`"Send later" (${label}) is not wired to the backend yet.`);
+      showAppDialog({
+        title: "Send later",
+        message: `"Send later" (${label}) is not wired to the backend yet.`,
+        buttons: [{ label: "OK", variant: "primary" }],
+      });
+
     });
 
     document.addEventListener("click", (ev) => {
@@ -457,6 +462,7 @@ function composerBodyHasAnyContent() {
 
 
 function openComposer(mode) {
+  clearComposerError();
   const composer = document.getElementById("composer");
   const titleEl = document.getElementById("composer-title");
   const toInput = document.getElementById("composer-to");
@@ -470,6 +476,7 @@ function openComposer(mode) {
   const extraMenu = document.getElementById("composer-extra-menu");
   const sendLaterMenu = document.getElementById("composer-send-later-menu");
   const fromSelect = document.getElementById("composer-from");
+  
 
   if (!composer || !titleEl || !toInput || !subjInput || !bodyInput) return;
 
@@ -870,7 +877,6 @@ function commitAddressInput(field) {
   renderAddressPills(field);
 }
 
-
 function renderAddressPills(field) {
   const wrapper = document.querySelector(
     `.composer-address-wrapper[data-field="${field}"]`
@@ -920,8 +926,6 @@ function renderAddressPills(field) {
   });
 }
 
-
-
 function resetComposerAddresses() {
   if (!state.composerAddresses) {
     state.composerAddresses = { to: [], cc: [], bcc: [] };
@@ -962,7 +966,108 @@ function getAllAddressesForField(field) {
   return values;
 }
 
+
+/* ------------------ Generic app dialog / alert modal ------------------ */
+
+function showAppDialog(config = {}) {
+  // Support both old-style (title, message, buttons) and object form
+  if (typeof config === "string") {
+    config = { message: config };
+  }
+
+  const {
+    title = "Notice",
+    message = "",
+    buttons,
+  } = config;
+
+  const modal = document.getElementById("app-alert-modal");
+  if (!modal) {
+    window.alert(message);
+    return;
+  }
+
+  const titleEl = document.getElementById("app-alert-title");
+  const msgEl = document.getElementById("app-alert-message");
+  const footerEl = document.getElementById("app-alert-footer");
+
+  if (titleEl) titleEl.textContent = title || "";
+  if (msgEl) msgEl.textContent = message || "";
+
+  if (footerEl) {
+    footerEl.innerHTML = "";
+
+    const btnConfigs =
+      buttons && buttons.length
+        ? buttons
+        : [{ label: "OK", variant: "primary" }];
+
+    btnConfigs.forEach((cfg) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+
+      const baseClass = "btn";
+      let variantClass = "btn-secondary";
+      if (cfg.className) {
+        variantClass = cfg.className;
+      } else if (cfg.variant === "primary") {
+        variantClass = "btn-primary";
+      } else if (cfg.variant === "danger") {
+        variantClass = "btn-danger";
+      }
+
+      btn.className = `${baseClass} ${variantClass}`.trim();
+      btn.textContent = cfg.label || "OK";
+
+      btn.addEventListener("click", () => {
+        if (typeof cfg.onClick === "function") {
+          cfg.onClick();
+        }
+        closeModal();
+      });
+
+      footerEl.appendChild(btn);
+    });
+  }
+
+  function closeModal() {
+    modal.classList.add("hidden");
+  }
+
+  modal.classList.remove("hidden");
+}
+
+function showConfirmDialog({
+  title = "Confirm",
+  message = "",
+  confirmLabel = "OK",
+  cancelLabel = "Cancel",
+  confirmVariant = "primary",
+  cancelVariant = "secondary",
+} = {}) {
+  return new Promise((resolve) => {
+    showAppDialog({
+      title,
+      message,
+      buttons: [
+        {
+          label: cancelLabel,
+          variant: cancelVariant,
+          onClick: () => resolve(false),
+        },
+        {
+          label: confirmLabel,
+          variant: confirmVariant,
+          onClick: () => resolve(true),
+        },
+      ],
+    });
+  });
+}
+
+
 /* close confirmation helpers ----------------------------------------- */
+
 
 function composerHasContent() {
   const fields = ["to", "cc", "bcc"];
@@ -1032,6 +1137,7 @@ function resetComposerFields() {
   state.composerAttachmentsFiles = [];
   renderComposerAttachments();
   resetComposerAddresses();
+  clearComposerError();
 }
 
 function closeComposer() {
@@ -1080,6 +1186,8 @@ async function sendCurrentComposer() {
   const replyToInput = document.getElementById("composer-replyto");
   const prioritySelect = document.getElementById("composer-priority");
 
+  clearComposerError();
+
   if (!mode || !subjInput || !sendBtn) return;
 
   const bodyText = getComposerBodyTextContent();
@@ -1109,19 +1217,35 @@ async function sendCurrentComposer() {
 
   const attachments = state.composerAttachmentsFiles || [];
 
+  // ---- Validation (no modals, inline errors only) ----
+  if (!fromAccount) {
+    showComposerError("Please select a From account.");
+    return;
+  }
+
+  if (mode === "compose" || mode === "forward") {
+    if (!toList.length) {
+      showComposerError("Please specify at least one recipient.");
+      return;
+    }
+  }
+
+  let ref = null;
+  let account, mailbox, uid;
+
+  if (mode !== "compose") {
+    ref = getSelectedRef();
+    if (!ref) {
+      showComposerError("No email selected to reply or forward.");
+      return;
+    }
+    ({ account, mailbox, uid } = ref);
+  }
+
   try {
     sendBtn.disabled = true;
 
     if (mode === "compose") {
-      if (!fromAccount) {
-        alert("Please select a From account.");
-        return;
-      }
-      if (!toList.length) {
-        alert("Please specify at least one recipient.");
-        return;
-      }
-
       await Api.sendEmail({
         account: fromAccount,
         subject,
@@ -1135,82 +1259,67 @@ async function sendCurrentComposer() {
         priority,
         attachments,
       });
+    } else if (mode === "reply") {
+      await Api.replyEmail({
+        account,
+        mailbox,
+        uid,
+        body: payloadBodyText,
+        bodyHtml: payloadBodyHtml,
+        fromAddr: fromAccount,
+        quoteOriginal: false,
+        to: toList,
+        cc: ccList,
+        bcc: bccList,
+        subject,
+        replyTo: replyToList,
+        priority,
+        attachments,
+      });
+    } else if (mode === "reply_all") {
+      await Api.replyAllEmail({
+        account,
+        mailbox,
+        uid,
+        body: payloadBodyText,
+        bodyHtml: payloadBodyHtml,
+        fromAddr: fromAccount,
+        quoteOriginal: false,
+        to: toList,
+        cc: ccList,
+        bcc: bccList,
+        subject,
+        replyTo: replyToList,
+        priority,
+        attachments,
+      });
+    } else if (mode === "forward") {
+      await Api.forwardEmail({
+        account,
+        mailbox,
+        uid,
+        to: toList,
+        body: payloadBodyText,
+        bodyHtml: payloadBodyHtml,
+        fromAddr: fromAccount,
+        includeOriginal: false,
+        includeAttachments: true,
+        cc: ccList,
+        bcc: bccList,
+        subject,
+        replyTo: replyToList,
+        priority,
+        attachments,
+      });
     } else {
-      const ref = getSelectedRef();
-      if (!ref) {
-        alert("No email selected.");
-        return;
-      }
-      const { account, mailbox, uid } = ref;
-
-      if (mode === "reply") {
-        await Api.replyEmail({
-          account,
-          mailbox,
-          uid,
-          body: payloadBodyText,
-          bodyHtml: payloadBodyHtml,
-          fromAddr: fromAccount,
-          quoteOriginal: false,
-          to: toList,
-          cc: ccList,
-          bcc: bccList,
-          subject,
-          replyTo: replyToList,
-          priority,
-          attachments,
-        });
-      } else if (mode === "reply_all") {
-        await Api.replyAllEmail({
-          account,
-          mailbox,
-          uid,
-          body: payloadBodyText,
-          bodyHtml: payloadBodyHtml,
-          fromAddr: fromAccount,
-          quoteOriginal: false,
-          to: toList,
-          cc: ccList,
-          bcc: bccList,
-          subject,
-          replyTo: replyToList,
-          priority,
-          attachments,
-        });
-      } else if (mode === "forward") {
-        if (!toList.length) {
-          alert("Please specify at least one recipient.");
-          return;
-        }
-
-        await Api.forwardEmail({
-          account,
-          mailbox,
-          uid,
-          to: toList,
-          body: payloadBodyText,
-          bodyHtml: payloadBodyHtml,
-          fromAddr: fromAccount,
-          includeOriginal: false,
-          includeAttachments: true,
-          cc: ccList,
-          bcc: bccList,
-          subject,
-          replyTo: replyToList,
-          priority,
-          attachments,
-        });
-      } else {
-        alert("Unknown composer mode.");
-        return;
-      }
+      showComposerError("Unknown composer mode.");
+      return;
     }
 
     closeComposer();
-    alert("Message sent.");
   } catch (err) {
     console.error("Error sending:", err);
-    alert("Failed to send message.");
+    showComposerError("Failed to send message. Please try again.");
   } finally {
     sendBtn.disabled = false;
   }
@@ -1220,14 +1329,23 @@ async function sendCurrentComposer() {
 /* ------------------ Archive / Delete helpers ------------------ */
 
 async function archiveSelectedEmail() {
+  clearDetailError();
   const ref = getSelectedRef();
   if (!ref) {
-    alert("No email selected.");
+    showDetailError("No email selected to archive.");
     return;
   }
   const { account, mailbox, uid } = ref;
 
-  if (!confirm("Archive this email?")) return;
+  const doArchive = await showConfirmDialog({
+    title: "Archive email",
+    message: "Archive this email?",
+    confirmLabel: "Archive",
+    confirmVariant: "primary",
+    cancelLabel: "Cancel",
+  });
+
+  if (!doArchive) return;
 
   try {
     await Api.archiveEmail({ account, mailbox, uid });
@@ -1235,19 +1353,29 @@ async function archiveSelectedEmail() {
     fetchOverview();
   } catch (err) {
     console.error("Error archiving:", err);
-    alert("Error archiving email.");
+    showDetailError("Error archiving email. Please try again.");
   }
 }
 
+
 async function deleteSelectedEmail() {
+  clearDetailError();
   const ref = getSelectedRef();
   if (!ref) {
-    alert("No email selected.");
+    showDetailError("No email selected to delete.");
     return;
   }
   const { account, mailbox, uid } = ref;
 
-  if (!confirm("Permanently delete this email?")) return;
+  const doDelete = await showConfirmDialog({
+    title: "Delete email",
+    message: "Permanently delete this email?",
+    confirmLabel: "Delete",
+    confirmVariant: "danger",
+    cancelLabel: "Cancel",
+  });
+
+  if (!doDelete) return;
 
   try {
     await Api.deleteEmail({ account, mailbox, uid });
@@ -1255,9 +1383,10 @@ async function deleteSelectedEmail() {
     fetchOverview();
   } catch (err) {
     console.error("Error deleting:", err);
-    alert("Error deleting email.");
+    showDetailError("Error deleting email. Please try again.");
   }
 }
+
 
 /* ------------------ API calls ------------------ */
 
@@ -1486,6 +1615,7 @@ function renderListAndPagination() {
  * Overview-only fallback (no full message)
  */
 function renderDetailFromOverviewOnly(overview) {
+  clearDetailError();
   const placeholder = document.getElementById("detail-placeholder");
   const detail = document.getElementById("email-detail");
   const bodyHtmlEl = document.getElementById("detail-body-html");
@@ -1534,6 +1664,7 @@ function renderDetailFromOverviewOnly(overview) {
  * Full message rendering: support both html + text
  */
 function renderDetailFromMessage(overview, msg) {
+  clearDetailError();
   const placeholder = document.getElementById("detail-placeholder");
   const detail = document.getElementById("email-detail");
   if (!placeholder || !detail) return;
@@ -1879,4 +2010,27 @@ function renderError(msg) {
     emptyEl.classList.remove("hidden");
     emptyEl.textContent = msg;
   }
+}
+
+
+function showComposerError(message) {
+  const el = document.getElementById("composer-error");
+  if (!el) return;
+  el.textContent = message || "";
+  el.classList.toggle("hidden", !message);
+}
+
+function clearComposerError() {
+  showComposerError("");
+}
+
+function showDetailError(message) {
+  const el = document.getElementById("detail-error");
+  if (!el) return;
+  el.textContent = message || "";
+  el.classList.toggle("hidden", !message);
+}
+
+function clearDetailError() {
+  showDetailError("");
 }

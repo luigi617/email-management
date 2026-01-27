@@ -188,6 +188,8 @@
               />
             </button>
           </div>
+          
+          <div id="detail-error" class="inline-error hidden"></div>
 
           <!-- Move panel (toggles on Move) -->
           <div id="move-panel" class="move-panel hidden">
@@ -430,8 +432,8 @@
     </div>
 
     <div class="composer-footer">
+      <div id="composer-error" class="composer-error hidden"></div>
       <button type="button" id="composer-send" class="primary">Send</button>
-
       <div class="send-later-wrapper">
         <!-- not a second send button, just a popup selector -->
         <button
@@ -456,27 +458,25 @@
           </button>
         </div>
       </div>
+
+      
     </div>
   </div>
 
-  <!-- Close confirmation modal -->
-  <div id="composer-close-confirm" class="modal-backdrop hidden">
-    <div class="modal">
-      <h3>Save draft?</h3>
-      <p>Do you want to save this message as a draft?</p>
-      <div class="modal-actions">
-        <button type="button" id="composer-confirm-save" class="primary">
-          Save
-        </button>
-        <button type="button" id="composer-confirm-discard" class="secondary">
-          Don't save
-        </button>
-        <button type="button" id="composer-confirm-cancel" class="secondary">
-          Cancel
-        </button>
+  <div id="app-alert-modal" class="modal hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 id="app-alert-title">Notice</h2>
+      </div>
+      <div class="modal-body">
+        <p id="app-alert-message"></p>
+      </div>
+      <div class="modal-footer" id="app-alert-footer">
+        <!-- buttons will be injected via JS -->
       </div>
     </div>
   </div>
+
 
   <script src="/static/utils.js"></script>
   <script src="/static/api.js"></script>
