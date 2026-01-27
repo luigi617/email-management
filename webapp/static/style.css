@@ -972,6 +972,7 @@ button.secondary.small {
 
 /* body */
 
+
 .composer-editor {
   flex: 1;
   min-height: 0;
@@ -986,14 +987,19 @@ button.secondary.small {
   height: 100%;
   border: none;
   outline: none;
-  resize: none;
   font: inherit;
   padding: 4px 0;
   box-sizing: border-box;
+  white-space: pre-wrap;     /* keep line breaks */
+  overflow-y: auto;          /* scroll if long */
 }
 
-#composer-body:focus {
-  outline: none;
+/* Quoted original message in composer */
+#composer-body blockquote {
+  margin: 0.25rem 0;
+  padding-left: 0.6rem;
+  border-left: 3px solid #c4d0ff; /* colored tab */
+  color: #4b5563;
 }
 
 /* footer with Send + Send later */

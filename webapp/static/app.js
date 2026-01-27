@@ -412,6 +412,50 @@ function initComposer() {
   }
 }
 
+function getComposerBodyElement() {
+  return document.getElementById("composer-body");
+}
+
+function setComposerBodyContent(html) {
+  const el = getComposerBodyElement();
+  if (!el) return;
+
+  if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") {
+    el.value = html || "";
+  } else {
+    el.innerHTML = html || "";
+  }
+}
+
+function getComposerBodyTextContent() {
+  const el = getComposerBodyElement();
+  if (!el) return "";
+  if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") {
+    return el.value || "";
+  }
+  return el.innerText || "";
+}
+
+function getComposerBodyHtmlContent() {
+  const el = getComposerBodyElement();
+  if (!el) return null;
+  if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") {
+    // No rich HTML in plain textarea
+    return null;
+  }
+  const html = (el.innerHTML || "").trim();
+  return html.length ? html : null;
+}
+
+function clearComposerBodyContent() {
+  setComposerBodyContent("");
+}
+
+function composerBodyHasAnyContent() {
+  return getComposerBodyTextContent().trim().length > 0;
+}
+
+
 function openComposer(mode) {
   const composer = document.getElementById("composer");
   const titleEl = document.getElementById("composer-title");
@@ -447,7 +491,7 @@ function openComposer(mode) {
   if (ccInput) ccInput.value = "";
   if (bccInput) bccInput.value = "";
   if (subjInput) subjInput.value = "";
-  if (bodyInput) bodyInput.value = "";
+  clearComposerBodyContent();
   if (replyToInput) replyToInput.value = "";
   if (prioritySelect) prioritySelect.value = "";
 
@@ -521,7 +565,7 @@ function openComposer(mode) {
   }
 
   if (mode === "reply" || mode === "reply_all" || mode === "forward") {
-    body = buildQuotedOriginalBody();
+    body = buildQuotedOriginalBodyHtml();
   }
 
   // pre-fill To as pills when applicable
@@ -532,11 +576,11 @@ function openComposer(mode) {
   }
 
   subjInput.value = subj;
-  bodyInput.value = body;
+  setComposerBodyContent(body);
   bodyInput.focus();
 }
 
-function buildQuotedOriginalBody() {
+function buildQuotedOriginalBodyHtml() {
   const ov = state.selectedOverview;
   const msg = state.selectedMessage;
 
@@ -565,34 +609,40 @@ function buildQuotedOriginalBody() {
         hour: "numeric",
         minute: "2-digit",
       });
-      headerLine = `On ${dateStr}, at ${timeStr}, ${who} wrote:\n`;
+      headerLine = `On ${dateStr}, at ${timeStr}, ${who} wrote:`;
     } else {
-      headerLine = `On ${dateVal}, ${who} wrote:\n`;
+      headerLine = `On ${dateVal}, ${who} wrote:`;
     }
   } else {
-    headerLine = `${who} wrote:\n`;
+    headerLine = `${who} wrote:`;
   }
 
-  let originalText = "";
-  if (msg && (msg.text || msg.html)) {
-    originalText = msg.text || msg.html.replace(/<[^>]+>/g, "");
+  // Prefer original HTML if available so we keep formatting
+  let originalHtml = "";
+  if (msg && msg.html) {
+    originalHtml = msg.html;
+  } else if (msg && msg.text) {
+    originalHtml = `<pre>${escapeHtml(msg.text)}</pre>`;
   } else if (ov && ov.snippet) {
-    originalText = ov.snippet;
+    originalHtml = `<pre>${escapeHtml(ov.snippet)}</pre>`;
   }
 
-  if (!originalText) {
-    // At least show the header
-    return `\n\n${headerLine}`;
+  const safeHeader = escapeHtml(headerLine);
+
+  if (!originalHtml) {
+    // Just header, with a blank line before so user can type above
+    return `<p><br></p><p>${safeHeader}</p>`;
   }
 
-  const quoted = originalText
-    .split(/\r?\n/)
-    .map((line) => (line ? `> ${line}` : ">"))
-    .join("\n");
-
-  // Blank line before to separate from the user’s new text
-  return `\n\n${headerLine}${quoted}\n`;
+  // Blank line before + blockquoted original with colored tab (via CSS)
+  return [
+    "<p><br></p>",
+    `<p>${safeHeader}</p>`,
+    `<blockquote class="quoted-original">${originalHtml}</blockquote>`,
+    "<p><br></p>",
+  ].join("");
 }
+
 
 
 function renderComposerAttachments() {
@@ -843,7 +893,7 @@ function getAllAddressesForField(field) {
 function composerHasContent() {
   const fields = ["to", "cc", "bcc"];
   const subjInput = document.getElementById("composer-subject");
-  const bodyInput = document.getElementById("composer-body");
+  const bodyInput = getComposerBodyElement();
   const replyToInput = document.getElementById("composer-replyto");
 
   let hasAddresses = false;
@@ -861,7 +911,7 @@ function composerHasContent() {
   }
 
   const hasSubject = subjInput && subjInput.value.trim().length > 0;
-  const hasBody = bodyInput && bodyInput.value.trim().length > 0;
+  const hasBody = composerBodyHasAnyContent();
   const hasReplyTo = replyToInput && replyToInput.value.trim().length > 0;
   const hasAttachments =
     Array.isArray(state.composerAttachmentsFiles) &&
@@ -902,8 +952,7 @@ function resetComposerFields() {
     const el = document.getElementById(`composer-${id}`);
     if (el) el.value = "";
   });
-  const body = document.getElementById("composer-body");
-  if (body) body.value = "";
+  clearComposerBodyContent();
   const prioritySelect = document.getElementById("composer-priority");
   if (prioritySelect) prioritySelect.value = "";
   state.composerAttachmentsFiles = [];
@@ -953,7 +1002,8 @@ async function sendCurrentComposer() {
   const mode = state.composerMode;
   const toInput = document.getElementById("composer-to");
   const subjInput = document.getElementById("composer-subject");
-  const bodyInput = document.getElementById("composer-body");
+  const bodyText = getComposerBodyTextContent();
+  const bodyHtml = getComposerBodyHtmlContent();
   const sendBtn = document.getElementById("composer-send");
   const fromSelect = document.getElementById("composer-from");
 
@@ -974,7 +1024,6 @@ async function sendCurrentComposer() {
   }
 
   const { account, mailbox, uid } = ref;
-  const bodyText = bodyInput.value || "";
 
   try {
     sendBtn.disabled = true;
@@ -987,7 +1036,7 @@ async function sendCurrentComposer() {
         body: bodyText,
         bodyHtml: null,
         fromAddr: fromAddr,
-        quoteOriginal: true,
+        quoteOriginal: false,
       });
     } else if (mode === "reply_all") {
       await Api.replyAllEmail({
@@ -997,7 +1046,7 @@ async function sendCurrentComposer() {
         body: bodyText,
         bodyHtml: null,
         fromAddr: fromAddr,
-        quoteOriginal: true,
+        quoteOriginal: false,
       });
     } else if (mode === "forward") {
       const toList = getAllAddressesForField("to");
@@ -1425,7 +1474,7 @@ function renderDetailFromMessage(overview, msg) {
           body {
             margin: 0;
           }
-            
+
           /* Quoted previous messages: colored left tab */
           blockquote {
             margin: 0.25rem 0;
