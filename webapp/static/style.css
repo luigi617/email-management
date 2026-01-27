@@ -1002,6 +1002,38 @@ button.secondary.small {
   color: #4b5563;
 }
 
+.quoted-wrapper {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.quoted-wrapper blockquote {
+  margin: 0;
+  padding-left: 8px;
+  border-left: 2px solid #ccc;
+}
+
+.quoted-header {
+  margin: 0 0 4px 0;
+  font-size: 0.95em;
+  color: #4b5563;
+}
+
+.quoted-original {
+  margin: 0;
+  padding-left: 0.6rem;
+  border-left: 3px solid #c4d0ff;
+  color: #4b5563;
+}
+
+.quoted-original p {
+  margin: 0;             /* Prevent extra spacing between HTML paragraphs */
+}
+
+.quoted-original pre {
+  margin: 0;             /* Avoid spacing from <pre> blocks */
+}
+
 /* footer with Send + Send later */
 
 .composer-footer {

@@ -565,7 +565,7 @@ function openComposer(mode) {
   }
 
   if (mode === "reply" || mode === "reply_all" || mode === "forward") {
-    body = buildQuotedOriginalBodyHtml();
+    body = "\n" + buildQuotedOriginalBodyHtml();
   }
 
   // pre-fill To as pills when applicable
@@ -629,18 +629,19 @@ function buildQuotedOriginalBodyHtml() {
 
   const safeHeader = escapeHtml(headerLine);
 
+  let html;
   if (!originalHtml) {
-    // Just header, with a blank line before so user can type above
-    return `<p><br></p><p>${safeHeader}</p>`;
+    html = `<p>${safeHeader}</p>`;
+  } else {
+    html =
+      `<div class="quoted-wrapper">` +
+      `<div class="quoted-header">${safeHeader}</div>` +
+      `<blockquote class="quoted-original">${originalHtml}</blockquote>` +
+      `</div>`;
   }
 
-  // Blank line before + blockquoted original with colored tab (via CSS)
-  return [
-    "<p><br></p>",
-    `<p>${safeHeader}</p>`,
-    `<blockquote class="quoted-original">${originalHtml}</blockquote>`,
-    "<p><br></p>",
-  ].join("");
+  // 🔑 remove spaces/newlines between tags
+  return html.replace(/>\s+</g, "><").trim();
 }
 
 
