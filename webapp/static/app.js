@@ -1772,7 +1772,6 @@ function renderDetailFromOverviewOnly(overview) {
   const fromEl = document.getElementById("detail-from");
   const toEl = document.getElementById("detail-to");
   const dtEl = document.getElementById("detail-datetime");
-  const accountEl = document.getElementById("detail-account");
   const badgeEl = document.getElementById("detail-color-badge");
 
   if (!placeholder || !detail || !overview) return;
@@ -1793,13 +1792,6 @@ function renderDetailFromOverviewOnly(overview) {
   if (fromEl) fromEl.textContent = `From: ${fromAddr}`;
   if (toEl) toEl.textContent = toAddr ? `To: ${toAddr}` : "";
   if (dtEl) dtEl.textContent = `Date: ${dateVerbose}`;
-
-  const ref = overview.ref || {};
-  if (accountEl) {
-    const account = ref.account || overview.account || "all";
-    const mailbox = ref.mailbox || overview.mailbox || state.currentMailbox;
-    accountEl.textContent = `Account: ${account} • Mailbox: ${getMailboxDisplayName(mailbox)}`;
-  }
 
   if (badgeEl) badgeEl.style.background = color;
 
@@ -1825,7 +1817,6 @@ function renderDetailFromMessage(overview, msg) {
   const fromEl = document.getElementById("detail-from");
   const toEl = document.getElementById("detail-to");
   const dtEl = document.getElementById("detail-datetime");
-  const accountEl = document.getElementById("detail-account");
   const bodyHtmlEl = document.getElementById("detail-body-html");
   const bodyTextEl = document.getElementById("detail-body-text");
   const badgeEl = document.getElementById("detail-color-badge");
@@ -1847,13 +1838,6 @@ function renderDetailFromMessage(overview, msg) {
   if (fromEl) fromEl.textContent = `From: ${fromAddr}`;
   if (toEl) toEl.textContent = toAddr ? `To: ${toAddr}` : "";
   if (dtEl) dtEl.textContent = `Date: ${dateVerbose}`;
-
-  const ref = (msg && msg.ref) || (overview && overview.ref) || {};
-  if (accountEl) {
-    const account = ref.account || (overview && overview.account) || "unknown";
-    const mailbox = ref.mailbox || (overview && overview.mailbox) || state.currentMailbox;
-    accountEl.textContent = `Account: ${account} • Mailbox: ${getMailboxDisplayName(mailbox)}`;
-  }
 
   if (badgeEl) badgeEl.style.background = color;
 
