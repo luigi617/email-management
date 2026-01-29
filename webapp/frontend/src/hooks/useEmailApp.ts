@@ -1,0 +1,248 @@
+// src/hooks/useEmailApp.ts
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { EmailApi } from "../api/emailApi";
+import type { EmailKey } from "../types/email";
+import type { MailboxData, OverviewLike } from "../types/legacy";
+import type { MessageLike } from "../types/message";
+import { buildColorMap, findAccountForEmail, getColorForEmail, getEmailId } from "../utils/emailFormat";
+
+export function useEmailAppCore() {
+  // mailbox state
+  const [mailboxData, setMailboxData] = useState<MailboxData>({});
+  const [currentMailbox, setCurrentMailbox] = useState<string>("INBOX");
+
+  // legend filter (accounts)
+  const [filterAccounts, setFilterAccounts] = useState<string[]>([]);
+
+  // overview + paging (cursor-based)
+  const [emails, setEmails] = useState<OverviewLike[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [prevCursor, setPrevCursor] = useState<string | null>(null);
+
+  const pageSize = 50;
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+
+  // search
+  const [searchText, setSearchText] = useState<string>("");
+
+  // selection + detail
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedOverview, setSelectedOverview] = useState<OverviewLike | null>(null);
+  const [selectedMessage, setSelectedMessage] = useState<MessageLike | null>(null);
+
+  // errors (inline)
+  const [listError, setListError] = useState<string>("");
+  const [detailError, setDetailError] = useState<string>("");
+
+  // derived: color map
+  const colorMap = useMemo(() => buildColorMap(emails, mailboxData), [emails, mailboxData]);
+
+  // derived: filtered list (keep it simple & fast)
+  const filteredEmails = useMemo(() => {
+    const q = searchText.trim().toLowerCase();
+    if (!q) return emails;
+
+    return emails.filter((e) => {
+      const subject = (e.subject || "").toLowerCase();
+      const snippet = (e.snippet || "").toLowerCase();
+      const from = `${e.from_email?.name ?? ""} ${e.from_email?.email ?? ""}`.toLowerCase();
+      return subject.includes(q) || snippet.includes(q) || from.includes(q);
+    });
+  }, [emails, searchText]);
+
+  const emptyList = filteredEmails.length === 0;
+
+  const getSelectedRef = useCallback((): EmailKey | null => {
+    const ov = selectedOverview;
+    if (!ov) return null;
+
+    const account = ov.ref?.account ?? ov.account;
+    const mailbox = ov.ref?.mailbox ?? ov.mailbox ?? currentMailbox;
+    const uid = ov.ref?.uid ?? ov.uid;
+
+    if (!account || !mailbox || uid == null) return null;
+
+    return {
+      account: String(account),
+      mailbox: String(mailbox),
+      uid: String(uid),
+    };
+  }, [selectedOverview, currentMailbox]);
+
+  const fetchMailboxes = useCallback(async () => {
+    try {
+      setListError("");
+      // backend returns: { [account: string]: string[] }
+      const data = (await EmailApi.getMailboxes()) as unknown as MailboxData;
+      setMailboxData(data || {});
+    } catch (e) {
+      console.error("Error fetching mailboxes:", e);
+      setListError("Failed to fetch mailboxes.");
+    }
+  }, []);
+
+  const fetchOverview = useCallback(
+    async (direction: null | "next" | "prev" = null) => {
+      try {
+        setListError("");
+
+        let useCursor: string | undefined;
+
+        if (direction === "next" && nextCursor) {
+          useCursor = nextCursor;
+        } else if (direction === "prev" && prevCursor) {
+          useCursor = prevCursor;
+        } else {
+          // fresh load
+          useCursor = undefined;
+          setCurrentPage(1);
+        }
+
+        const payload = await EmailApi.getOverview<OverviewLike>({
+          mailbox: currentMailbox,
+          limit: pageSize,
+          cursor: useCursor,
+          accounts: useCursor ? undefined : filterAccounts.length ? [...filterAccounts] : undefined,
+        });
+
+        const list = Array.isArray(payload.data) ? payload.data : [];
+        const meta = payload.meta ?? {};
+
+        setEmails(list);
+        setSelectedId(null);
+        setSelectedOverview(null);
+        setSelectedMessage(null);
+        setDetailError("");
+
+        setNextCursor(meta.next_cursor ?? null);
+        setPrevCursor(meta.prev_cursor ?? null);
+
+        // page counter
+        setCurrentPage((prev) => {
+          if (direction === "next") return prev + 1;
+          if (direction === "prev") return Math.max(1, prev - 1);
+          return 1;
+        });
+
+        // total pages (if backend provides total)
+        const total = typeof meta.total_count === "number" ? meta.total_count : undefined;
+        if (typeof total === "number" && total >= 0) {
+          setTotalPages(Math.max(1, Math.ceil(total / pageSize)));
+        } else {
+          // unknown total with cursor paging: keep whatever we had (at least 1)
+          setTotalPages((p) => Math.max(1, p || 1));
+        }
+      } catch (e) {
+        console.error("Error fetching overview:", e);
+        setEmails([]);
+        setListError("Failed to fetch emails.");
+      }
+    },
+    [currentMailbox, pageSize, nextCursor, prevCursor, filterAccounts]
+  );
+
+  const fetchEmailDetail = useCallback(
+    async (overview: OverviewLike) => {
+      const account = overview.ref?.account ?? overview.account;
+      const mailbox = overview.ref?.mailbox ?? overview.mailbox ?? currentMailbox;
+      const uid = overview.ref?.uid ?? overview.uid;
+
+      if (!account || !mailbox || uid == null) {
+        setSelectedMessage(null);
+        return;
+      }
+
+      try {
+        setDetailError("");
+        setSelectedMessage(null);
+        const msg = await EmailApi.getEmail<MessageLike>({
+          account: String(account),
+          mailbox: String(mailbox),
+          uid: String(uid),
+        });
+        setSelectedMessage(msg);
+      } catch (e) {
+        console.error("Error fetching email detail:", e);
+        setDetailError("Failed to load full email content.");
+        setSelectedMessage(null);
+      }
+    },
+    [currentMailbox]
+  );
+
+  // initial load
+  useEffect(() => {
+    void fetchMailboxes();
+    void fetchOverview(null);
+  }, [fetchMailboxes, fetchOverview]);
+
+  const selectEmail = useCallback(
+    (email: OverviewLike) => {
+      const id = getEmailId(email);
+      setSelectedId(id || null);
+      setSelectedOverview(email);
+      setSelectedMessage(null);
+      void fetchEmailDetail(email);
+    },
+    [fetchEmailDetail]
+  );
+
+  const legendColorMap = useMemo(() => buildColorMap(emails, mailboxData), [emails, mailboxData]);
+  const legendAccounts = useMemo(() => Object.keys(mailboxData || {}), [mailboxData]);
+
+
+  const helpers = useMemo(() => {
+    return {
+      getEmailId: (e: OverviewLike) => getEmailId(e),
+      findAccountForEmail: (e: OverviewLike) => findAccountForEmail(e, mailboxData),
+      getColorForEmail: (e: OverviewLike) => getColorForEmail(e, mailboxData, colorMap),
+    };
+  }, [mailboxData, colorMap]);
+
+  return {
+    // mailbox
+    mailboxData,
+    currentMailbox,
+    setCurrentMailbox,
+
+    // legend filter
+    filterAccounts,
+    setFilterAccounts,
+
+    // overview
+    emails,
+    filteredEmails,
+    emptyList,
+    pageSize,
+    currentPage,
+    totalPages,
+    nextCursor,
+    prevCursor,
+
+    // search
+    searchText,
+    setSearchText,
+
+    // selection + detail
+    selectedId,
+    selectedOverview,
+    selectedMessage,
+    getSelectedRef,
+    selectEmail,
+
+    // errors
+    listError,
+    detailError,
+    setDetailError,
+
+    // actions
+    fetchMailboxes,
+    fetchOverview,
+
+    legendAccounts,
+    legendColorMap,
+    // helpers (id/color/account)
+    helpers,
+  };
+}
