@@ -35,15 +35,16 @@ export default function App() {
         message: "You have unsent changes. Do you want to save this message as a draft?",
         buttons: [
           {
-            id: "save",
+            id: 1,
             label: "Save draft",
             variant: "primary",
             onClick: async () => {
               await onSaveDraft();
+              modal.close();
             },
           },
           {
-            id: "discard",
+            id: 2,
             label: "Discard",
             variant: "secondary",
             onClick: () => {
@@ -52,7 +53,7 @@ export default function App() {
             },
           },
           {
-            id: "cancel",
+            id: 3,
             label: "Cancel",
             variant: "secondary",
             onClick: () => modal.close(),
@@ -199,8 +200,8 @@ export default function App() {
         fromAccount={composer.state.fromAccount}
         accounts={composer.accounts}
         onFromChange={composer.setFromAccount}
-        bodyHtml={composer.state.bodyHtml}
-        onBodyHtmlChange={composer.setBodyHtml}
+        html={composer.state.html}
+        onHtmlChange={composer.setHtml}
         attachments={composer.state.attachments}
         onAddAttachments={composer.addAttachments}
         onRemoveAttachmentAt={composer.removeAttachmentAt}
@@ -217,7 +218,7 @@ export default function App() {
           modal.show({
             title: "Send later",
             message: `"Send later" (${label}) is not wired to the backend yet.`,
-            buttons: [{ id: "ok", label: "OK", variant: "primary", onClick: () => modal.close() }],
+            buttons: [{ id: 1, label: "OK", variant: "primary", onClick: () => modal.close() }],
           });
         }}
       />

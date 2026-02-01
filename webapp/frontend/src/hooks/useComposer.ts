@@ -1,4 +1,5 @@
 // src/hooks/useComposer.ts
+import DOMPurify from "dompurify";
 import { useCallback, useMemo, useState } from "react";
 import { EmailApi } from "../api/emailApi";
 import type { ComposerExtraFieldKey, ComposerMode, ComposerState } from "../types/composer";
@@ -7,6 +8,14 @@ import type { MailboxData, EmailOverview, EmailMessage } from "../types/email";
 import type { EmailRef } from "../types/shared";
 import { buildForwardedOriginalBodyHtml, buildQuotedOriginalBodyHtml } from "../utils/messageBuilders";
 import { formatAddress, formatAddressList } from "../utils/emailFormat";
+
+function sanitizeForComposer(html: string) {
+  return DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ["style", "script", "link", "meta", "base", "iframe", "object", "embed"],
+    FORBID_ATTR: ["onload","onclick","onerror","onmouseover","onfocus","onsubmit"],
+  });
+}
 
 function splitRawList(raw: string): string[] {
   return (raw || "")
@@ -96,7 +105,8 @@ export function useComposer(args: {
       replyToRaw: "",
       priority: "medium",
       fromAccount: "",
-      bodyHtml: "",
+      text: "",
+      html: "",
       attachments: [],
       error: "",
     }));
@@ -118,6 +128,8 @@ export function useComposer(args: {
     args.showCloseConfirm({
       onSaveDraft: async () => {
         const ok = await saveDraft();
+        console.log(ok);
+        
         if (ok) {
           reset();
           close();
@@ -128,7 +140,7 @@ export function useComposer(args: {
         close();
       },
     });
-  }, [state.open, hasContent, args, reset, close]); // saveDraft is defined below but stable via useCallback
+  }, [state.open, hasContent, args, reset, close]);
 
   const toggleExtraField = useCallback((k: ComposerExtraFieldKey) => {
     setState((s) => ({ ...s, extra: { ...s.extra, [k]: !s.extra[k] } }));
@@ -138,7 +150,7 @@ export function useComposer(args: {
   const setPriority = useCallback((v: Priority) => setState((s) => ({ ...s, priority: v })), []);
   const setReplyToRaw = useCallback((v: string) => setState((s) => ({ ...s, replyToRaw: v })), []);
   const setSubject = useCallback((v: string) => setState((s) => ({ ...s, subject: v })), []);
-  const setBodyHtml = useCallback((v: string) => setState((s) => ({ ...s, bodyHtml: v })), []);
+  const setHtml = useCallback((v: string) => setState((s) => ({ ...s, html: v })), []);
   const setTo = useCallback((v: string[]) => setState((s) => ({ ...s, to: v })), []);
   const setCc = useCallback((v: string[]) => setState((s) => ({ ...s, cc: v })), []);
   const setBcc = useCallback((v: string[]) => setState((s) => ({ ...s, bcc: v })), []);
@@ -172,18 +184,19 @@ export function useComposer(args: {
 
       let subject = "";
       let toStr = "";
-      let bodyHtml = "";
+      let html = "";
 
       if (mode === "compose") {
         subject = "";
         toStr = "";
-        bodyHtml = "";
+        html = "";
       } else if (mode === "reply") {
         const fromObj = msg?.from_email || ov?.from_email;
         if (fromObj) toStr = formatAddress(fromObj);
 
         subject = originalSubj.toLowerCase().startsWith("re:") ? originalSubj : originalSubj ? `Re: ${originalSubj}` : "";
-        bodyHtml = "\n" + buildQuotedOriginalBodyHtml(ov, msg);
+        const rawQuote = buildQuotedOriginalBodyHtml(ov, msg);
+        html = "\n" + sanitizeForComposer(rawQuote);
       } else if (mode === "reply_all") {
         const fromObj = msg?.from_email || ov?.from_email;
         const toList = msg?.to || ov?.to || [];
@@ -198,10 +211,12 @@ export function useComposer(args: {
         toStr = formatAddressList(allRecipients);
 
         subject = originalSubj.toLowerCase().startsWith("re:") ? originalSubj : originalSubj ? `Re: ${originalSubj}` : "";
-        bodyHtml = "\n" + buildQuotedOriginalBodyHtml(ov, msg);
+        const rawQuote = buildQuotedOriginalBodyHtml(ov, msg);
+        html = "\n" + sanitizeForComposer(rawQuote);
       } else if (mode === "forward") {
         subject = originalSubj.toLowerCase().startsWith("fwd:") ? originalSubj : originalSubj ? `Fwd: ${originalSubj}` : "";
-        bodyHtml = "\n" + buildForwardedOriginalBodyHtml(ov, msg);
+        const rawFwd = buildForwardedOriginalBodyHtml(ov, msg);
+        html = "\n" + sanitizeForComposer(rawFwd);
       }
 
       const to = splitRawList(toStr);
@@ -223,7 +238,7 @@ export function useComposer(args: {
         replyToRaw: "",
         priority: "medium",
         fromAccount: defaultFrom,
-        bodyHtml,
+        html,
       }));
     },
     [args.selectedOverview, args.selectedMessage, args.getSelectedRef, accounts]
@@ -409,7 +424,7 @@ export function useComposer(args: {
     setPriority,
     setReplyToRaw,
     setSubject,
-    setBodyHtml,
+    setHtml,
 
     setTo,
     setCc,

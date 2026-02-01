@@ -1,7 +1,7 @@
 import React from "react";
 
 export type AppModalButton = {
-  id: string;
+  id: number;
   label: string;
   variant?: "primary" | "secondary";
   onClick: () => void;
@@ -30,7 +30,7 @@ export default function AppAlertModal(props: {
           <p>{state.message}</p>
         </div>
         <div className="app-modal-footer">
-          {(state.buttons?.length ? state.buttons : [{ id: "ok", label: "OK", variant: "primary", onClick: props.onClose }]).map(
+          {(state.buttons?.length ? state.buttons : [{ id: 1, label: "OK", variant: "primary", onClick: props.onClose }]).map(
             (b) => (
               <button
                 key={b.id}

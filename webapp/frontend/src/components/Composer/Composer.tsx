@@ -48,8 +48,8 @@ export type ComposerProps = {
   accounts: string[];
   onFromChange: (v: string) => void;
 
-  bodyHtml: string;
-  onBodyHtmlChange: (v: string) => void;
+  html: string;
+  onHtmlChange: (v: string) => void;
 
   attachments: File[];
   onAddAttachments: (files: File[]) => void;
@@ -232,7 +232,7 @@ export default function Composer(props: ComposerProps) {
             </label>
           </div>
 
-          <ComposerEditor value={props.bodyHtml} onChange={props.onBodyHtmlChange} />
+          <ComposerEditor value={props.html} onChange={props.onHtmlChange} />
 
           <ComposerAttachments 
             files={props.attachments}
