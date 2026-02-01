@@ -25,7 +25,6 @@ from utils import uploadfiles_to_attachments, build_extra_headers, encode_cursor
 BASE = Path(__file__).parent
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory=str(BASE / "static")), name="static")
 
 load_dotenv(override=True)
 

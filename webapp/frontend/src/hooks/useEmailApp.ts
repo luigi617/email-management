@@ -1,5 +1,6 @@
 // src/hooks/useEmailApp.ts
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { EmailApi } from "../api/emailApi";
 import type { EmailRef } from "../types/shared";
 import type { MailboxData, EmailOverview, EmailMessage } from "../types/email";
@@ -10,13 +11,114 @@ import {
   getEmailId,
 } from "../utils/emailFormat";
 
+const DEFAULT_MAILBOX = "INBOX";
+
+function parseAccountsParam(value: string | null): string[] {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function toAccountsParam(accounts: string[]): string | null {
+  const cleaned = (accounts || []).map((s) => String(s).trim()).filter(Boolean);
+  return cleaned.length ? cleaned.join(",") : null;
+}
+
+function sameArray(a: string[], b: string[]) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
 export function useEmailAppCore() {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // ----------------------------
+  // router params: accounts + mailbox <-> state (loop-safe)
+  // ----------------------------
+  const accountsParam = searchParams.get("accounts") ?? "";
+  const mailboxParam = searchParams.get("mailbox") ?? "";
+
+  const urlAccounts = useMemo(
+    () => parseAccountsParam(accountsParam),
+    [accountsParam]
+  );
+
+  const urlMailbox = useMemo(() => {
+    const mb = mailboxParam.trim();
+    return mb ? mb : DEFAULT_MAILBOX;
+  }, [mailboxParam]);
+
+  // Initialize state from URL once
+  const [filterAccounts, setFilterAccounts] = useState<string[]>(
+    () => parseAccountsParam(accountsParam)
+  );
+
+  const [currentMailbox, setCurrentMailbox] = useState<string>(
+    () => (mailboxParam.trim() ? mailboxParam.trim() : DEFAULT_MAILBOX)
+  );
+
+  // If state update originated from URL navigation, skip writing it back once
+  const syncingFromUrl = useRef(false);
+
+  // URL -> state (e.g. back/forward navigation, link sharing)
+  useEffect(() => {
+    const nextAccounts = urlAccounts;
+    const nextMailbox = urlMailbox;
+
+    const accountsChanged = !sameArray(filterAccounts, nextAccounts);
+    const mailboxChanged = currentMailbox !== nextMailbox;
+
+    if (!accountsChanged && !mailboxChanged) return;
+
+    syncingFromUrl.current = true;
+    if (accountsChanged) setFilterAccounts(nextAccounts);
+    if (mailboxChanged) setCurrentMailbox(nextMailbox);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountsParam, mailboxParam]); // intentionally depend on raw strings
+
+  // state -> URL (single writer for both params)
+  useEffect(() => {
+    if (syncingFromUrl.current) {
+      syncingFromUrl.current = false;
+      return;
+    }
+
+    const encodedAccounts = toAccountsParam(filterAccounts) ?? "";
+    const encodedMailbox =
+      currentMailbox && currentMailbox !== DEFAULT_MAILBOX
+        ? String(currentMailbox).trim()
+        : "";
+
+    const curAccounts = accountsParam;
+    const curMailbox = mailboxParam;
+
+    // If nothing changed, no-op
+    if (encodedAccounts === curAccounts && encodedMailbox === curMailbox) return;
+
+    const next = new URLSearchParams(searchParams);
+
+    if (encodedAccounts) next.set("accounts", encodedAccounts);
+    else next.delete("accounts");
+
+    if (encodedMailbox) next.set("mailbox", encodedMailbox);
+    else next.delete("mailbox");
+
+    setSearchParams(next, { replace: true });
+  }, [
+    filterAccounts,
+    currentMailbox,
+    accountsParam,
+    mailboxParam,
+    searchParams,
+    setSearchParams,
+  ]);
+
   // mailbox state
   const [mailboxData, setMailboxData] = useState<MailboxData>({});
-  const [currentMailbox, setCurrentMailbox] = useState<string>("INBOX");
-
-  // legend filter (accounts)
-  const [filterAccounts, setFilterAccounts] = useState<string[]>([]);
 
   // overview + paging (cursor-based)
   const [emails, setEmails] = useState<EmailOverview[]>([]);
@@ -32,15 +134,22 @@ export function useEmailAppCore() {
 
   // selection + detail
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedOverview, setSelectedOverview] = useState<EmailOverview | null>(null);
-  const [selectedMessage, setSelectedMessage] = useState<EmailMessage | null>(null);
+  const [selectedOverview, setSelectedOverview] = useState<EmailOverview | null>(
+    null
+  );
+  const [selectedMessage, setSelectedMessage] = useState<EmailMessage | null>(
+    null
+  );
 
   // errors (inline)
   const [listError, setListError] = useState<string>("");
   const [detailError, setDetailError] = useState<string>("");
 
   // derived: color map (single source of truth)
-  const colorMap = useMemo(() => buildColorMap(emails, mailboxData), [emails, mailboxData]);
+  const colorMap = useMemo(
+    () => buildColorMap(emails, mailboxData),
+    [emails, mailboxData]
+  );
 
   // derived: filtered list (keep it simple & fast)
   const filteredEmails = useMemo(() => {
@@ -49,7 +158,9 @@ export function useEmailAppCore() {
 
     return emails.filter((e) => {
       const subject = (e.subject || "").toLowerCase();
-      const from = `${e.from_email?.name ?? ""} ${e.from_email?.email ?? ""}`.toLowerCase();
+      const from = `${e.from_email?.name ?? ""} ${
+        e.from_email?.email ?? ""
+      }`.toLowerCase();
       return subject.includes(q) || from.includes(q);
     });
   }, [emails, searchText]);
@@ -94,13 +205,12 @@ export function useEmailAppCore() {
         let useCursor: string | undefined;
 
         if (direction === "next") {
-          if (!nextCursor) return; // no-op if no next page
+          if (!nextCursor) return;
           useCursor = nextCursor;
         } else if (direction === "prev") {
-          if (!prevCursor) return; // no-op if no prev page
+          if (!prevCursor) return;
           useCursor = prevCursor;
         } else {
-          // fresh load
           useCursor = undefined;
           setCurrentPage(1);
         }
@@ -109,8 +219,11 @@ export function useEmailAppCore() {
           mailbox: currentMailbox,
           limit: pageSize,
           cursor: useCursor,
-          // apply account filter only on a fresh load (cursor pagination should keep its own server-side context)
-          accounts: useCursor ? undefined : filterAccounts.length ? [...filterAccounts] : undefined,
+          accounts: useCursor
+            ? undefined
+            : filterAccounts.length
+            ? [...filterAccounts]
+            : undefined,
         });
 
         const list = Array.isArray(payload.data) ? payload.data : [];
@@ -127,19 +240,17 @@ export function useEmailAppCore() {
         setNextCursor(meta.next_cursor ?? null);
         setPrevCursor(meta.prev_cursor ?? null);
 
-        // page counter
         setCurrentPage((prev) => {
           if (direction === "next") return prev + 1;
           if (direction === "prev") return Math.max(1, prev - 1);
           return 1;
         });
 
-        // total pages (if backend provides total)
-        const total = typeof meta.total_count === "number" ? meta.total_count : undefined;
+        const total =
+          typeof meta.total_count === "number" ? meta.total_count : undefined;
         if (typeof total === "number" && total >= 0) {
           setTotalPages(Math.max(1, Math.ceil(total / pageSize)));
         } else {
-          // unknown total with cursor paging: keep whatever we had (at least 1)
           setTotalPages((p) => Math.max(1, p || 1));
         }
       } catch (e) {
@@ -182,11 +293,18 @@ export function useEmailAppCore() {
     [currentMailbox]
   );
 
-  // initial: mailboxes
   useEffect(() => {
     void fetchMailboxes();
   }, [fetchMailboxes]);
 
+  const lastAppliedKey = useRef<string>("");
+  useEffect(() => {
+    const key = `${currentMailbox}::${toAccountsParam(filterAccounts) ?? ""}`;
+    if (key === lastAppliedKey.current) return;
+    lastAppliedKey.current = key;
+
+    void fetchOverview(null);
+  }, [currentMailbox, filterAccounts, fetchOverview]);
 
   const selectEmail = useCallback(
     (email: EmailOverview) => {
@@ -199,27 +317,29 @@ export function useEmailAppCore() {
     [fetchEmailMessage]
   );
 
-  const legendAccounts = useMemo(() => Object.keys(mailboxData || {}), [mailboxData]);
+  const legendAccounts = useMemo(
+    () => Object.keys(mailboxData || {}),
+    [mailboxData]
+  );
 
   const helpers = useMemo(() => {
     return {
       getEmailId: (e: EmailOverview) => getEmailId(e),
-      findAccountForEmail: (e: EmailOverview) => findAccountForEmail(e, mailboxData),
-      getColorForEmail: (e: EmailOverview) => getColorForEmail(e, mailboxData, colorMap),
+      findAccountForEmail: (e: EmailOverview) =>
+        findAccountForEmail(e, mailboxData),
+      getColorForEmail: (e: EmailOverview) =>
+        getColorForEmail(e, mailboxData, colorMap),
     };
   }, [mailboxData, colorMap]);
 
   return {
-    // mailbox
     mailboxData,
     currentMailbox,
     setCurrentMailbox,
 
-    // legend filter
     filterAccounts,
     setFilterAccounts,
 
-    // overview
     emails,
     filteredEmails,
     emptyList,
@@ -229,31 +349,25 @@ export function useEmailAppCore() {
     nextCursor,
     prevCursor,
 
-    // search
     searchText,
     setSearchText,
 
-    // selection + detail
     selectedId,
     selectedOverview,
     selectedMessage,
     getSelectedRef,
     selectEmail,
 
-    // errors
     listError,
     detailError,
     setDetailError,
 
-    // actions
     fetchMailboxes,
     fetchOverview,
 
-    // legend
     legendAccounts,
     legendColorMap: colorMap,
 
-    // helpers (id/color/account)
     helpers,
   };
 }

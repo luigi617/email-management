@@ -1,5 +1,6 @@
 // src/components/Sidebar/SearchCard.tsx
 import React from "react";
+import searchIcon from "@/assets/svg/search.svg";
 
 type Props = {
   searchQuery: string;
@@ -23,7 +24,7 @@ export default function SearchCard(props: Props) {
           }}
         />
         <button type="button" className="search-btn" aria-label="Search" onClick={props.onSearch}>
-          <img src="/assets/search.svg" alt="" aria-hidden="true" className="icon-img" />
+          <img src={searchIcon} alt="" aria-hidden="true" className="icon-img" />
         </button>
       </div>
     </section>

@@ -79,13 +79,6 @@ export default function App() {
     }
   }, [composer.state.open, composer.state.mode]);
 
-  // Fetch on mailbox / legend changes.
-  // Note: search is local-only (filters core.emails) so does not trigger fetch.
-  useEffect(() => {
-    void core.fetchOverview(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [core.currentMailbox, core.filterAccounts.join("|")]);
-
   return (
     <>
       <Layout
