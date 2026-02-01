@@ -285,9 +285,13 @@ export function useComposer(args: {
     const fromAccount = state.fromAccount;
     const subject = state.subject;
 
-    const toList = state.to;
-    const ccList = state.cc;
-    const bccList = state.bcc;
+    const toDraft = splitRawList(getAddressDraft("composer-to"));
+    const ccDraft = splitRawList(getAddressDraft("composer-cc"));
+    const bccDraft = splitRawList(getAddressDraft("composer-bcc"));
+
+    const toList = mergeUniqueCaseInsensitive(state.to, toDraft);    
+    const ccList = mergeUniqueCaseInsensitive(state.cc, ccDraft);
+    const bccList = mergeUniqueCaseInsensitive(state.bcc, bccDraft);
 
     const replyToList = splitRawList(state.replyToRaw);
     const priority = state.priority; // always set

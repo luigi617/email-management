@@ -165,7 +165,6 @@ class EmailAssistant:
         *,
         provider: str,
         model_name: str,
-        manager: EmailManager,
         mailbox: str = "INBOX",
     ) -> Tuple[EasyIMAPQuery, Dict[str, Any]]:
         """
@@ -177,7 +176,6 @@ class EmailAssistant:
             user_request,
             provider=provider,
             model_name=model_name,
-            manager=manager,
             mailbox=mailbox,
         )
     

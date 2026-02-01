@@ -469,6 +469,23 @@ At the top level:
   Extra IMAP search tokens that apply to the entire search, after all clauses.
   Multiple tokens here are also combined with AND semantics.
 
+General-request handling (VERY IMPORTANT):
+
+- If the user's request is general or underspecified (e.g. "find emails about X",
+  "messages related to Y", "anything mentioning Z", without specifying subject-only
+  or sender/recipient constraints), you should prefer searching BOTH subject and
+  body by using `text` (headers OR body) and/or `body`, rather than `subject` alone.
+- When helpful, include common synonyms or closely related terms as OR alternatives
+  by using MULTIPLE CLAUSES (one per synonym/alternative), since lists within a
+  clause are ANDed.
+  Example:
+    - User: "emails about refunds"
+    - Clause 1: text=["refund"]
+    - Clause 2: text=["reimbursement"]
+    - Clause 3: text=["chargeback"]
+- Do NOT add synonyms if the user is already very specific (exact phrase, specific
+  sender, invoice number, etc.). Keep those plans minimal and precise.
+  
 Your task:
 
 1. Read the user's natural-language request describing which emails they want.
@@ -662,7 +679,6 @@ def llm_easy_imap_query_from_nl(
     *,
     provider: str,
     model_name: str,
-    manager: Optional[EmailManager],
     mailbox: str = "INBOX",
 ) -> Tuple[EasyIMAPQuery, Dict[str, Any]]:
     """
@@ -674,8 +690,7 @@ def llm_easy_imap_query_from_nl(
         EMAIL_IMAP_QUERY_PROMPT.format(user_request=user_request)
     )
     plan = result
-
-    easy = manager.imap_query(mailbox)
+    easy = EasyIMAPQuery(manager=None, mailbox=mailbox)
     _apply_low_level_to_easy_query(easy, plan)
 
     return easy, llm_call_info

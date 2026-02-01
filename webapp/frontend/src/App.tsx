@@ -86,7 +86,7 @@ export default function App() {
           searchQuery: core.searchText,
           onSearchQueryChange: core.setSearchText,
           onSearch: () => {
-            // local filter only - no fetch required
+            core.applySearch();
           },
 
           mailboxData: core.mailboxData,
@@ -125,8 +125,8 @@ export default function App() {
             composer.open("compose");
           },
 
-          emails: core.filteredEmails,
-          emptyList: core.emptyList,
+          emails: core.emails,
+          emptyList: core.emails.length == 0,
           selectedEmailId: core.selectedId,
 
           onSelectEmail: (email) => {

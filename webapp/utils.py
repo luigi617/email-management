@@ -11,7 +11,6 @@ def encode_cursor(state: dict) -> str:
     raw = json.dumps(state, separators=(",", ":"), sort_keys=True).encode("utf-8")
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
-
 def decode_cursor(cursor: str) -> dict:
     padding = "=" * (-len(cursor) % 4)
     raw = base64.urlsafe_b64decode(cursor + padding)
@@ -27,14 +26,15 @@ async def uploadfiles_to_attachments(
         data = await f.read()
         attachments.append(
             Attachment(
+                idx=1,
+                part="",
                 filename=f.filename,
                 content_type=f.content_type or "application/octet-stream",
                 data=data,
-                data_size=len(data),
+                size=len(data),
             )
         )
     return attachments
-
 
 def build_extra_headers(
     reply_to: Optional[List[str]],

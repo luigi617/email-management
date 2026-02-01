@@ -62,7 +62,6 @@ def parse_accounts(env_value: str) -> Dict[str, EmailManager]:
 
     return results
 
-
 def get_gmail_manager(username, auth_method, **kwargs):
     if auth_method == "app":
         password = kwargs.get("password")

@@ -103,11 +103,11 @@ def _extract_parts(msg: PyMessage) -> Tuple[Optional[str], Optional[str], List[A
             if filename or "attachment" in disp:
                 atts.append(
                     Attachment(
-                        id=attachment_idx,
+                        idx=attachment_idx,
                         filename=filename or "attachment",
                         content_type=ctype,
                         data=payload,
-                        data_size=len(payload),
+                        size=len(payload),
                     )
                 )
                 attachment_idx += 1

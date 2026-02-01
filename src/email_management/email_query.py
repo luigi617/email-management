@@ -12,7 +12,7 @@ class EasyIMAPQuery:
     Builder that composes filters and only hits IMAP when you call .search() or .fetch().
     """
 
-    def __init__(self, manager: "EmailManager", mailbox: str = "INBOX"):
+    def __init__(self, manager: Optional["EmailManager"], mailbox: str = "INBOX"):
         self._m = manager
         self._mailbox = mailbox
         self._q = IMAPQuery()

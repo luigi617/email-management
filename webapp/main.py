@@ -21,6 +21,7 @@ from email_management.imap import PagedSearchResult
 
 from email_service import parse_accounts
 from utils import uploadfiles_to_attachments, build_extra_headers, encode_cursor, decode_cursor, safe_filename
+from email_overview import build_email_overview
 
 BASE = Path(__file__).parent
 
@@ -46,6 +47,10 @@ ACCOUNTS: Dict[str, EmailManager] = parse_accounts(os.getenv("ACCOUNTS", ""))
 def get_email_overview(
     mailbox: str = "INBOX",
     limit: int = 50,
+    search_query: Optional[str] = Query(
+        default=None,
+        description="Optional natural-language search query (will be converted to IMAP query).",
+    ),
     cursor: Optional[str] = Query(
         default=None,
         description="Opaque pagination cursor.",
@@ -73,173 +78,14 @@ def get_email_overview(
         }
     """
 
-    if limit < 1:
-        raise HTTPException(status_code=400, detail="limit must be >= 1")
-
-    if cursor:
-        try:
-            cursor_state = decode_cursor(cursor)
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid cursor")
-
-        try:
-            direction = cursor_state["direction"]
-            mailbox = cursor_state["mailbox"]
-            account_state: Dict[str, Dict[str, Optional[int]]] = cursor_state["accounts"]
-        except KeyError:
-            raise HTTPException(status_code=400, detail="Malformed cursor")
-
-        account_ids = list(account_state.keys())
-    else:
-        direction = "next"
-        if accounts is None:
-            account_ids = list(ACCOUNTS.keys())
-        else:
-            account_ids = accounts
-
-        # Initial state: no anchors yet for any account.
-        account_state = {
-            acc_id: {"next_before_uid": None, "prev_after_uid": None}
-            for acc_id in account_ids
-        }
-
-    if not account_ids:
-        raise HTTPException(status_code=400, detail="No accounts specified or available")
-
-    # ---------- Resolve managers ----------
-    managers: Dict[str, "EmailManager"] = {}
-    for acc_id in account_ids:
-        manager = ACCOUNTS.get(acc_id)
-        if manager is None:
-            raise HTTPException(status_code=404, detail=f"Unknown account: {acc_id}")
-        managers[acc_id] = manager
-
-    combined_entries: List[Tuple[str, "EmailOverview"]] = []
-    total_count = 0
-
-    is_first_page = cursor is None
-
-    # ---------- Fetch page per account ----------
-    for acc_id, manager in managers.items():
-        state = account_state.get(acc_id, {"next_before_uid": None, "prev_after_uid": None})
-        next_before_uid = state.get("next_before_uid")
-        prev_after_uid = state.get("prev_after_uid")
-
-        if direction == "next":
-            before_uid = next_before_uid
-            after_uid = None
-        else:  # direction == "prev"
-            before_uid = None
-            after_uid = prev_after_uid
-
-        page_meta, overview_list = manager.fetch_overview(
-            mailbox=mailbox,
-            n=limit,
-            before_uid=before_uid,
-            after_uid=after_uid,
-            refresh=is_first_page,
-        )
-
-        total_count += page_meta.total
-
-        for ov in overview_list:
-            combined_entries.append((acc_id, ov))
-
-    page_entries: list[Tuple[str, EmailOverview]] = []
-    if direction == "next":
-        combined_entries.sort(
-            key=lambda pair: pair[1].date or datetime.min.replace(tzinfo=timezone.utc),
-            reverse=True,
-        )
-        page_entries = combined_entries[:limit]
-    else:
-        combined_entries.sort(
-            key=lambda pair: pair[1].date or datetime.min.replace(tzinfo=timezone.utc),
-            reverse=False,
-        )
-        page_entries = combined_entries[:limit]
-        page_entries.reverse()
-
-    result_count = len(page_entries)
-
-    contributed: Dict[str, List["EmailOverview"]] = {}
-    for acc_id, ov in page_entries:
-        contributed.setdefault(acc_id, []).append(ov)
-
-    data = []
-    for acc_id, ov in page_entries:
-        d = ov.to_dict()
-        ref: dict = d["ref"]
-        ref.setdefault("account", acc_id)
-        data.append(d)
-
-    
-    new_state_accounts: Dict[str, Dict[str, Optional[int]]] = {}
-
-    for acc_id in account_ids:
-        prev_state = account_state.get(acc_id, {"next_before_uid": None, "prev_after_uid": None})
-        state = {
-            "next_before_uid": prev_state.get("next_before_uid"),
-            "prev_after_uid": prev_state.get("prev_after_uid"),
-        }
-
-        contrib_list = contributed.get(acc_id, [])
-        if contrib_list:
-            uids = [ov.ref.uid for ov in contrib_list]
-            uids = [u for u in uids if u is not None]
-
-            if uids:
-                oldest_uid = min(uids)
-                newest_uid = max(uids)
-
-                state["next_before_uid"] = max(oldest_uid - 1, 1)
-                state["prev_after_uid"] = newest_uid + 1
-        else:
-            if direction == "next":
-                state["prev_after_uid"] = state["next_before_uid"]
-            else:
-                state["next_before_uid"] = state["prev_after_uid"]
-
-        new_state_accounts[acc_id] = state
-
-    # Aggregate has_next / has_prev across accounts based on anchors
-    any_has_next = result_count > 0 and any(
-        s.get("next_before_uid") is not None for s in new_state_accounts.values()
+    return build_email_overview(
+        mailbox=mailbox,
+        limit=limit,
+        search_query=search_query,
+        cursor=cursor,
+        accounts=accounts,
+        ACCOUNTS=ACCOUNTS
     )
-    any_has_prev = result_count > 0 and any(
-        s.get("prev_after_uid") is not None for s in new_state_accounts.values()
-    )
-
-    next_cursor = None
-    prev_cursor = None
-
-    if result_count > 0 and any_has_next:
-        next_cursor_state = {
-            "direction": "next",
-            "mailbox": mailbox,
-            "limit": limit,
-            "accounts": new_state_accounts,
-        }
-        next_cursor = encode_cursor(next_cursor_state)
-
-    if result_count > 0 and any_has_prev:
-        prev_cursor_state = {
-            "direction": "prev",
-            "mailbox": mailbox,
-            "limit": limit,
-            "accounts": new_state_accounts,
-        }
-        prev_cursor = encode_cursor(prev_cursor_state)
-
-    return {
-        "data": data,
-        "meta": {
-            "next_cursor": next_cursor,
-            "prev_cursor": prev_cursor,
-            "result_count": result_count,
-            "total_count": total_count,
-        },
-    }
 
 @app.get("/api/emails/mailbox")
 def get_email_mailbox() -> Dict[str, List[str]]:
@@ -325,8 +171,6 @@ def download_email_attachment(
         media_type=resolved_content_type,
         headers=headers,
     )
-
-
 
 @app.post("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/archive")
 def archive_email(account: str, mailbox: str, email_id: int) -> dict:

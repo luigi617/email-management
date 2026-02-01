@@ -4,6 +4,7 @@ import type { Priority } from "./shared";
 export type OverviewParams = {
   mailbox?: string;
   limit?: number;
+  search_query?: string;
   cursor?: string;
   accounts?: string[];
 };

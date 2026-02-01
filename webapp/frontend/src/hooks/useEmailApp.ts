@@ -40,6 +40,7 @@ export function useEmailAppCore() {
   // ----------------------------
   const accountsParam = searchParams.get("accounts") ?? "";
   const mailboxParam = searchParams.get("mailbox") ?? "";
+  const qParam = searchParams.get("q") ?? "";
 
   const urlAccounts = useMemo(
     () => parseAccountsParam(accountsParam),
@@ -51,6 +52,8 @@ export function useEmailAppCore() {
     return mb ? mb : DEFAULT_MAILBOX;
   }, [mailboxParam]);
 
+  const urlQuery = useMemo(() => qParam.trim(), [qParam]);
+
   // Initialize state from URL once
   const [filterAccounts, setFilterAccounts] = useState<string[]>(
     () => parseAccountsParam(accountsParam)
@@ -60,6 +63,9 @@ export function useEmailAppCore() {
     () => (mailboxParam.trim() ? mailboxParam.trim() : DEFAULT_MAILBOX)
   );
 
+  const [searchText, setSearchText] = useState<string>(() => urlQuery);
+  const [appliedSearchText, setAppliedSearchText] = useState<string>(() => urlQuery);
+
   // If state update originated from URL navigation, skip writing it back once
   const syncingFromUrl = useRef(false);
 
@@ -67,15 +73,22 @@ export function useEmailAppCore() {
   useEffect(() => {
     const nextAccounts = urlAccounts;
     const nextMailbox = urlMailbox;
+    const nextQuery = urlQuery;
 
     const accountsChanged = !sameArray(filterAccounts, nextAccounts);
     const mailboxChanged = currentMailbox !== nextMailbox;
+    const queryChanged = appliedSearchText !== nextQuery;
 
-    if (!accountsChanged && !mailboxChanged) return;
+    if (!accountsChanged && !mailboxChanged && !queryChanged) return;
 
     syncingFromUrl.current = true;
     if (accountsChanged) setFilterAccounts(nextAccounts);
     if (mailboxChanged) setCurrentMailbox(nextMailbox);
+
+    if (queryChanged) {
+      setAppliedSearchText(nextQuery);
+      setSearchText(nextQuery);
+    }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountsParam, mailboxParam]); // intentionally depend on raw strings
@@ -93,11 +106,19 @@ export function useEmailAppCore() {
         ? String(currentMailbox).trim()
         : "";
 
+    const encodedQ = appliedSearchText.trim();
+
     const curAccounts = accountsParam;
     const curMailbox = mailboxParam;
+    const curQ = qParam;
 
     // If nothing changed, no-op
-    if (encodedAccounts === curAccounts && encodedMailbox === curMailbox) return;
+    if (
+      encodedAccounts === curAccounts &&
+      encodedMailbox === curMailbox &&
+      encodedQ === curQ
+    )
+      return;
 
     const next = new URLSearchParams(searchParams);
 
@@ -107,11 +128,16 @@ export function useEmailAppCore() {
     if (encodedMailbox) next.set("mailbox", encodedMailbox);
     else next.delete("mailbox");
 
+    if (encodedQ) next.set("q", encodedQ);
+    else next.delete("q");
+
     setSearchParams(next, { replace: true });
   }, [
     filterAccounts,
     currentMailbox,
+    appliedSearchText,
     accountsParam,
+    qParam,
     mailboxParam,
     searchParams,
     setSearchParams,
@@ -128,9 +154,6 @@ export function useEmailAppCore() {
   const pageSize = 50;
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(1);
-
-  // search
-  const [searchText, setSearchText] = useState<string>("");
 
   // selection + detail
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -151,21 +174,6 @@ export function useEmailAppCore() {
     [emails, mailboxData]
   );
 
-  // derived: filtered list (keep it simple & fast)
-  const filteredEmails = useMemo(() => {
-    const q = searchText.trim().toLowerCase();
-    if (!q) return emails;
-
-    return emails.filter((e) => {
-      const subject = (e.subject || "").toLowerCase();
-      const from = `${e.from_email?.name ?? ""} ${
-        e.from_email?.email ?? ""
-      }`.toLowerCase();
-      return subject.includes(q) || from.includes(q);
-    });
-  }, [emails, searchText]);
-
-  const emptyList = filteredEmails.length === 0;
 
   const getSelectedRef = useCallback((): EmailRef | null => {
     const ov = selectedOverview;
@@ -215,11 +223,15 @@ export function useEmailAppCore() {
           setCurrentPage(1);
         }
 
+        const hasQuerySearch = Boolean(appliedSearchText?.trim());
+        
+
         const payload = await EmailApi.getOverview<EmailOverview>({
-          mailbox: currentMailbox,
+          mailbox: hasQuerySearch ? "INBOX" : currentMailbox,
           limit: pageSize,
+          search_query: hasQuerySearch ? appliedSearchText.trim() : undefined,
           cursor: useCursor,
-          accounts: useCursor
+          accounts: (hasQuerySearch || useCursor)
             ? undefined
             : filterAccounts.length
             ? [...filterAccounts]
@@ -259,8 +271,13 @@ export function useEmailAppCore() {
         setListError("Failed to fetch emails.");
       }
     },
-    [currentMailbox, pageSize, nextCursor, prevCursor, filterAccounts]
+    [currentMailbox, pageSize, nextCursor, prevCursor, filterAccounts, appliedSearchText]
   );
+
+  const applySearch = useCallback(() => {
+    const next = searchText.trim();
+    setAppliedSearchText(next);
+  }, [searchText]);
 
   const fetchEmailMessage = useCallback(
     async (overview: EmailOverview) => {
@@ -299,12 +316,12 @@ export function useEmailAppCore() {
 
   const lastAppliedKey = useRef<string>("");
   useEffect(() => {
-    const key = `${currentMailbox}::${toAccountsParam(filterAccounts) ?? ""}`;
+    const key = `${currentMailbox}::${toAccountsParam(filterAccounts) ?? ""}::${appliedSearchText}`;
     if (key === lastAppliedKey.current) return;
     lastAppliedKey.current = key;
 
     void fetchOverview(null);
-  }, [currentMailbox, filterAccounts, fetchOverview]);
+  }, [currentMailbox, filterAccounts, appliedSearchText, fetchOverview]);
 
   const selectEmail = useCallback(
     (email: EmailOverview) => {
@@ -341,8 +358,6 @@ export function useEmailAppCore() {
     setFilterAccounts,
 
     emails,
-    filteredEmails,
-    emptyList,
     pageSize,
     currentPage,
     totalPages,
@@ -351,6 +366,7 @@ export function useEmailAppCore() {
 
     searchText,
     setSearchText,
+    applySearch,
 
     selectedId,
     selectedOverview,

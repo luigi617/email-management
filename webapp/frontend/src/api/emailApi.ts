@@ -67,6 +67,7 @@ export const EmailApi = {
 
     if (params.mailbox) sp.set("mailbox", params.mailbox);
     if (params.limit != null) sp.set("limit", String(params.limit));
+    if (params.search_query != null) sp.set("search_query", String(params.search_query));
     if (params.cursor) sp.set("cursor", params.cursor);
 
     // Preserve existing behavior: only include accounts when NOT using cursor.
