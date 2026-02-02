@@ -9,11 +9,11 @@ import { useComposerResize } from "../../hooks/useComposerResize";
 import type { ComposerExtraFieldKey } from "../../types/composer";
 import type { Priority } from "../../types/shared";
 
-import listIcon from "@/assets/svg/list.svg";
-import attachmentIcon from "@/assets/svg/attachment.svg";
-import emojiIcon from "@/assets/svg/emoji.svg";
-import minimizeIcon from "@/assets/svg/minimize.svg";
-import closeIcon from "@/assets/svg/close.svg";
+import ListIcon from "@/assets/svg/list.svg?react";
+import AttachmentIcon from "@/assets/svg/attachment.svg?react";
+import EmojiIcon from "@/assets/svg/emoji.svg?react";
+import MinimizeIcon from "@/assets/svg/minimize.svg?react";
+import CloseIcon from "@/assets/svg/close.svg?react";
 
 export type ComposerProps = {
   open: boolean;
@@ -92,7 +92,7 @@ export default function Composer(props: ComposerProps) {
               props.onToggleExtraMenu();
             }}
           >
-            <img src={listIcon} alt="" aria-hidden="true" className="icon-img" />
+            <ListIcon className="icon" aria-hidden />
           </button>
 
           <ComposerExtraMenu
@@ -109,7 +109,7 @@ export default function Composer(props: ComposerProps) {
             title="Add attachment"
             onClick={() => fileInputRef.current?.click()}
           >
-            <img src={attachmentIcon} alt="" aria-hidden="true" className="icon-img" />
+            <AttachmentIcon className="icon" aria-hidden />
           </button>
 
           <input
@@ -125,7 +125,7 @@ export default function Composer(props: ComposerProps) {
           />
 
           <button type="button" id="composer-emoji" className="composer-icon-btn" title="Add emoji">
-            <img src={emojiIcon} alt="" aria-hidden="true" className="icon-img" />
+            <EmojiIcon className="icon" aria-hidden />
           </button>
 
           <button type="button" id="composer-format" className="composer-icon-btn" title="Format text">
@@ -145,7 +145,7 @@ export default function Composer(props: ComposerProps) {
             title="Minimize"
             onClick={props.onMinimizeToggle}
           >
-            <img src={minimizeIcon} alt="" aria-hidden="true" className="icon-img" />
+            <MinimizeIcon className="icon" aria-hidden />
           </button>
 
           <button
@@ -156,7 +156,7 @@ export default function Composer(props: ComposerProps) {
             aria-label="Close"
             onClick={props.onClose}
           >
-            <img src={closeIcon} alt="" aria-hidden="true" className="icon-img" />
+            <CloseIcon className="icon" aria-hidden />
           </button>
         </div>
       </div>

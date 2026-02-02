@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { Attachment } from "../../types/email";
-import downloadIcon from "../../assets/svg/download.svg";
+import DownloadIcon from "../../assets/svg/download.svg?react";
 
 export type DetailAttachmentsProps = {
   attachments?: (Attachment | null | undefined)[] | null;
@@ -142,7 +142,7 @@ export default function DetailAttachments(props: DetailAttachmentsProps) {
                   aria-label={`Download ${fullName}`}
                   title={`Download ${fullName}`}
                 >
-                  <img src={downloadIcon} alt="" aria-hidden="true" className="icon-img" />
+                  <DownloadIcon className="icon" aria-hidden />
                 </a>
               ) : (
                 <button
@@ -152,7 +152,7 @@ export default function DetailAttachments(props: DetailAttachmentsProps) {
                   aria-label={`Download ${fullName}`}
                   title="No attachment part available"
                 >
-                  <img src={downloadIcon} alt="" aria-hidden="true" className="icon-img" />
+                  <DownloadIcon className="icon" aria-hidden />
                 </button>
               )}
             </div>

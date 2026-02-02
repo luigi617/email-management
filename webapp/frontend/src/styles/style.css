@@ -212,18 +212,18 @@ main.layout {
 }
 
 /* --- Generic card shell (used outside main columns: composer etc.) --- */
-.icon-img {
+.icon {
   width: 16px;
   height: 16px;
   display: inline-block;
   vertical-align: middle;
 }
-.icon-btn .icon-img {
+.icon-btn .icon {
   width: 18px;
   height: 18px;
 }
 
-.icon-img,
+.icon,
 .icon-btn svg,
 .composer-icon-btn svg {
   fill: currentColor;
@@ -326,7 +326,7 @@ main.layout {
   transform: translateY(0.5px);
 }
 
-.search-btn .icon-img {
+.search-btn .icon {
   width: 14px;
   height: 14px;
   opacity: 0.85;
@@ -1039,7 +1039,7 @@ button.secondary.small {
   color: inherit;
 }
 
-.attachment-pill-icon .icon-img {
+.attachment-pill-icon .icon {
   width: 14px;
   height: 14px;
   margin: 0 0.25rem;

@@ -9,18 +9,10 @@ import { useAppModal } from "./hooks/useAppModal";
 import { useComposer } from "./hooks/useComposer";
 import { useDetailActions } from "./hooks/useDetailActions";
 
-import { applyTheme } from "./theme/applyTheme";
-import { onSystemThemeChange } from "./theme/systemTheme";
-
 
 export default function App() {
   const core = useEmailAppCore();
   const modal = useAppModal();
-
-  useEffect(() => {
-    applyTheme("system");
-    return onSystemThemeChange(() => applyTheme("system"));
-  }, []);
 
   // local UI toggles for composer menus
   const [composerExtraMenuOpen, setComposerExtraMenuOpen] = useState(false);
