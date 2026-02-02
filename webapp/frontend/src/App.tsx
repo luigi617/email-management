@@ -1,5 +1,5 @@
 // src/App.tsx
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import Layout from "./components/Layout/Layout";
 import Composer from "./components/Composer/Composer";
 import AppAlertModal from "./components/Modal/AppAlertModal";
@@ -107,12 +107,8 @@ export default function App() {
           legendColorMap: core.legendColorMap,
 
           onToggleLegendAccount: (acc: string) => {
-            core.setFilterAccounts((prev) => {
-              const set = new Set(prev);
-              if (set.has(acc)) set.delete(acc);
-              else set.add(acc);
-              return Array.from(set);
-            });
+            core.setFilterAccounts([acc]);
+            core.setCurrentMailbox("INBOX")
           },
         }}
         middle={{

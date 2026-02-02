@@ -180,6 +180,7 @@ main.layout {
   padding: 0;
   display: grid;
   grid-template-columns: 260px minmax(0, 0.9fr) minmax(0, 1.7fr);
+  overflow: hidden;
 }
 
 /* side-by-side layout for smaller screens still works */
@@ -253,7 +254,6 @@ main.layout {
   padding: 0.75rem 0.5rem 0.75rem 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
 }
 
 /* Sidebar “cards” become sections without floating look */
@@ -277,7 +277,6 @@ main.layout {
 .search-row {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
   padding: 0.15rem 0.25rem;
   background: var(--input-bg);
   border-radius: 999px;
