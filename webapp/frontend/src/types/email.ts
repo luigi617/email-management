@@ -1,13 +1,14 @@
 // src/types/email.ts
 import type { EmailRef } from "./shared";
 
-export type Mailbox = {
-  id: number;
-  name: string;
+export type MailboxStatus = {
+  messages?: number;
+  unseen?: number;
+  [k: string]: number | undefined;
 };
 
 // account -> mailbox names (or ids) list
-export type MailboxData = Record<string, string[]>;
+export type MailboxData = Record<string, Record<string, MailboxStatus>>;
 
 export type LegendAccount = {
   id: number;

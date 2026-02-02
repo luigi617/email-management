@@ -74,7 +74,7 @@ export default function DetailColumn(props: DetailColumnProps) {
     if (!ov) return [];
     const account = ov.ref.account;
     if (!account) return [];
-    return props.mailboxData[account] ?? [];
+    return Object.keys(props.mailboxData[account] ?? [])
   }, [props.selectedOverview, props.mailboxData]);
 
   const [destinationMailbox, setDestinationMailbox] = useState<string>(() => props.currentMailbox);

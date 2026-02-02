@@ -1,6 +1,6 @@
 // src/api/emailApi.ts
 import { requestJSON } from "./http";
-import type { Mailbox } from "../types/email";
+import type { MailboxData, EmailMessage, EmailOverview } from "../types/email";
 import type { EmailRef } from "../types/shared";
 import type {
   ForwardParams,
@@ -57,12 +57,12 @@ async function replyImpl<T>(endpointSuffix: "/reply" | "/reply-all", args: Reply
 
 export const EmailApi = {
   // GET /api/emails/mailbox
-  async getMailboxes(): Promise<Mailbox[]> {
-    return requestJSON<Mailbox[]>("/api/emails/mailbox");
+  async getMailboxes(): Promise<MailboxData> {
+    return requestJSON<MailboxData>("/api/emails/mailbox");
   },
 
   // GET /api/emails/overview?mailbox=&limit=&cursor=&accounts=a&accounts=b
-  async getOverview<TItem>(params: OverviewParams): Promise<OverviewResponse<TItem>> {
+  async getOverview(params: OverviewParams): Promise<OverviewResponse<EmailOverview>> {
     const sp = new URLSearchParams();
 
     if (params.mailbox) sp.set("mailbox", params.mailbox);
@@ -77,12 +77,12 @@ export const EmailApi = {
 
     const qs = sp.toString();
     const url = `/api/emails/overview${qs ? `?${qs}` : ""}`;
-    return requestJSON<OverviewResponse<TItem>>(url);
+    return requestJSON<OverviewResponse<EmailOverview>>(url);
   },
 
   // GET single email
-  async getEmail<T>(key: EmailRef): Promise<T> {
-    return requestJSON<T>(buildEmailUrl(key.account, key.mailbox, key.uid.toString()));
+  async getEmail(key: EmailRef): Promise<EmailMessage> {
+    return requestJSON<EmailMessage>(buildEmailUrl(key.account, key.mailbox, key.uid.toString()));
   },
 
   // POST archive

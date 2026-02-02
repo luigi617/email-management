@@ -196,7 +196,7 @@ export function useEmailAppCore() {
     try {
       setListError("");
       // backend returns: { [account: string]: string[] }
-      const data = (await EmailApi.getMailboxes()) as unknown as MailboxData;
+      const data = await EmailApi.getMailboxes();
       setMailboxData(data || {});
     } catch (e) {
       console.error("Error fetching mailboxes:", e);
@@ -225,7 +225,7 @@ export function useEmailAppCore() {
 
         
 
-        const payload = await EmailApi.getOverview<EmailOverview>({
+        const payload = await EmailApi.getOverview({
           mailbox: currentMailbox,
           limit: pageSize,
           search_query: appliedSearchText.trim() ? appliedSearchText.trim() : undefined,
@@ -236,6 +236,7 @@ export function useEmailAppCore() {
             ? [...filterAccounts]
             : undefined,
         });
+        
 
         const list = Array.isArray(payload.data) ? payload.data : [];
         const meta = payload.meta ?? {};
@@ -293,11 +294,13 @@ export function useEmailAppCore() {
         setDetailError("");
         setSelectedMessage(null);
 
-        const msg = await EmailApi.getEmail<EmailMessage>({
+        const msg = await EmailApi.getEmail({
           account: String(account),
           mailbox: String(mailbox),
           uid: uid,
         });
+        console.log(msg.headers);
+        
 
         setSelectedMessage(msg);
       } catch (e) {

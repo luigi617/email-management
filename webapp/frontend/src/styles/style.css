@@ -66,6 +66,12 @@
 
   /* errors (if you want slightly different from --danger) */
   --error-text: #b91c1c;
+
+  /* unread email styling */
+  --email-unread-bg: rgba(10, 132, 255, 0.08);
+  --email-unread-hover: rgba(10, 132, 255, 0.12);
+  --email-unread-dot: #0a84ff;
+  --email-read-opacity: 0.82;
 }
 
 /* A local "light theme" scope using your existing tokens */
@@ -95,6 +101,11 @@
   --input-border: #d1d5db;
 
   --scrollbar-thumb: #d1d5db;
+
+  --email-unread-bg: rgba(10, 132, 255, 0.14);
+  --email-unread-hover: rgba(10, 132, 255, 0.18);
+  --email-unread-dot: #5ab0ff; /* slightly brighter in dark */
+  --email-read-opacity: 0.78;
 }
 
 
@@ -468,6 +479,29 @@ button.primary:hover {
   background: #ffffff;
 }
 
+.mailbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mailbox-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.mailbox-badge {
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+}
+.mailbox-item.active .mailbox-badge {
+  background: rgba(0, 0, 0, 0.14);
+}
+
+
 /* Legend ---------------------------------------------------------- */
 .legend-box {
   position: relative;
@@ -571,7 +605,7 @@ button.primary:hover {
 /* Email rows: closer to Apple Mail list */
 .email-card {
   display: grid;
-  grid-template-columns: 4px minmax(0, 1fr);
+  grid-template-columns: 4px minmax(0, 1fr) auto;
   gap: 0.45rem;
   padding: 0.45rem 0.65rem;
   border-radius: 0;
@@ -584,6 +618,48 @@ button.primary:hover {
 
 .email-card:hover {
   background: var(--hover);
+}
+
+/* Read: slightly muted */
+.email-card.read .email-from,
+.email-card.read .email-subject {
+  opacity: var(--email-read-opacity);
+}
+
+/* Unread: highlight + stronger typography */
+.email-card.unread {
+  background: var(--email-unread-bg);
+}
+
+.email-card.unread:hover {
+  background: var(--email-unread-hover);
+}
+
+.email-card.unread .email-from {
+  opacity: 1;
+}
+
+.email-card.unread .email-subject {
+  opacity: 1;
+}
+
+/* Keep selected state winning over unread/read */
+.email-card.selected {
+  background: var(--accent-soft);
+}
+
+.email-card.selected:hover {
+  background: var(--accent-soft);
+}
+
+/* Unread indicator dot (optional) */
+.email-unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--email-unread-dot);
+  align-self: center;
+  margin-left: 8px;
 }
 
 .email-card.selected {

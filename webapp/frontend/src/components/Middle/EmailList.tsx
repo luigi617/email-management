@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import type { EmailOverview } from "../../types/email";
 import { formatDate } from "../../utils/emailFormat";
 
@@ -10,7 +11,6 @@ export type EmailListProps = {
 };
 
 function stableFallbackKey(email: EmailOverview, index: number) {
-  // Prefer a deterministic key even if getEmailId is empty
   const a = email.ref.account ?? "";
   const m = email.ref.mailbox ?? "";
   const u = email.ref.uid ?? "";
@@ -18,7 +18,18 @@ function stableFallbackKey(email: EmailOverview, index: number) {
   return raw !== "::" ? raw : `row-${index}`;
 }
 
+function isSeenFromFlags(flags: unknown): boolean {
+  if (!Array.isArray(flags)) return false;
+  return flags.some((f) => {
+    const s = String(f).toLowerCase();
+    return s.includes("seen") || s === "read" || s.includes("\\seen");
+  });
+}
+
 export default function EmailList(props: EmailListProps) {
+  // UI-local memory: once opened, always treated as seen.
+  const [uiSeenKeys, setUiSeenKeys] = useState<Set<string>>(() => new Set());
+
   return (
     <div id="email-list" className="email-list">
       {props.emails.map((email, index) => {
@@ -26,20 +37,44 @@ export default function EmailList(props: EmailListProps) {
         const key = emailId || stableFallbackKey(email, index);
         const isSelected = !!emailId && emailId === props.selectedEmailId;
 
+        const isSeenFromServer = isSeenFromFlags((email as any).flags);
+        const isSeen = isSeenFromServer || uiSeenKeys.has(key); // <-- persists after click
+        const isUnread = !isSeen;
+
         const color = props.getColorForEmail(email);
-        const fromAddr = email.from_email?.name || email.from_email?.email || "(unknown sender)";
+        const fromAddr =
+          email.from_email?.name || email.from_email?.email || "(unknown sender)";
         const dateStr = formatDate(email.date);
         const subj = email.subject || "(no subject)";
 
         return (
           <div
             key={key}
-            className={`email-card ${isSelected ? "selected" : ""}`}
-            onClick={() => props.onSelectEmail(email)}
+            className={`email-card ${isSelected ? "selected" : ""} ${isUnread ? "unread" : "read"}`}
+            onClick={() => {
+              // Mark as seen *forever* in UI as soon as user opens it.
+              setUiSeenKeys((prev) => {
+                if (prev.has(key)) return prev;
+                const next = new Set(prev);
+                next.add(key);
+                return next;
+              });
+
+              props.onSelectEmail(email);
+            }}
             role="button"
             tabIndex={0}
+            aria-selected={isSelected}
             onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") props.onSelectEmail(email);
+              if (e.key === "Enter" || e.key === " ") {
+                setUiSeenKeys((prev) => {
+                  if (prev.has(key)) return prev;
+                  const next = new Set(prev);
+                  next.add(key);
+                  return next;
+                });
+                props.onSelectEmail(email);
+              }
             }}
           >
             <div className="email-color-strip" style={{ background: color }} />
@@ -50,6 +85,8 @@ export default function EmailList(props: EmailListProps) {
               </div>
               <div className="email-subject">{subj}</div>
             </div>
+
+            {isUnread ? <div className="email-unread-dot" aria-hidden="true" /> : null}
           </div>
         );
       })}

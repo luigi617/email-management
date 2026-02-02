@@ -8,6 +8,7 @@ export default function Layout(props: {
   middle: MiddleColumnProps;
   detail: DetailColumnProps;
 }) {
+  
   return (
     <main className="layout">
       <aside className="sidebar">

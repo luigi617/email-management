@@ -784,7 +784,7 @@ class IMAPClient:
 
             return status
 
-        return self._run_with_conn(_impl)  # type: ignore[return-value]
+        return self._run_with_conn(_impl)
 
     def move(self, refs: Sequence[EmailRef], *, src_mailbox: str, dst_mailbox: str) -> None:
         if not refs:

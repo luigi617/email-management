@@ -89,14 +89,17 @@ def get_email_overview(
     )
 
 @app.get("/api/emails/mailbox")
-def get_email_mailbox() -> Dict[str, List[str]]:
+def get_email_mailbox() -> Dict[str, Dict[str, Dict[str, int]]]:
     """
     Return available mailboxes per account.
     """
     res: Dict[str, List[str]] = {}
     for acc_name, manager in ACCOUNTS.items():
         mailbox_list = manager.list_mailboxes()
-        res[acc_name] = mailbox_list
+        res[acc_name] = {}
+        for mailbox in mailbox_list:
+            mailbox_status = manager.mailbox_status(mailbox)
+            res[acc_name][mailbox] = mailbox_status
     return res
 
 @app.get("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}")
@@ -109,11 +112,12 @@ def get_email(account: str, mailbox: str, email_id: int) -> dict:
     manager = ACCOUNTS.get(account)
     if manager is None:
         raise HTTPException(status_code=404, detail="Account not found")
-
+    email_ref = EmailRef(mailbox=mailbox, uid=email_id)
     message: EmailMessage = manager.fetch_message_by_ref(
-        EmailRef(mailbox=mailbox, uid=email_id),
+        email_ref,
         include_attachments=True,
     )
+    manager.mark_seen([email_ref])
 
     data = message.to_dict()
     data["ref"].setdefault("account", account)
