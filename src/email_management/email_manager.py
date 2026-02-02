@@ -614,7 +614,7 @@ class EmailManager:
             self.add_flags(refs, {SEEN})
             total += len(refs)
 
-            if not page.has_more or page.next_before_uid is None:
+            if not page.has_next or page.next_before_uid is None:
                 break
 
             before_uid = page.next_before_uid
