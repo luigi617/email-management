@@ -223,15 +223,14 @@ export function useEmailAppCore() {
           setCurrentPage(1);
         }
 
-        const hasQuerySearch = Boolean(appliedSearchText?.trim());
         
 
         const payload = await EmailApi.getOverview<EmailOverview>({
-          mailbox: hasQuerySearch ? "INBOX" : currentMailbox,
+          mailbox: currentMailbox,
           limit: pageSize,
-          search_query: hasQuerySearch ? appliedSearchText.trim() : undefined,
+          search_query: appliedSearchText.trim() ? appliedSearchText.trim() : undefined,
           cursor: useCursor,
-          accounts: (hasQuerySearch || useCursor)
+          accounts: useCursor
             ? undefined
             : filterAccounts.length
             ? [...filterAccounts]

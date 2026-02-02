@@ -4,7 +4,7 @@ import copy
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import time
-from typing import Dict, List, Optional, Tuple, Callable, Any
+from typing import Dict, List, Optional, Tuple
 
 from email_management import EmailManager, EmailAssistant, EmailQuery
 from email_management.imap import IMAPQuery
@@ -21,19 +21,19 @@ class _CachedDerivedQuery:
 class _DerivedIMAPQueryCache:
     """
     In-memory cache:
-      (mailbox, normalized_user_query) -> snapshot of EmailQuery.query
+      normalized_user_query -> snapshot of IMAPQuery criteria (mailbox-agnostic)
     """
     def __init__(self, *, maxsize: int = 256, ttl_seconds: int = 3600) -> None:
         self.maxsize = maxsize
         self.ttl_seconds = ttl_seconds
-        self._store: Dict[Tuple[str, str], _CachedDerivedQuery] = {}
-        self._lru: List[Tuple[str, str]] = []  # oldest -> newest
+        self._store: Dict[str, _CachedDerivedQuery] = {}
+        self._lru: List[str] = []  # oldest -> newest
 
     def _normalize(self, s: str) -> str:
         return " ".join(s.strip().split()).lower()
 
-    def get(self, mailbox: str, user_query: str) -> Optional[_CachedDerivedQuery]:
-        key = (mailbox, self._normalize(user_query))
+    def get(self, user_query: str) -> Optional[_CachedDerivedQuery]:
+        key = self._normalize(user_query)
         item = self._store.get(key)
         if not item:
             return None
@@ -55,8 +55,8 @@ class _DerivedIMAPQueryCache:
         self._lru.append(key)
         return item
 
-    def set(self, mailbox: str, user_query: str, item: _CachedDerivedQuery) -> None:
-        key = (mailbox, self._normalize(user_query))
+    def set(self, user_query: str, item: _CachedDerivedQuery) -> None:
+        key = self._normalize(user_query)
 
         if key in self._store:
             self._store[key] = item
@@ -81,8 +81,7 @@ _DERIVED_QUERY_CACHE = _DerivedIMAPQueryCache(maxsize=256, ttl_seconds=3600)
 
 def _apply_cached_query(base_q: EmailQuery, cached: _CachedDerivedQuery) -> None:
     """
-    Apply the cached IMAP criteria onto a new EmailQuery instance.
-    Assumes EmailQuery has a `.query` object we can replace.
+    Apply cached IMAP criteria onto a new EmailQuery instance
     """
     # Deepcopy to avoid cross-request mutation
     base_q.query = copy.deepcopy(cached.query_snapshot)
@@ -97,7 +96,7 @@ def build_email_overview(
     accounts: Optional[List[str]] = None,
     ACCOUNTS: Dict[str, EmailManager],
 ) -> dict:
-    
+
     if limit < 1:
         raise ValueError("limit must be >= 1")
 
@@ -135,14 +134,13 @@ def build_email_overview(
     normalized_search = None
     if search_query and search_query.strip():
         normalized_search = " ".join(search_query.strip().split())
-        cached = _DERIVED_QUERY_CACHE.get(mailbox, normalized_search)
+        cached = _DERIVED_QUERY_CACHE.get(normalized_search)
         if cached is None:
             email_assistant = EmailAssistant()
             easy_imap_query, _ = email_assistant.search_emails(
                 normalized_search,
                 provider="groq",
                 model_name="llama-3.1-8b-instant",
-                mailbox=mailbox,
             )
 
             snap = copy.deepcopy(easy_imap_query.query)
@@ -157,7 +155,7 @@ def build_email_overview(
                 query_snapshot=snap,
                 debug_repr=debug_repr,
             )
-            _DERIVED_QUERY_CACHE.set(mailbox, normalized_search, cached)
+            _DERIVED_QUERY_CACHE.set(normalized_search, cached)
 
     combined_entries: List[Tuple[str, EmailOverview]] = []
     total_count = 0
@@ -185,7 +183,7 @@ def build_email_overview(
             after_uid=after_uid,
             refresh=is_first_page,
         )
-        
+
         total_count += page_meta.total
         for ov in overview_list:
             combined_entries.append((acc_id, ov))
