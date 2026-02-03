@@ -1,10 +1,9 @@
 # openmail/imap/fetch_response.py
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Iterator, Optional, Sequence, Tuple
-import re
-
 
 UID_RE = re.compile(r"UID\s+(\d+)", re.IGNORECASE)
 INTERNALDATE_RE = re.compile(r'INTERNALDATE\s+"([^"]+)"', re.IGNORECASE)

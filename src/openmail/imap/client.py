@@ -23,7 +23,6 @@ from openmail.imap.bodystructure import (
     pick_best_text_parts,
 )
 from openmail.imap.fetch_response import (
-    FetchPiece,
     has_header_peek,
     iter_fetch_pieces,
     match_section_body,
