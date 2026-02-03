@@ -69,7 +69,8 @@ export type ComposerProps = {
 };
 
 export default function Composer(props: ComposerProps) {
-  const { composerRef, zoneRef } = useComposerResize(props.open);
+  const resizeEnabled = props.open && !props.minimized;
+  const { composerRef, zoneRef } = useComposerResize(resizeEnabled);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   return (
@@ -77,7 +78,7 @@ export default function Composer(props: ComposerProps) {
       ref={composerRef}
       className={`composer ${props.open ? "" : "hidden"} ${props.minimized ? "composer--minimized" : ""}`}
     >
-      <div ref={zoneRef} className="composer-resize-zone" />
+      {!props.minimized && <div ref={zoneRef} className="composer-resize-zone" />}
 
       {/* header */}
       <div className="composer-header">
