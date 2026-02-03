@@ -18,6 +18,7 @@ from openmail.llm.xai import get_xai
 
 TModel = TypeVar("TModel", bound=BaseModel)
 
+
 @lru_cache(maxsize=None)
 def _get_base_llm(
     provider: str,
@@ -39,12 +40,13 @@ def _get_base_llm(
 
     raise RuntimeError("LLM not available for the given model_name")
 
+
 def get_model(
     provider: str,
     model_name: str,
     pydantic_model: Type[TModel],
     temperature: float = 0.1,
-    retries: int = 5, # -1 for infinite retries
+    retries: int = 5,  # -1 for infinite retries
     base_delay: float = 1.5,
     max_delay: float = 30.0,
     timeout: int = 120,
@@ -55,17 +57,16 @@ def get_model(
 
     TRANSIENT_EXC = (APIConnectionError, APITimeoutError, RateLimitError)
     PARSE_EXC = (JSONDecodeError, OutputParserException, ValidationError)
-    
+
     history: List[Dict[str, str]] = []
-    
+
     def run(prompt_text: str) -> Tuple[TModel, Dict[str, Any]]:
         nonlocal history
-        infinite = (retries == -1)
+        infinite = retries == -1
         max_tries = float("inf") if infinite else max(1, retries)
         delay = base_delay
         last_exc: Optional[BaseException] = None
-        
-        
+
         attempt = 0
         while attempt < max_tries:
             try:
@@ -81,12 +82,12 @@ def get_model(
                 )
                 t1 = time.perf_counter()
 
-                model_obj = out if isinstance(out, BaseModel) else pydantic_model.model_validate(out)
+                model_obj = (
+                    out if isinstance(out, BaseModel) else pydantic_model.model_validate(out)
+                )
                 out_dict = model_obj.model_dump()
 
-                history = messages + [
-                    {"role": "assistant", "content": model_obj.model_dump_json()}
-                ]
+                history = messages + [{"role": "assistant", "content": model_obj.model_dump_json()}]
 
                 cost_usd = compute_cost_usd(
                     provider,
@@ -104,16 +105,16 @@ def get_model(
                     "prompt_tokens": usage_cb.prompt_tokens,
                     "completion_tokens": usage_cb.completion_tokens,
                     "cached_prompt_tokens": usage_cb.cached_prompt_tokens,
-                    "cost_usd": cost_usd
+                    "cost_usd": cost_usd,
                 }
-                
+
                 return model_obj, llm_call_info
 
             except (*TRANSIENT_EXC, *PARSE_EXC) as e:
                 last_exc = e
             except Exception as e:
                 last_exc = e
-            
+
             attempt += 1
             if not infinite and attempt >= max_tries:
                 if all_fail_raise and last_exc is not None:

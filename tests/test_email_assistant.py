@@ -63,7 +63,7 @@ class FakeEasyQuery:
         )
 
         page = PagedSearchResult(
-            refs=[msg2.ref, msg1.ref],   # newest-first is consistent with paging behavior
+            refs=[msg2.ref, msg1.ref],  # newest-first is consistent with paging behavior
             total=2,
             has_next=False,
             has_prev=False,
@@ -211,6 +211,7 @@ def _make_sample_messages():
 # Existing tests
 # ---------------------------------------------------------------------------
 
+
 def test_fetch_latest_uses_imap_query_and_limit(monkeypatch):
     mgr, fake_easy = _make_mgr_with_fake_imap(monkeypatch)
 
@@ -303,6 +304,7 @@ def test_generate_reply_uses_llm(monkeypatch):
 # ---------------------------------------------------------------------------
 # New tests for additional functionality
 # ---------------------------------------------------------------------------
+
 
 def test_email_assistant_profile_generate_prompt():
     profile = EmailAssistantProfile(
@@ -554,6 +556,7 @@ def test_prioritize_emails_uses_llm(monkeypatch):
     assert scores == [0.9, 0.1]
     assert len(scores) == len(msgs)
     assert info["model"] == "fake-model"
+
 
 def test_generate_follow_up_uses_llm(monkeypatch):
     msgs = _make_sample_messages()

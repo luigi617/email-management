@@ -25,6 +25,7 @@ Emails:
 {emails_block}
 """
 
+
 class EmailMultiSummarySchema(BaseModel):
     summary: str = Field(description="One paragraph summarizing and prioritizing multiple emails.")
 

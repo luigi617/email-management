@@ -15,6 +15,7 @@ class EmailRef:
             "mailbox": self.mailbox,
         }
 
+
 @dataclass(frozen=True)
 class SendResult:
     ok: bool

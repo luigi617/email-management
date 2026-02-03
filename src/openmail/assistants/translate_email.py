@@ -22,10 +22,10 @@ Text to translate:
 {text}
 """
 
+
 class TranslateEmailSchema(BaseModel):
-    translated_text: str = Field(
-        description="The translated text in the target language."
-    )
+    translated_text: str = Field(description="The translated text in the target language.")
+
 
 def llm_translate_email(
     text: str,

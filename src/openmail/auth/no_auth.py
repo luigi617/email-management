@@ -11,6 +11,7 @@ class NoAuth:
     Represents 'no authentication required'. Useful for SMTP relays
     or IMAP/SMTP servers that don't require login for this client.
     """
+
     def apply_smtp(self, server, ctx: AuthContext) -> None:
         return
 

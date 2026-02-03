@@ -14,6 +14,7 @@ class OAuth2Auth:
     XOAUTH2-based auth. You provide a function that returns a fresh access token.
     - token_provider() -> access_token (string)
     """
+
     username: str
     token_provider: Callable[..., str]
 

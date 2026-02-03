@@ -38,12 +38,7 @@ def _http_unsubscribe_flow(url: str, timeout: int = 10) -> tuple[bool, str]:
 
     def _is_unsub_text(s: str) -> bool:
         s = s.lower()
-        return (
-            "unsubscribe" in s
-            or "opt out" in s
-            or "opt-out" in s
-            or "optout" in s
-        )
+        return "unsubscribe" in s or "opt out" in s or "opt-out" in s or "optout" in s
 
     unsub_form = None
     for form in soup.find_all("form"):
@@ -106,7 +101,7 @@ def _http_unsubscribe_flow(url: str, timeout: int = 10) -> tuple[bool, str]:
 
     unsub_link = None
     for tag in soup.find_all(["a", "button"]):
-        text = (tag.get_text(" ", strip=True) or "")
+        text = tag.get_text(" ", strip=True) or ""
         if _is_unsub_text(text):
             unsub_link = tag
             break
@@ -173,7 +168,6 @@ class SubscriptionService:
                     send_res = self.smtp.send(msg, [method.value])
                 except Exception as exc:
                     send_res = SendResult(ok=False, detail=f"error: {exc!r}")
-
 
                 results["sent"].append(
                     UnsubscribeActionResult(

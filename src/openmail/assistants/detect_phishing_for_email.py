@@ -28,6 +28,7 @@ Email context:
 {email_context}
 """
 
+
 class PhishingDetectionSchema(BaseModel):
     is_phishing: bool = Field(
         description="True if the email is likely a phishing/scam attempt, else False."
@@ -37,9 +38,7 @@ class PhishingDetectionSchema(BaseModel):
         le=1.0,
         description="Confidence in the phishing judgement, between 0.0 and 1.0.",
     )
-    reasoning: str = Field(
-        description="Short explanation for why the email is or is not phishing."
-    )
+    reasoning: str = Field(description="Short explanation for why the email is or is not phishing.")
 
 
 def llm_detect_phishing_for_email(

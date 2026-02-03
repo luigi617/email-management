@@ -15,6 +15,7 @@ from openmail.llm.model import _get_base_llm, get_model
 # Fixtures / helpers
 # ---------------------------------------------------------------------------
 
+
 # Important: clear the lru_cache on _get_base_llm between tests so our
 # monkeypatching of get_openai/get_gemini/etc behaves as expected.
 @pytest.fixture(autouse=True)
@@ -27,13 +28,16 @@ def clear_llm_cache():
 class DummyModel(BaseModel):
     message: str
 
+
 class DummyTransientError(Exception):
     """Simple stand-in for openai transient errors in tests."""
+
     pass
 
 
 class FakeLLMResult:
     """Minimal object that looks like langchain_core.outputs.LLMResult for TokenUsageCallback."""
+
     def __init__(self, token_usage: Dict[str, Any]):
         self.llm_output = {"token_usage": token_usage}
 
@@ -98,6 +102,7 @@ class FlakyChain:
 # ---------------------------------------------------------------------------
 # Tests for _get_base_llm (correct & wrong providers)
 # ---------------------------------------------------------------------------
+
 
 def test_get_base_llm_openai(monkeypatch):
     from openmail.llm import model as model_mod
@@ -308,7 +313,6 @@ def test_get_model_success_with_valid_provider_and_model(monkeypatch):
     assert second_inputs["messages"][2]["content"] == prompt_text_2
 
 
-
 def test_get_model_retries_and_succeeds_on_transient_error(monkeypatch):
     from openmail.llm import model as model_mod
 
@@ -361,6 +365,7 @@ def test_get_model_retries_and_succeeds_on_transient_error(monkeypatch):
 
 def test_get_model_all_retries_fail_and_raise(monkeypatch):
     from openmail.llm import model as model_mod
+
     monkeypatch.setattr(model_mod, "APIConnectionError", DummyTransientError)
     monkeypatch.setattr(model_mod, "sleep", lambda *_a, **_kw: None)
 
@@ -391,6 +396,7 @@ def test_get_model_all_retries_fail_and_raise(monkeypatch):
 
 def test_get_model_all_retries_fail_no_raise_returns_none(monkeypatch):
     from openmail.llm import model as model_mod
+
     monkeypatch.setattr(model_mod, "APIConnectionError", DummyTransientError)
     monkeypatch.setattr(model_mod, "sleep", lambda *_a, **_kw: None)
 

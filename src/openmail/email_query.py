@@ -9,6 +9,7 @@ from openmail.utils import iso_days_ago
 if TYPE_CHECKING:
     from openmail.email_manager import EmailManager
 
+
 class EmailQuery:
     """
     Builder that composes filters and only hits IMAP when you call .search() or .fetch().
@@ -46,7 +47,7 @@ class EmailQuery:
             refs = easy.search()
         """
         return self._q
-    
+
     @query.setter
     def query(self, value: IMAPQuery) -> None:
         """
@@ -137,7 +138,7 @@ class EmailQuery:
         if name and needle:
             self._q.header(name, needle)
         return self
-    
+
     def for_thread_root(self, root: EmailMessage) -> EmailQuery:
         """
         Narrow this query to messages that look like they belong to the same
@@ -153,8 +154,10 @@ class EmailQuery:
             IMAPQuery().header("In-Reply-To", mid),
         )
         return self
-    
-    def thread_like(self, *, subject: Optional[str] = None, participants: Sequence[str] = ()) -> EmailQuery:
+
+    def thread_like(
+        self, *, subject: Optional[str] = None, participants: Sequence[str] = ()
+    ) -> EmailQuery:
         """
         Approximate "thread" matching:
         - optional SUBJECT contains `subject`

@@ -11,6 +11,7 @@ from openmail.llm import get_model
 if TYPE_CHECKING:
     pass
 
+
 class HeaderFilter(BaseModel):
     name: str = Field(
         description="Exact header name to inspect, for example 'List-Unsubscribe' or 'X-Provider'."
@@ -355,6 +356,7 @@ class IMAPLowLevelPlan(BaseModel):
         ),
     )
 
+
 EMAIL_IMAP_QUERY_PROMPT = """
 You are an assistant that translates NATURAL LANGUAGE email-search requests
 into a JSON object that matches the Pydantic model `IMAPLowLevelPlan`.
@@ -689,12 +691,9 @@ def llm_easy_imap_query_from_nl(
     where the final LLM output schema is IMAPLowLevelPlan (a list of DNF clauses).
     """
     chain = get_model(provider, model_name, IMAPLowLevelPlan)
-    result, llm_call_info = chain(
-        EMAIL_IMAP_QUERY_PROMPT.format(user_request=user_request)
-    )
+    result, llm_call_info = chain(EMAIL_IMAP_QUERY_PROMPT.format(user_request=user_request))
     plan = result
     easy = EmailQuery(manager=None, mailbox=mailbox)
     _apply_low_level_to_easy_query(easy, plan)
 
     return easy, llm_call_info
-

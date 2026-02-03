@@ -22,10 +22,9 @@ Email context:
 {email_context}
 """
 
+
 class EmailReplySuggestionsSchema(BaseModel):
-    suggestions: List[str] = Field(
-        description="2-3 concise suggestions describing how to reply."
-    )
+    suggestions: List[str] = Field(description="2-3 concise suggestions describing how to reply.")
 
 
 def llm_reply_suggestions_for_email(

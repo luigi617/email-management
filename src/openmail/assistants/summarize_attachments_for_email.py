@@ -23,6 +23,7 @@ Attachments:
 {attachments_context}
 """
 
+
 class AttachmentSummarySchema(BaseModel):
     filename: str = Field(description="Filename of the attachment.")
     summary: str = Field(description="Concise summary of the attachment's contents.")
@@ -33,13 +34,14 @@ class AttachmentSummariesSchema(BaseModel):
         description="List of summaries for each attachment."
     )
 
+
 def _build_attachments_context(message: EmailMessage) -> str:
     """
     Build a text context representing all attachments.
 
     Adjust attribute names here to match your actual attachment model.
     """
-    
+
     attachments = message.attachments
     parts: List[str] = []
 
@@ -69,9 +71,7 @@ def _build_attachments_context(message: EmailMessage) -> str:
             decoded = decoded[:4000] + "\n...[truncated]..."
 
         parts.append(
-            f"--- Attachment #{idx} ---\n"
-            f"Filename: {filename}\n"
-            f"Content:\n{decoded}\n"
+            f"--- Attachment #{idx} ---\n" f"Filename: {filename}\n" f"Content:\n{decoded}\n"
         )
 
     return "\n".join(parts)
@@ -97,7 +97,5 @@ def llm_summarize_attachments_for_email(
         ATTACHMENT_SUMMARY_PROMPT.format(attachments_context=attachments_context)
     )
 
-    summaries: Dict[str, str] = {
-        att.filename: att.summary for att in result.attachments
-    }
+    summaries: Dict[str, str] = {att.filename: att.summary for att in result.attachments}
     return summaries, llm_call_info

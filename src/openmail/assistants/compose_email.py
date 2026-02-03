@@ -20,9 +20,11 @@ User instructions:
 {instructions}
 """
 
+
 class ComposeEmailSchema(BaseModel):
     subject: str = Field(description="Subject line for the email.")
     body: str = Field(description="Full email body, ready to send.")
+
 
 def llm_compose_email(
     instructions: str,
@@ -34,9 +36,7 @@ def llm_compose_email(
     Compose a new email from natural-language instructions.
     """
     chain = get_model(provider, model_name, ComposeEmailSchema)
-    result, llm_call_info = chain(
-        COMPOSE_EMAIL_PROMPT.format(instructions=instructions)
-    )
+    result, llm_call_info = chain(COMPOSE_EMAIL_PROMPT.format(instructions=instructions))
 
     subject = result.subject.strip()
     body = result.body.strip()

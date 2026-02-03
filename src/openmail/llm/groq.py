@@ -22,10 +22,12 @@ def get_groq(
         pydantic_model,
         method="function_calling",
     )
-    base_prompt = ChatPromptTemplate.from_messages([
-        ("system", "Return ONLY valid JSON that matches the required schema. No extra text."),
-        MessagesPlaceholder("messages")
-    ])
+    base_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", "Return ONLY valid JSON that matches the required schema. No extra text."),
+            MessagesPlaceholder("messages"),
+        ]
+    )
     chain = base_prompt | llm_structured
 
     if chain is None:

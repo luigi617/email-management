@@ -16,5 +16,5 @@ __all__ = [
     "UnsubscribeMethod",
     "UnsubscribeCandidate",
     "UnsubscribeActionResult",
-    "Task"
+    "Task",
 ]

@@ -43,18 +43,18 @@ class FakeSMTPServer:
         return self.code, self.resp
 
 
-
 def make_token_provider(value: str):
     def provider() -> str:
         return value
+
     return provider
 
 
 def make_raising_provider(exc: Exception):
     def provider() -> str:
         raise exc
-    return provider
 
+    return provider
 
 
 def test_imap_success():
@@ -118,7 +118,6 @@ def test_imap_failure_when_provider_raises():
     # The original exception should be wrapped
     assert "IMAP XOAUTH2 auth failed:" in str(excinfo.value)
     assert "boom" in str(excinfo.value)
-
 
 
 def test_smtp_success():

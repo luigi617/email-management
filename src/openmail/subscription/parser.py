@@ -22,7 +22,7 @@ def parse_list_unsubscribe(value: str) -> List[UnsubscribeMethod]:
         item = item.strip()
 
         if item.lower().startswith("mailto:"):
-            addr = item[len("mailto:"):].split("?", 1)[0].strip()
+            addr = item[len("mailto:") :].split("?", 1)[0].strip()
             if addr:
                 methods.append(UnsubscribeMethod("mailto", addr))
 

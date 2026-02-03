@@ -22,6 +22,7 @@ def _normalize_disposition(d: Optional[str]) -> Optional[str]:
         return d2
     return d2 or None
 
+
 @dataclass(frozen=True)
 class AttachmentMeta:
     idx: int
@@ -42,9 +43,8 @@ class AttachmentMeta:
         # If caller forgot to set is_inline, infer a sensible default:
         # - explicit inline disposition OR
         # - has content_id and is an image (typical CID-inline case)
-        inferred_inline = (
-            (self.disposition == "inline")
-            or (self.content_id is not None and self.content_type.lower().startswith("image/"))
+        inferred_inline = (self.disposition == "inline") or (
+            self.content_id is not None and self.content_type.lower().startswith("image/")
         )
         # Only override if it looks unset / default
         if self.is_inline is False and inferred_inline:

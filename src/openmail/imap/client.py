@@ -53,7 +53,9 @@ class IMAPClient:
     _selected_readonly: bool | None = field(default=None, init=False, repr=False)
 
     # cache key: (mailbox, criteria_str) -> ascending UID list
-    _search_cache: Dict[tuple[str, str], List[int]] = field(default_factory=dict, init=False, repr=False)
+    _search_cache: Dict[tuple[str, str], List[int]] = field(
+        default_factory=dict, init=False, repr=False
+    )
 
     max_retries: int = 1
     backoff_seconds: float = 0.0
@@ -356,7 +358,9 @@ class IMAPClient:
     # FETCH full message (headers + best text/html via BODYSTRUCTURE)
     # -----------------------
 
-    def fetch(self, refs: Sequence[EmailRef], *, include_attachment_meta: bool = False) -> List[EmailMessage]:
+    def fetch(
+        self, refs: Sequence[EmailRef], *, include_attachment_meta: bool = False
+    ) -> List[EmailMessage]:
         if not refs:
             return []
 
@@ -426,11 +430,15 @@ class IMAPClient:
                             attachment_metas = atts
 
                         if plain_ref is not None:
-                            mime_b, body_b = self._fetch_section_mime_and_body(conn, uid=r.uid, section=plain_ref.part)
+                            mime_b, body_b = self._fetch_section_mime_and_body(
+                                conn, uid=r.uid, section=plain_ref.part
+                            )
                             text = self._decode_section(mime_bytes=mime_b, body_bytes=body_b)
 
                         if html_ref is not None:
-                            mime_b, body_b = self._fetch_section_mime_and_body(conn, uid=r.uid, section=html_ref.part)
+                            mime_b, body_b = self._fetch_section_mime_and_body(
+                                conn, uid=r.uid, section=html_ref.part
+                            )
                             html = self._decode_section(mime_bytes=mime_b, body_bytes=body_b)
 
                         if html and attachment_metas:
@@ -452,7 +460,9 @@ class IMAPClient:
                     text=text,
                     html=html,
                     attachments=attachment_metas if include_attachment_meta else [],
-                    internaldate_raw=internaldate_raw if isinstance(internaldate_raw, str) else None,
+                    internaldate_raw=(
+                        internaldate_raw if isinstance(internaldate_raw, str) else None
+                    ),
                 )
                 out.append(msg)
 
@@ -523,7 +533,9 @@ class IMAPClient:
                         r,
                         flags,
                         header_bytes,
-                        internaldate_raw=internaldate_raw if isinstance(internaldate_raw, str) else None,
+                        internaldate_raw=(
+                            internaldate_raw if isinstance(internaldate_raw, str) else None
+                        ),
                     )
                 )
 
@@ -571,7 +583,9 @@ class IMAPClient:
 
             uid: Optional[int] = None
             if data and data[0]:
-                resp = data[0].decode(errors="ignore") if isinstance(data[0], bytes) else str(data[0])
+                resp = (
+                    data[0].decode(errors="ignore") if isinstance(data[0], bytes) else str(data[0])
+                )
                 m = re.search(r"APPENDUID\s+\d+\s+(\d+)", resp)
                 if m:
                     uid = int(m.group(1))

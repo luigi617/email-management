@@ -26,9 +26,11 @@ Emails:
 {email_blocks}
 """
 
+
 class EmailClassificationItem(BaseModel):
     id: str = Field(description="Opaque ID that identifies one email.")
     label: str = Field(description="Chosen class label for this email.")
+
 
 class EmailClassificationSchema(BaseModel):
     items: List[EmailClassificationItem] = Field(
@@ -37,6 +39,7 @@ class EmailClassificationSchema(BaseModel):
             "and the chosen class label."
         )
     )
+
 
 def llm_classify_emails(
     messages: Sequence[EmailMessage],

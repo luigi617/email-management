@@ -51,7 +51,5 @@ def llm_summarize_thread_emails(
     thread_context = "\n".join(parts)
 
     chain = get_model(provider, model_name, ThreadSummarySchema)
-    result, llm_call_info = chain(
-        THREAD_SUMMARY_PROMPT.format(thread_context=thread_context)
-    )
+    result, llm_call_info = chain(THREAD_SUMMARY_PROMPT.format(thread_context=thread_context))
     return result.summary, llm_call_info

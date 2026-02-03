@@ -13,7 +13,7 @@ def test_imap_date_formats_correctly():
 def test_q_quotes_and_escapes():
     _q = qmod._q
     assert _q("hello") == '"hello"'
-    assert _q('he"llo') == '"he\\\"llo"'
+    assert _q('he"llo') == '"he\\"llo"'
     assert _q(r"c:\path\to\file") == '"c:\\\\path\\\\to\\\\file"'
 
 
@@ -153,9 +153,7 @@ def test_exclude_header_text_body():
         .exclude_body("bar")
     )
     assert q.build() == (
-        'NOT HEADER "List-Id" "mylist@example.com" '
-        'NOT TEXT "foo" '
-        'NOT BODY "bar"'
+        'NOT HEADER "List-Id" "mylist@example.com" ' 'NOT TEXT "foo" ' 'NOT BODY "bar"'
     )
 
 
@@ -239,9 +237,5 @@ def test_chaining_builds_expected_query():
         .smaller(5000)
     )
     assert q.build() == (
-        'FROM "a@example.com" '
-        'TO "b@example.com" '
-        'UNSEEN '
-        'SINCE 01-Jan-2025 '
-        "SMALLER 5000"
+        'FROM "a@example.com" ' 'TO "b@example.com" ' "UNSEEN " "SINCE 01-Jan-2025 " "SMALLER 5000"
     )

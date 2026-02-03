@@ -43,61 +43,47 @@ class MetadataItem(BaseModel):
     key: str = Field(description="Metadata key.")
     value: str = Field(description="Metadata value.")
 
+
 class TaskSchema(BaseModel):
     """
     Generic task structure that can be reused across domains.
     """
+
     id: Optional[str] = Field(
-        default=None,
-        description="A stable identifier if available; otherwise null."
+        default=None, description="A stable identifier if available; otherwise null."
     )
-    title: str = Field(
-        description="Short, human-readable label for the task."
-    )
-    description: str = Field(
-        description="Longer description with relevant context for the task."
-    )
+    title: str = Field(description="Short, human-readable label for the task.")
+    description: str = Field(description="Longer description with relevant context for the task.")
     due_date: Optional[str] = Field(
         default=None,
-        description="Due date or deadline in ISO 8601 format if specified; otherwise null."
+        description="Due date or deadline in ISO 8601 format if specified; otherwise null.",
     )
     priority: Optional[str] = Field(
-        default=None,
-        description='Priority such as "low", "medium", or "high", if inferable.'
+        default=None, description='Priority such as "low", "medium", or "high", if inferable.'
     )
     status: Optional[str] = Field(
-        default=None,
-        description='Status such as "todo", "in_progress", or "done"; usually "todo".'
+        default=None, description='Status such as "todo", "in_progress", or "done"; usually "todo".'
     )
     assignee: Optional[str] = Field(
-        default=None,
-        description="Person responsible for the task if known."
+        default=None, description="Person responsible for the task if known."
     )
     tags: List[str] = Field(
-        default_factory=list,
-        description="List of keywords or labels for the task."
+        default_factory=list, description="List of keywords or labels for the task."
     )
-    source_system: str = Field(
-        description='Source system for the task, e.g. "email".'
-    )
+    source_system: str = Field(description='Source system for the task, e.g. "email".')
     source_id: Optional[str] = Field(
-        default=None,
-        description="Identifier of the source record (e.g. message ID) if available."
+        default=None, description="Identifier of the source record (e.g. message ID) if available."
     )
     source_link: Optional[str] = Field(
-        default=None,
-        description="Deep link/URL to the source record if available."
+        default=None, description="Deep link/URL to the source record if available."
     )
     metadata: List[MetadataItem] = Field(
-        default_factory=list,
-        description="Additional domain-specific metadata as key-value pairs."
+        default_factory=list, description="Additional domain-specific metadata as key-value pairs."
     )
 
 
 class TaskExtractionSchema(BaseModel):
-    tasks: List[TaskSchema] = Field(
-        description="List of tasks extracted from the email context."
-    )
+    tasks: List[TaskSchema] = Field(description="List of tasks extracted from the email context.")
 
 
 def llm_extract_tasks_from_emails(
@@ -117,9 +103,7 @@ def llm_extract_tasks_from_emails(
     email_context = "\n".join(parts)
 
     chain = get_model(provider, model_name, TaskExtractionSchema)
-    result, llm_call_info = chain(
-        TASK_EXTRACTION_PROMPT.format(email_context=email_context)
-    )
+    result, llm_call_info = chain(TASK_EXTRACTION_PROMPT.format(email_context=email_context))
 
     tasks: List[Task] = []
     for t in result.tasks:
@@ -136,7 +120,7 @@ def llm_extract_tasks_from_emails(
                 source_system=t.source_system,
                 source_id=t.source_id,
                 source_link=t.source_link,
-                metadata={item.key: item.value for item in t.metadata}
+                metadata={item.key: item.value for item in t.metadata},
             )
         )
     return tasks, llm_call_info

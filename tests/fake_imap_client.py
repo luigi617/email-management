@@ -126,7 +126,7 @@ class FakeIMAPClient:
         Compute (and cache) matching UIDs in ascending order.
         """
         self._maybe_fail()
-        criteria = (query.build() or "ALL")
+        criteria = query.build() or "ALL"
         cache_key = (mailbox, criteria)
 
         box = self._mailboxes.get(mailbox, {})
@@ -160,7 +160,7 @@ class FakeIMAPClient:
         if before_uid is not None and after_uid is not None:
             raise ValueError("Cannot specify both before_uid and after_uid")
 
-        criteria = (query.build() or "ALL")
+        criteria = query.build() or "ALL"
         cache_key = (mailbox, criteria)
 
         uids = None if refresh else self._search_cache.get(cache_key)
@@ -340,7 +340,6 @@ class FakeIMAPClient:
             msg = stored.msg
             flags = set(stored.flags)
 
-
             def _add_header(hdr_lines: List[str], name: str, value: Optional[str]) -> None:
                 if not value:  # covers None and ""
                     return
@@ -348,11 +347,17 @@ class FakeIMAPClient:
 
             hdr_lines: List[str] = []
             _add_header(hdr_lines, "From", msg.headers.get("From") or msg.from_email)
-            _add_header(hdr_lines, "To", msg.headers.get("To") or (", ".join(msg.to) if msg.to else None))
+            _add_header(
+                hdr_lines, "To", msg.headers.get("To") or (", ".join(msg.to) if msg.to else None)
+            )
             _add_header(hdr_lines, "Subject", msg.headers.get("Subject") or msg.subject)
-            _add_header(hdr_lines, "Date", msg.headers.get("Date") or (msg.received_at.isoformat() if msg.received_at else None))
+            _add_header(
+                hdr_lines,
+                "Date",
+                msg.headers.get("Date")
+                or (msg.received_at.isoformat() if msg.received_at else None),
+            )
             _add_header(hdr_lines, "Message-ID", msg.headers.get("Message-ID") or msg.message_id)
-
 
             # Preserve any other stored headers that might matter for tests (best-effort)
             # but avoid duplicates for the main ones.

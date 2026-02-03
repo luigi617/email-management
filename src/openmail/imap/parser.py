@@ -21,6 +21,7 @@ _INTERNALDATE_FMTS = [
     "%d-%b-%Y %H:%M:%S %z",  # standard INTERNALDATE
 ]
 
+
 def parse_internaldate(internaldate_raw: Optional[str]) -> Optional[datetime]:
     if not internaldate_raw:
         return None
@@ -31,6 +32,7 @@ def parse_internaldate(internaldate_raw: Optional[str]) -> Optional[datetime]:
         except Exception:
             pass
     return None
+
 
 def _decode_header_value(value: Optional[str]) -> str:
     if not value:
@@ -118,9 +120,8 @@ def _extract_parts(msg: PyMessage) -> Tuple[Optional[str], Optional[str], List[A
             if content_id:
                 content_id = content_id.strip().strip("<>").strip() or None
 
-            is_inline_image = (
-                ctype.startswith("image/")
-                and (("inline" in disp) or bool(content_id))
+            is_inline_image = ctype.startswith("image/") and (
+                ("inline" in disp) or bool(content_id)
             )
 
             # Attachment (explicit disposition or filename)
@@ -133,7 +134,11 @@ def _extract_parts(msg: PyMessage) -> Tuple[Optional[str], Optional[str], List[A
                         data=payload,
                         size=len(payload),
                         content_id=content_id,
-                        disposition=("inline" if is_inline_image else ("attachment" if "attachment" in disp else None)),
+                        disposition=(
+                            "inline"
+                            if is_inline_image
+                            else ("attachment" if "attachment" in disp else None)
+                        ),
                         is_inline=is_inline_image,
                     )
                 )
@@ -278,7 +283,6 @@ def parse_overview(
 
         received_at = parse_internaldate(internaldate_raw)
         sent_at = best_effort_date(date_header_raw, None)
-
 
         return EmailOverview(
             ref=ref,

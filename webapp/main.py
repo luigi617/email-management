@@ -145,7 +145,9 @@ async def get_email_mailbox(
 
 
 async def _compute_mailbox_status_async() -> Dict[str, Dict[str, Dict[str, int]]]:
-    async def per_account(acc_name: str, manager: EmailManager) -> Tuple[str, Dict[str, Dict[str, int]]]:
+    async def per_account(
+        acc_name: str, manager: EmailManager
+    ) -> Tuple[str, Dict[str, Dict[str, int]]]:
         mailboxes = await run_blocking(manager.list_mailboxes)
 
         async def per_mailbox(mb: str) -> Tuple[str, Dict[str, int]]:
@@ -175,7 +177,9 @@ def _refresh_mailbox_cache(cache_key: str) -> None:
 # Single email
 # ---------------------------
 @app.get("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}")
-async def get_email(background_tasks: BackgroundTasks, account: str, mailbox: str, email_id: int) -> dict:
+async def get_email(
+    background_tasks: BackgroundTasks, account: str, mailbox: str, email_id: int
+) -> dict:
     """
     Fetch a single email by UID for a given account and mailbox.
     """
@@ -299,7 +303,13 @@ async def archive_email(account: str, mailbox: str, email_id: int) -> dict:
 
     await run_blocking(manager.move, [ref], src_mailbox=mailbox, dst_mailbox=archive_mailbox)
 
-    return {"status": "ok", "action": "archive", "account": account, "mailbox": mailbox, "email_id": email_id}
+    return {
+        "status": "ok",
+        "action": "archive",
+        "account": account,
+        "mailbox": mailbox,
+        "email_id": email_id,
+    }
 
 
 @app.delete("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}")
@@ -319,7 +329,13 @@ async def delete_email(account: str, mailbox: str, email_id: int) -> dict:
     await run_blocking(manager.delete, [ref])
     await run_blocking(manager.expunge, mailbox=mailbox)
 
-    return {"status": "ok", "action": "delete", "account": account, "mailbox": mailbox, "email_id": email_id}
+    return {
+        "status": "ok",
+        "action": "delete",
+        "account": account,
+        "mailbox": mailbox,
+        "email_id": email_id,
+    }
 
 
 @app.post("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/move")

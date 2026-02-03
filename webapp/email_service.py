@@ -29,9 +29,11 @@ def parse_accounts(env_value: str) -> Dict[str, EmailManager]:
     results: Dict[str, EmailManager] = {}
 
     for raw in raw_accounts:
-        parts = raw.split(':')
+        parts = raw.split(":")
         if len(parts) < 3:
-            raise AccountParseError(f"Invalid account entry (needs at least provider:username:auth_method): {raw!r}")
+            raise AccountParseError(
+                f"Invalid account entry (needs at least provider:username:auth_method): {raw!r}"
+            )
 
         provider = parts[0].strip()
         username = parts[1].strip()
@@ -47,11 +49,9 @@ def parse_accounts(env_value: str) -> Dict[str, EmailManager]:
         # parse key=value pairs
         kv_pairs = {}
         for p in parts[3:]:
-            if '=' not in p:
-                raise AccountParseError(
-                    f"Invalid field {p!r} in {raw!r}, expected key=value"
-                )
-            key, val = p.split('=', 1)
+            if "=" not in p:
+                raise AccountParseError(f"Invalid field {p!r} in {raw!r}, expected key=value")
+            key, val = p.split("=", 1)
             key = key.strip()
             val = val.strip()
             if not key:
@@ -61,6 +61,7 @@ def parse_accounts(env_value: str) -> Dict[str, EmailManager]:
         results[username] = get_email_manager(provider, username, auth_method, **kv_pairs)
 
     return results
+
 
 def get_gmail_manager(username, auth_method, **kwargs):
     if auth_method == "app":
@@ -107,6 +108,7 @@ def get_gmail_manager(username, auth_method, **kwargs):
 
     return manager
 
+
 def get_outlook_manager(username, auth_method, **kwargs):
     if auth_method == "app":
         password = kwargs.get("password")
@@ -122,7 +124,9 @@ def get_outlook_manager(username, auth_method, **kwargs):
             client_id=client_id,
             client_secret=client_secret,
         )
-        token_provider = lambda: refresh_microsoft_access_token(config, refresh_token)["access_token"]
+        token_provider = lambda: refresh_microsoft_access_token(config, refresh_token)[
+            "access_token"
+        ]
         auth = OAuth2Auth(
             username=username,
             token_provider=token_provider,
@@ -149,6 +153,7 @@ def get_outlook_manager(username, auth_method, **kwargs):
     smtp = SMTPClient.from_config(smtp_cfg)
     imap = IMAPClient.from_config(imap_cfg)
     return EmailManager(smtp=smtp, imap=imap)
+
 
 def get_yahoo_manager(username, auth_method, **kwargs):
     if auth_method == "app":
@@ -194,6 +199,7 @@ def get_yahoo_manager(username, auth_method, **kwargs):
     imap = IMAPClient.from_config(imap_cfg)
     return EmailManager(smtp=smtp, imap=imap)
 
+
 def get_icloud_manager(username, auth_method, **kwargs):
     if auth_method == "app":
         password = kwargs.get("password")
@@ -228,6 +234,7 @@ def get_icloud_manager(username, auth_method, **kwargs):
     smtp = SMTPClient.from_config(smtp_cfg)
     imap = IMAPClient.from_config(imap_cfg)
     return EmailManager(smtp=smtp, imap=imap)
+
 
 def get_email_manager(provider, username, auth_method, **kwargs):
     if provider == "gmail":

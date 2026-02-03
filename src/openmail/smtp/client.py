@@ -32,7 +32,6 @@ class SMTPClient:
             raise ConfigError("Choose use_ssl or use_starttls (not both)")
         return cls(config)
 
-
     def _from_email(self) -> str:
         if self.config.from_email:
             return self.config.from_email
@@ -43,9 +42,7 @@ class SMTPClient:
         try:
             if cfg.use_ssl:
                 ctx = ssl.create_default_context()
-                server = smtplib.SMTP_SSL(
-                    cfg.host, cfg.port, timeout=cfg.timeout, context=ctx
-                )
+                server = smtplib.SMTP_SSL(cfg.host, cfg.port, timeout=cfg.timeout, context=ctx)
                 server.ehlo()
             else:
                 server = smtplib.SMTP(cfg.host, cfg.port, timeout=cfg.timeout)
@@ -66,7 +63,7 @@ class SMTPClient:
                 except Exception:
                     pass
                 raise AuthError(f"SMTP auth failed: {e}") from e
-            
+
             self._sent_since_connect = 0
 
             return server
@@ -125,7 +122,9 @@ class SMTPClient:
         # If we get here, we had repeated disconnects
         raise SMTPError(f"SMTP connection repeatedly disconnected: {last_exc}") from last_exc
 
-    def _send_with_known_server(self, server: smtplib.SMTP, msg: PyEmailMessage, from_email: str, recipients: list[str]) -> SendResult:
+    def _send_with_known_server(
+        self, server: smtplib.SMTP, msg: PyEmailMessage, from_email: str, recipients: list[str]
+    ) -> SendResult:
         try:
             server.send_message(msg, from_addr=from_email, to_addrs=recipients)
         except smtplib.SMTPAuthenticationError as e:
@@ -137,7 +136,7 @@ class SMTPClient:
     def send(self, msg: PyEmailMessage, recipients: List[str]) -> SendResult:
         if not recipients:
             raise ConfigError("send(): recipients list is empty")
-        
+
         hdr_from = msg.get("From")
         if hdr_from:
             _, from_email = parseaddr(hdr_from)
@@ -153,9 +152,8 @@ class SMTPClient:
             return self._send_with_known_server(server, msg, from_email, recipients)
 
         return self._run_with_server(_impl)
-    
-    def send_many(self, batch: Iterable[tuple[PyEmailMessage, Iterable[str]]]) -> list[SendResult]:
 
+    def send_many(self, batch: Iterable[tuple[PyEmailMessage, Iterable[str]]]) -> list[SendResult]:
         """
         Send multiple messages in a single (or minimal) SMTP session.
         """
@@ -197,6 +195,7 @@ class SMTPClient:
         """
         Minimal SMTP health check.
         """
+
         def _impl(server: smtplib.SMTP) -> None:
             try:
                 code, reply = server.noop()

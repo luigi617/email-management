@@ -227,7 +227,9 @@ def _leaf_is_attachment(node: list) -> bool:
     return False
 
 
-def extract_text_and_attachments(bodystructure: Any) -> Tuple[List[TextPartRef], List[AttachmentMeta]]:
+def extract_text_and_attachments(
+    bodystructure: Any,
+) -> Tuple[List[TextPartRef], List[AttachmentMeta]]:
     text_parts: List[TextPartRef] = []
     atts: List[AttachmentMeta] = []
 
@@ -281,7 +283,9 @@ def extract_text_and_attachments(bodystructure: Any) -> Tuple[List[TextPartRef],
     return text_parts, atts
 
 
-def pick_best_text_parts(parts: List[TextPartRef]) -> Tuple[Optional[TextPartRef], Optional[TextPartRef]]:
+def pick_best_text_parts(
+    parts: List[TextPartRef],
+) -> Tuple[Optional[TextPartRef], Optional[TextPartRef]]:
     plain = next((p for p in parts if p.content_type == "text/plain"), None)
     html = next((p for p in parts if p.content_type == "text/html"), None)
     return plain, html

@@ -10,6 +10,7 @@ from openmail.models import AttachmentMeta
 
 _IMG_SRC_RE = re.compile(r'(<img\b[^>]*\bsrc=["\'])([^"\']+)(["\'])', re.IGNORECASE)
 
+
 def _cid_variants(cid_src: str) -> list[str]:
     """
     Turn 'cid:image001.png@01DC....' into candidates:
@@ -40,6 +41,7 @@ def _cid_variants(cid_src: str) -> list[str]:
             uniq.append(x)
     return uniq
 
+
 def build_inline_index(atts: Iterable[AttachmentMeta]) -> Dict[str, AttachmentMeta]:
     """
     Index inline-ish image attachments by content_id (+ variants).
@@ -57,6 +59,7 @@ def build_inline_index(atts: Iterable[AttachmentMeta]) -> Dict[str, AttachmentMe
             for k in _cid_variants(key):
                 idx.setdefault(k, a)
     return idx
+
 
 def inline_cids_as_data_uris(
     *,

@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -10,6 +9,7 @@ class Task:
     """
     Common task structure that can be used in different domains
     """
+
     id: Optional[str] = None
     title: Optional[str] = None
     description: Optional[str] = None

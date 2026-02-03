@@ -20,8 +20,10 @@ Email context:
 {email_context}
 """
 
+
 class EmailSummarySchema(BaseModel):
     summary: str = Field(description="A concise summary of a single email.")
+
 
 def llm_summarize_single_email(
     msg: EmailMessage,

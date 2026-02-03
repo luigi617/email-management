@@ -11,6 +11,7 @@ class UnsubscribeMethod:
     """
     One unsubscribe mechanism from List-Unsubscribe.
     """
+
     kind: str  # "mailto" | "http"
     value: str
 
@@ -20,6 +21,7 @@ class UnsubscribeCandidate:
     """
     An email that supports unsubscribe.
     """
+
     ref: EmailRef
     from_email: str
     subject: str
@@ -27,11 +29,7 @@ class UnsubscribeCandidate:
 
     def __repr__(self) -> str:
         kinds = "; ".join({m.kind for m in self.methods})
-        return (
-            f"UnsubscribeCandidate("
-            f"from={self.from_email!r}, "
-            f"methods={kinds})"
-        )
+        return f"UnsubscribeCandidate(" f"from={self.from_email!r}, " f"methods={kinds})"
 
 
 @dataclass(frozen=True)
@@ -44,8 +42,4 @@ class UnsubscribeActionResult:
 
     def __repr__(self) -> str:
         detail = self.send_result.detail if self.send_result else "None"
-        return (
-            "UnsubscribeActionResult("
-            f"sent={self.sent!r}, "
-            f"detail={detail!r})"
-        )
+        return "UnsubscribeActionResult(" f"sent={self.sent!r}, " f"detail={detail!r})"

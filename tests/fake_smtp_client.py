@@ -17,6 +17,7 @@ class SentEmailRecord:
     Stored info about one sent email, for assertions in tests.
     Mirrors what SMTPClient actually sends: (final message, from_email, recipients).
     """
+
     msg: PyEmailMessage
     from_email: str
     recipients: List[str]
@@ -63,7 +64,7 @@ class FakeSMTPClient:
 
     def _from_email(self) -> str:
         cfg = self.config
-        
+
         if cfg is not None and cfg.from_email:
             return cfg.from_email
         raise ConfigError("No from_email set")
@@ -105,7 +106,9 @@ class FakeSMTPClient:
         final_msg["From"] = from_email
         return final_msg, from_email
 
-    def _record_send(self, msg: PyEmailMessage, from_email: str, recipients: List[str]) -> SendResult:
+    def _record_send(
+        self, msg: PyEmailMessage, from_email: str, recipients: List[str]
+    ) -> SendResult:
         self._ensure_message_id(msg)
         self.sent.append(SentEmailRecord(msg=msg, from_email=from_email, recipients=recipients))
         self._sent_since_connect += 1

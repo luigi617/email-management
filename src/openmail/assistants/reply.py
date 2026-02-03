@@ -29,6 +29,7 @@ Email context:
 {email_context}
 """
 
+
 class EmailReplySchema(BaseModel):
     reply: str = Field(description="A concise reply body for the email.")
 

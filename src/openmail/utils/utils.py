@@ -10,6 +10,7 @@ from openmail.models import EmailMessage
 def iso_days_ago(days: int) -> str:
     return (datetime.now(timezone.utc) - timedelta(days=days)).date().isoformat()
 
+
 def ensure_forward_subject(subject: str) -> str:
     """
     Ensure the subject is prefixed with 'Fwd:' (or 'Fw:') exactly once.
@@ -21,6 +22,7 @@ def ensure_forward_subject(subject: str) -> str:
         return subject
     return f"Fwd: {subject}"
 
+
 def ensure_reply_subject(subj: Optional[str]) -> str:
     if not subj:
         return "Re:"
@@ -29,12 +31,14 @@ def ensure_reply_subject(subj: Optional[str]) -> str:
         return subj
     return f"Re: {subj}"
 
+
 def parse_addrs(*values: Optional[str]) -> List[tuple[str, str]]:
     out: List[tuple[str, str]] = []
     for v in values:
         if v:
             out.extend(getaddresses([v]))
     return out
+
 
 def dedup_addrs(pairs: List[tuple[str, str]]) -> List[str]:
     seen: set[str] = set()
@@ -47,11 +51,13 @@ def dedup_addrs(pairs: List[tuple[str, str]]) -> List[str]:
         result.append(formataddr((name, addr)) if name else addr)
     return result
 
+
 def remove_addr(pairs: List[tuple[str, str]], remove: Optional[str]) -> List[tuple[str, str]]:
     if not remove:
         return pairs
     rm_norm = remove.strip().lower()
     return [(n, a) for (n, a) in pairs if a.strip().lower() != rm_norm]
+
 
 def get_header(headers: Dict[str, str], key: str) -> Optional[str]:
     """Case-insensitive header lookup from EmailMessage.headers."""
@@ -61,12 +67,14 @@ def get_header(headers: Dict[str, str], key: str) -> Optional[str]:
             return v
     return None
 
+
 def build_references(existing_refs: Optional[str], orig_mid: str) -> str:
     if not existing_refs:
         return orig_mid
     if orig_mid in existing_refs:
         return existing_refs
     return f"{existing_refs} {orig_mid}"
+
 
 def build_email_context(msg: EmailMessage) -> str:
     """
@@ -79,12 +87,8 @@ def build_email_context(msg: EmailMessage) -> str:
 
     date_part = f"Date: {date}\n" if date else ""
 
-    return (
-        f"From: {from_addr}\n"
-        f"Subject: {subject}\n"
-        f"{date_part}"
-        f"Body:\n{body}\n"
-    )
+    return f"From: {from_addr}\n" f"Subject: {subject}\n" f"{date_part}" f"Body:\n{body}\n"
+
 
 def quote_original_reply_text(original: EmailMessage) -> str:
     """
@@ -109,6 +113,7 @@ def quote_original_reply_text(original: EmailMessage) -> str:
     quoted_body_lines = [f"> {line}" for line in body.splitlines()] if body else []
     return "\n".join([header, *quoted_body_lines])
 
+
 def quote_original_reply_html(original: EmailMessage) -> str:
     """
     Build an HTML quoted block of the original email.
@@ -120,23 +125,17 @@ def quote_original_reply_html(original: EmailMessage) -> str:
     else:
         date_str = "an earlier date"
 
-    header_html = (
-        f"On {_html.escape(date_str)}, "
-        f"{_html.escape(original.from_email)} wrote:"
-    )
+    header_html = f"On {_html.escape(date_str)}, " f"{_html.escape(original.from_email)} wrote:"
 
     if original.html:
         body_html = f"<blockquote>{original.html}</blockquote>"
     elif original.text:
-        body_html = (
-            "<blockquote><pre>"
-            + _html.escape(original.text)
-            + "</pre></blockquote>"
-        )
+        body_html = "<blockquote><pre>" + _html.escape(original.text) + "</pre></blockquote>"
     else:
         body_html = "<blockquote><em>(no body)</em></blockquote>"
 
     return f"<p>{header_html}</p>\n{body_html}"
+
 
 def quote_forward_text(original: EmailMessage) -> str:
     """
@@ -159,6 +158,7 @@ def quote_forward_text(original: EmailMessage) -> str:
         quoted_lines.append(original.text)
 
     return "\n".join(quoted_lines)
+
 
 def quote_forward_html(original: EmailMessage) -> Optional[str]:
     """
@@ -194,38 +194,41 @@ def quote_forward_html(original: EmailMessage) -> Optional[str]:
 
     return "\n".join(html_parts)
 
+
 def parse_list_mailbox_name(raw: bytes | str) -> str | None:
-        """
-        Parse a single IMAP LIST response line and extract the mailbox name.
-        Handles typical formats like:
-            (\\HasNoChildren) "/" "INBOX"
-            (\\Noselect) "/" "[Gmail]/All Mail"
-            (\\HasNoChildren) "/" INBOX
-        Returns the decoded mailbox name or None if it can't be parsed.
-        """
-        if isinstance(raw, bytes):
-            s = raw.decode(errors="ignore")
-        else:
-            s = str(raw)
+    """
+    Parse a single IMAP LIST response line and extract the mailbox name.
+    Handles typical formats like:
+        (\\HasNoChildren) "/" "INBOX"
+        (\\Noselect) "/" "[Gmail]/All Mail"
+        (\\HasNoChildren) "/" INBOX
+    Returns the decoded mailbox name or None if it can't be parsed.
+    """
+    if isinstance(raw, bytes):
+        s = raw.decode(errors="ignore")
+    else:
+        s = str(raw)
 
-        s = s.strip()
+    s = s.strip()
 
-        m = re.match(r'\((?P<flags>.*?)\)\s+(?P<delim>NIL|".*?"|\S+)\s+(?P<name>.+)', s)
-        if not m:
-            return None
+    m = re.match(r'\((?P<flags>.*?)\)\s+(?P<delim>NIL|".*?"|\S+)\s+(?P<name>.+)', s)
+    if not m:
+        return None
 
-        name = m.group("name").strip()
+    name = m.group("name").strip()
 
-        if name.startswith('"') and name.endswith('"'):
-            name = name[1:-1]
+    if name.startswith('"') and name.endswith('"'):
+        name = name[1:-1]
 
-        try:
-            from imaplib import _decode_utf7 as decode_utf7  # type: ignore[attr-defined]
-            name = decode_utf7(name)
-        except Exception:
-            pass
+    try:
+        from imaplib import _decode_utf7 as decode_utf7  # type: ignore[attr-defined]
 
-        return name or None
+        name = decode_utf7(name)
+    except Exception:
+        pass
+
+    return name or None
+
 
 def safe_decode(data: bytes) -> Optional[str]:
     """
@@ -241,7 +244,8 @@ def safe_decode(data: bytes) -> Optional[str]:
             return data.decode("latin-1")
         except Exception:
             return None
-        
+
+
 def looks_binary(text: str) -> bool:
     """
     Heuristic to detect binary-like decoded content.
@@ -252,8 +256,8 @@ def looks_binary(text: str) -> bool:
     control_chars = sum(ch < " " for ch in text)
     return (control_chars / len(text)) > 0.3
 
-def best_effort_date(date_header: str | None,
-                      internaldate_raw: str | None) -> datetime | None:
+
+def best_effort_date(date_header: str | None, internaldate_raw: str | None) -> datetime | None:
     """
     Pick the best possible date for an email, trying:
     1. Header Date
@@ -289,4 +293,3 @@ def best_effort_date(date_header: str | None,
         return internal_dt
 
     return None
-

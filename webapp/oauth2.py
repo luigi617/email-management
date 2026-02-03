@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -46,9 +45,7 @@ def refresh_google_access_token(
 
     resp = requests.post(token_endpoint, data=data, timeout=10)
     if not resp.ok:
-        raise OAuth2TokenError(
-            f"Google token endpoint HTTP {resp.status_code}: {resp.text}"
-        )
+        raise OAuth2TokenError(f"Google token endpoint HTTP {resp.status_code}: {resp.text}")
 
     payload = resp.json()
     if "access_token" not in payload:
@@ -89,9 +86,7 @@ def refresh_microsoft_access_token(
         "refresh_token": "..."  # may or may not be present
       }
     """
-    token_endpoint = (
-        f"https://login.microsoftonline.com/{config.tenant}/oauth2/v2.0/token"
-    )
+    token_endpoint = f"https://login.microsoftonline.com/{config.tenant}/oauth2/v2.0/token"
 
     data = {
         "client_id": config.client_id,
@@ -106,9 +101,7 @@ def refresh_microsoft_access_token(
 
     resp = requests.post(token_endpoint, data=data, timeout=10)
     if not resp.ok:
-        raise OAuth2TokenError(
-            f"Microsoft token endpoint HTTP {resp.status_code}: {resp.text}"
-        )
+        raise OAuth2TokenError(f"Microsoft token endpoint HTTP {resp.status_code}: {resp.text}")
 
     payload = resp.json()
     if "access_token" not in payload:
@@ -167,14 +160,10 @@ def refresh_yahoo_access_token(
     )
 
     if not resp.ok:
-        raise OAuth2TokenError(
-            f"Yahoo token endpoint HTTP {resp.status_code}: {resp.text}"
-        )
+        raise OAuth2TokenError(f"Yahoo token endpoint HTTP {resp.status_code}: {resp.text}")
 
     payload = resp.json()
     if "access_token" not in payload:
         raise OAuth2TokenError(f"Yahoo token response error: {payload!r}")
 
     return payload
-
-

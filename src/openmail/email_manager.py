@@ -38,6 +38,7 @@ FLAGGED = r"\Flagged"
 DELETED = r"\Deleted"
 DRAFT = r"\Draft"
 
+
 @dataclass(frozen=True)
 class EmailManager:
     smtp: SMTPClient
@@ -87,7 +88,7 @@ class EmailManager:
                     subtype=subtype or "octet-stream",
                     filename=filename,
                 )
-    
+
     def _extract_envelope_recipients(self, msg: PyEmailMessage) -> list[str]:
         addr_headers = []
         addr_headers.extend(msg.get_all("To", []))
@@ -104,7 +105,7 @@ class EmailManager:
                 seen.add(norm)
                 result.append(addr)
         return result
-    
+
     def fetch_message_by_ref(
         self,
         ref: EmailRef,
@@ -118,7 +119,7 @@ class EmailManager:
         if not msgs:
             raise ValueError(f"No message found for ref: {ref!r}")
         return msgs[0]
-    
+
     def fetch_attachment_by_ref_and_meta(
         self,
         ref: EmailRef,
@@ -150,10 +151,10 @@ class EmailManager:
 
         if "Bcc" in msg:
             del msg["Bcc"]
-        
+
         if not recipients:
             raise ValueError("send(): no recipients found in To/Cc/Bcc")
-    
+
         return self.smtp.send(msg, recipients)
 
     def compose(
@@ -200,7 +201,7 @@ class EmailManager:
         self._add_attachment(msg, attachments)
 
         return msg
-    
+
     def compose_and_send(
         self,
         *,
@@ -222,7 +223,7 @@ class EmailManager:
             raise ValueError(
                 "compose_and_send(): at least one of to/cc/bcc must contain a recipient"
             )
-    
+
         msg = self.compose(
             subject=subject,
             to=to,
@@ -235,7 +236,7 @@ class EmailManager:
             extra_headers=extra_headers,
         )
         return self.send(msg)
-    
+
     def save_draft(
         self,
         *,
@@ -495,7 +496,7 @@ class EmailManager:
         )
 
         return self.send(msg)
-    
+
     def imap_query(self, mailbox: str = "INBOX") -> EmailQuery:
         return EmailQuery(self, mailbox=mailbox)
 
@@ -522,7 +523,7 @@ class EmailManager:
             refresh=refresh,
         )
         return page, overviews
-    
+
     def fetch_latest(
         self,
         *,
@@ -566,11 +567,7 @@ class EmailManager:
         if not root.message_id:
             return [root]
 
-        q = (
-            self.imap_query(mailbox)
-            .for_thread_root(root)
-            .limit(200)
-        )
+        q = self.imap_query(mailbox).for_thread_root(root).limit(200)
 
         _, msgs = q.fetch(include_attachment_meta=include_attachment_meta)
 
@@ -658,7 +655,7 @@ class EmailManager:
         Return a list of mailbox names.
         """
         return self.imap.list_mailboxes()
-    
+
     def mailbox_status(self, mailbox: str = "INBOX") -> Dict[str, int]:
         """
         Return counters, e.g. {"messages": X, "unseen": Y}.
@@ -692,7 +689,7 @@ class EmailManager:
         if not refs:
             return
         self.imap.copy(refs, src_mailbox=src_mailbox, dst_mailbox=dst_mailbox)
-    
+
     def create_mailbox(self, name: str) -> None:
         """
         Create a new mailbox/folder.
@@ -740,7 +737,7 @@ class EmailManager:
             prefer=prefer,
             from_addr=from_addr,
         )
-    
+
     def health_check(self) -> Dict[str, bool]:
         """
         Run minimal IMAP + SMTP checks.

@@ -29,15 +29,14 @@ Email context:
 {email_context}
 """
 
+
 class SenderTrustSchema(BaseModel):
     trust_score: float = Field(
         ge=0.0,
         le=1.0,
         description="How trustworthy the sender appears, between 0.0 (untrustworthy) and 1.0 (highly trustworthy).",
     )
-    reasoning: str = Field(
-        description="Short explanation for the chosen trust_score."
-    )
+    reasoning: str = Field(description="Short explanation for the chosen trust_score.")
 
 
 def llm_evaluate_sender_trust_for_email(

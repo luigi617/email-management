@@ -24,8 +24,16 @@ GROQ_PRICES_PER_1M: Dict[str, Dict[str, float]] = {
     "openai/gpt-oss-20b": {"input": 0.075, "cached_input": 0.037, "output": 0.30},
     "openai/gpt-oss-120b": {"input": 0.15, "cached_input": 0.075, "output": 0.60},
     "moonshotai/kimi-k2-instruct-0905": {"input": 1.00, "cached_input": 0.50, "output": 3.00},
-    "meta-llama/llama-4-scout-17b-16e-instruct": {"input": 0.11, "cached_input": 0.00, "output": 0.34},
-    "meta-llama/llama-4-maverick-17b-128e-instruct": {"input": 0.20, "cached_input": 0.00, "output": 0.60},
+    "meta-llama/llama-4-scout-17b-16e-instruct": {
+        "input": 0.11,
+        "cached_input": 0.00,
+        "output": 0.34,
+    },
+    "meta-llama/llama-4-maverick-17b-128e-instruct": {
+        "input": 0.20,
+        "cached_input": 0.00,
+        "output": 0.60,
+    },
     "qwen/qwen3-32b": {"input": 0.29, "cached_input": 0.00, "output": 0.59},
     "llama-3.1-8b-instant": {"input": 0.05, "cached_input": 0.00, "output": 0.08},
 }
@@ -37,18 +45,20 @@ GEMINI_PRICES_PER_1M: Dict[str, Dict[str, float]] = {
 }
 
 CLAUDE_PRICES_PER_1M: Dict[str, Dict[str, float]] = {
-    "claude-opus-4.5": {"input": 5.00,  "cached_input": 0.50, "output": 25.00},
+    "claude-opus-4.5": {"input": 5.00, "cached_input": 0.50, "output": 25.00},
     "claude-opus-4.1": {"input": 15.00, "cached_input": 1.50, "output": 75.00},
     "claude-opus-4": {"input": 15.00, "cached_input": 1.50, "output": 75.00},
-    "claude-sonnet-4.5": {"input": 3.00,  "cached_input": 0.30, "output": 15.00},
-    "claude-sonnet-4": {"input": 3.00,  "cached_input": 0.30, "output": 15.00},
-    "claude-haiku-4.5": {"input": 1.00,  "cached_input": 0.10, "output": 5.00},
-    "claude-haiku-3.5": {"input": 0.80,  "cached_input": 0.08, "output": 4.00},
-    "claude-haiku-3": {"input": 0.25,  "cached_input": 0.03, "output": 1.25},
+    "claude-sonnet-4.5": {"input": 3.00, "cached_input": 0.30, "output": 15.00},
+    "claude-sonnet-4": {"input": 3.00, "cached_input": 0.30, "output": 15.00},
+    "claude-haiku-4.5": {"input": 1.00, "cached_input": 0.10, "output": 5.00},
+    "claude-haiku-3.5": {"input": 0.80, "cached_input": 0.08, "output": 4.00},
+    "claude-haiku-3": {"input": 0.25, "cached_input": 0.03, "output": 1.25},
 }
+
 
 class TokenUsageCallback(BaseCallbackHandler):
     """Collect token usage from a single LLM call."""
+
     def __init__(self) -> None:
         self.prompt_tokens = 0
         self.completion_tokens = 0
@@ -56,7 +66,7 @@ class TokenUsageCallback(BaseCallbackHandler):
         self.cached_prompt_tokens = 0
 
     def on_llm_end(self, response: LLMResult, **kwargs) -> None:
-        
+
         usage = (response.llm_output or {}).get("token_usage")
         if usage:
             self.prompt_tokens += usage.get("prompt_tokens", 0)
@@ -84,11 +94,12 @@ def _lookup_price(provider: str, model_name: str) -> Dict[str, float]:
 
 
 def compute_cost_usd(
-        provider: str,
-        model_name: str,
-        prompt_tokens: int,
-        completion_tokens: int,
-        cached_prompt_tokens: int = 0,) -> float:
+    provider: str,
+    model_name: str,
+    prompt_tokens: int,
+    completion_tokens: int,
+    cached_prompt_tokens: int = 0,
+) -> float:
     prices = _lookup_price(provider, model_name)
     return (
         ((prompt_tokens - cached_prompt_tokens) / 1000000.0) * prices["input"]

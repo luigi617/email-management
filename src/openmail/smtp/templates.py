@@ -10,6 +10,7 @@ class RenderedTemplate:
     text: Optional[str] = None
     html: Optional[str] = None
 
+
 def render_template(name: str, context: Mapping[str, object]) -> RenderedTemplate:
     # Backbone placeholder. Later: Jinja2 file loader.
     raise NotImplementedError("Template rendering not implemented yet")

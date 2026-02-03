@@ -23,6 +23,7 @@ class FetchPiece:
     meta: decoded string metadata from the FETCH tuple element.
     payload: bytes payload (if present), else None.
     """
+
     meta: str
     payload: Optional[bytes]
 

@@ -32,13 +32,14 @@ class EmailAssistantProfile:
     Generic profile for personalizing email behavior.
     Designed to be reusable across domains (CRM, helpdesk, etc.).
     """
+
     name: Optional[str] = None
     role: Optional[str] = None
     company: Optional[str] = None
-    tone: Optional[str] = None          # e.g. "formal", "friendly", "concise"
-    signature: Optional[str] = None     # default signature block
-    locale: Optional[str] = None        # e.g. "en-US"
-    extra_context: Optional[str] = None # free-form org / domain context
+    tone: Optional[str] = None  # e.g. "formal", "friendly", "concise"
+    signature: Optional[str] = None  # default signature block
+    locale: Optional[str] = None  # e.g. "en-US"
+    extra_context: Optional[str] = None  # free-form org / domain context
 
     def generate_prompt(self):
         """Convert profile dataclass fields into a structured prompt string."""
@@ -57,7 +58,8 @@ class EmailAssistantProfile:
             parts.append(f"Context: {self.extra_context}")
 
         return " ".join(parts).strip()
-    
+
+
 class EmailAssistant:
 
     def __init__(
@@ -81,7 +83,7 @@ class EmailAssistant:
             provider=provider,
             model_name=model_name,
         )
-    
+
     def generate_reply(
         self,
         reply_context: str,
@@ -104,7 +106,7 @@ class EmailAssistant:
             model_name=model_name,
             previous_reply=previous_reply,
         )
-    
+
     def summarize_email(
         self,
         message: EmailMessage,
@@ -120,7 +122,7 @@ class EmailAssistant:
             provider=provider,
             model_name=model_name,
         )
-    
+
     def summarize_multi_emails(
         self,
         messages: Sequence[EmailMessage],
@@ -139,7 +141,7 @@ class EmailAssistant:
             provider=provider,
             model_name=model_name,
         )
-    
+
     def summarize_thread(
         self,
         thread_messages: Sequence[EmailMessage],
@@ -159,7 +161,7 @@ class EmailAssistant:
             provider=provider,
             model_name=model_name,
         )
-    
+
     def search_emails(
         self,
         user_request: str,
@@ -179,7 +181,7 @@ class EmailAssistant:
             model_name=model_name,
             mailbox=mailbox,
         )
-    
+
     def classify_emails(
         self,
         messages: Sequence[EmailMessage],
@@ -256,7 +258,7 @@ class EmailAssistant:
             provider=provider,
             model_name=model_name,
         )
-    
+
     def rewrite_email(
         self,
         draft_text: str,
@@ -318,7 +320,7 @@ class EmailAssistant:
             provider=provider,
             model_name=model_name,
         )
-    
+
     def summarize_attachments(
         self,
         message: EmailMessage,
@@ -334,7 +336,7 @@ class EmailAssistant:
             provider=provider,
             model_name=model_name,
         )
-    
+
     def detect_missing_attachment(self, message: PyEmailMessage) -> bool:
         """
         Heuristically detect if the email text implies an attachment
@@ -342,8 +344,7 @@ class EmailAssistant:
         """
         # 1) Check if there are any actual attachments.
         has_attachments = any(
-            part.get_content_disposition() == "attachment"
-            for part in message.iter_attachments()
+            part.get_content_disposition() == "attachment" for part in message.iter_attachments()
         )
 
         if has_attachments:

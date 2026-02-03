@@ -17,10 +17,11 @@ def _q(s: str) -> str:
     s = s.replace("\\", "\\\\").replace('"', r"\"")
     return f'"{s}"'
 
+
 @dataclass
 class IMAPQuery:
     parts: List[str] = field(default_factory=list)
-    
+
     # --- basic fields ---
     def from_(self, s: str) -> IMAPQuery:
         self.parts += ["FROM", _q(s)]
@@ -55,7 +56,7 @@ class IMAPQuery:
         """
         self.parts += ["BODY", _q(s)]
         return self
-    
+
     def header(self, name: str, value: str) -> IMAPQuery:
         self.parts += ["HEADER", _q(name), _q(value)]
         return self
@@ -72,15 +73,15 @@ class IMAPQuery:
     def on(self, iso_date: str) -> IMAPQuery:
         self.parts += ["ON", _imap_date(iso_date)]
         return self
-    
+
     def sent_since(self, iso_date: str) -> IMAPQuery:
         self.parts += ["SENTSINCE", _imap_date(iso_date)]
         return self
-    
+
     def sent_before(self, iso_date: str) -> IMAPQuery:
         self.parts += ["SENTBEFORE", _imap_date(iso_date)]
         return self
-    
+
     def sent_on(self, iso_date: str) -> IMAPQuery:
         self.parts += ["SENTON", _imap_date(iso_date)]
         return self
@@ -97,7 +98,7 @@ class IMAPQuery:
     def answered(self) -> IMAPQuery:
         self.parts += ["ANSWERED"]
         return self
-    
+
     def unanswered(self) -> IMAPQuery:
         self.parts += ["UNANSWERED"]
         return self
@@ -105,11 +106,11 @@ class IMAPQuery:
     def flagged(self) -> IMAPQuery:
         self.parts += ["FLAGGED"]
         return self
-    
+
     def unflagged(self) -> IMAPQuery:
         self.parts += ["UNFLAGGED"]
         return self
-    
+
     def deleted(self) -> IMAPQuery:
         self.parts += ["DELETED"]
         return self
@@ -133,7 +134,7 @@ class IMAPQuery:
     def new(self) -> IMAPQuery:
         self.parts += ["NEW"]
         return self
-    
+
     def old(self) -> IMAPQuery:
         self.parts += ["OLD"]
         return self
@@ -146,7 +147,7 @@ class IMAPQuery:
     def smaller(self, n_bytes: int) -> IMAPQuery:
         self.parts += ["SMALLER", str(n_bytes)]
         return self
-    
+
     # --- keyword ---
     def keyword(self, name: str) -> IMAPQuery:
         self.parts += ["KEYWORD", _q(name)]
@@ -155,7 +156,7 @@ class IMAPQuery:
     def unkeyword(self, name: str) -> IMAPQuery:
         self.parts += ["UNKEYWORD", _q(name)]
         return self
-    
+
     # --- UID search ---
     def uid(self, *uids: int | str) -> IMAPQuery:
         """
@@ -169,7 +170,7 @@ class IMAPQuery:
     def _not(self, *tokens: str) -> IMAPQuery:
         self.parts += ["NOT", *tokens]
         return self
-    
+
     def exclude_from(self, s: str) -> IMAPQuery:
         return self._not("FROM", _q(s))
 
@@ -184,7 +185,7 @@ class IMAPQuery:
 
     def exclude_subject(self, s: str) -> IMAPQuery:
         return self._not("SUBJECT", _q(s))
-    
+
     def exclude_header(self, name: str, value: str) -> IMAPQuery:
         return self._not("HEADER", _q(name), _q(value))
 
@@ -198,23 +199,25 @@ class IMAPQuery:
         qs = [q for q in (self, *queries) if q.parts]
 
         if len(qs) < 2:
-            raise ValueError("or_ requires at least two non-empty IMAPQuery instances (including self)")
+            raise ValueError(
+                "or_ requires at least two non-empty IMAPQuery instances (including self)"
+            )
 
         tokens: List[str] = list(qs[0].parts)
 
         for q in qs[1:]:
             right = list(q.parts)
-            
+
             tokens = ["OR", "("] + tokens + [")", "("] + right + [")"]
 
         self.parts = tokens
         return self
-    
+
     # --- composition helpers ---
     def all(self) -> IMAPQuery:
         self.parts += ["ALL"]
         return self
-    
+
     def raw(self, *tokens: str) -> IMAPQuery:
         """
         Append raw tokens for advanced users, e.g. raw("OR", 'FROM "a"', 'FROM "b"')

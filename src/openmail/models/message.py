@@ -9,6 +9,7 @@ from openmail.types import EmailRef
 if TYPE_CHECKING:
     from openmail.models.attachment import Attachment
 
+
 @dataclass(frozen=True)
 class EmailAddress:
     email: str
@@ -22,16 +23,17 @@ class EmailAddress:
 
     def __str__(self) -> str:
         return self.display
-    
+
     def __repr__(self) -> str:
         return f"EmailAddress(email={self.email!r}, name={self.name!r})"
-    
+
     def to_dict(self) -> dict:
         return {
             "email": self.email,
             "name": self.name,
         }
-    
+
+
 @dataclass(frozen=True)
 class EmailMessage:
     ref: EmailRef
@@ -59,7 +61,7 @@ class EmailMessage:
             f"received_at={self.received_at!r})"
             f"attachments={len(self.attachments)})"
         )
-    
+
     def to_dict(self) -> dict:
         return {
             "ref": self.ref.to_dict(),
@@ -76,7 +78,8 @@ class EmailMessage:
             "message_id": self.message_id,
             "headers": self.headers,
         }
-    
+
+
 @dataclass(frozen=True)
 class EmailOverview:
     ref: EmailRef
@@ -96,6 +99,7 @@ class EmailOverview:
             f"to={list(self.to)!r}, "
             f"received_at={self.received_at!r})"
         )
+
     def to_dict(self) -> dict:
         return {
             "ref": self.ref.to_dict(),
