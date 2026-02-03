@@ -22,6 +22,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+dev = [
+    "ruff",
+    "black",
+]
 test = [
     "pytest",
 ]
@@ -36,5 +40,28 @@ web = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/openmail"]
 include = ["src/openmail/py.typed"]
+
+
+[tool.black]
+line-length = 100
+target-version = ["py38"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+src = ["src"]
+
+[tool.ruff.lint]
+# E/F: pycodestyle+pyflakes baseline
+# I: import sorting (isort)
+# B: bugbear (common pitfalls)
+# UP: pyupgrade (modern syntax)
+select = ["E", "F", "I", "B", "UP"]
+ignore = [
+  "E501",  # let black handle long lines
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["openmail"]
 
 

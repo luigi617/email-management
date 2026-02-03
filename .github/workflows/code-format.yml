@@ -1,0 +1,55 @@
+name: Code Quality
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  frontend:
+    name: Frontend (lint + format + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run build
+
+  python:
+    name: Python (install + ruff + black + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package (with extras)
+        run: |
+          python -m pip install --upgrade pip
+          # Prefer using your optional-deps so the same setup works everywhere:
+          # dev should include ruff+black, test includes pytest, web includes fastapi/uvicorn/etc
+          pip install -e ".[dev,test,web]" || pip install -e ".[test,web]"
+          # Fallback if dev extras not present:
+          pip install ruff black
+
+      - name: Ruff (lint)
+        run: ruff check .
+
+      - name: Black (format check)
+        run: black --check .
+
+      - name: Pytest
+        run: pytest -q
