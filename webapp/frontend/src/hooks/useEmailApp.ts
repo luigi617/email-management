@@ -88,7 +88,6 @@ export function useEmailAppCore() {
     () => (mailboxParam.trim() ? mailboxParam.trim() : DEFAULT_MAILBOX)
   );
 
-  const [searchText, setSearchText] = useState<string>(() => urlQuery);
   const [appliedSearchText, setAppliedSearchText] = useState<string>(() => urlQuery);
 
   // If state update originated from URL navigation, skip writing it back once
@@ -112,7 +111,6 @@ export function useEmailAppCore() {
 
     if (queryChanged) {
       setAppliedSearchText(nextQuery);
-      setSearchText(nextQuery);
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -290,10 +288,9 @@ export function useEmailAppCore() {
     [currentMailbox, pageSize, nextCursor, filterAccounts, appliedSearchText, isLoadingMore]
   );
 
-  const applySearch = useCallback(() => {
-    const next = searchText.trim();
-    setAppliedSearchText(next);
-  }, [searchText]);
+  const applySearch = useCallback((q: string) => {
+    setAppliedSearchText(q.trim());
+  }, []);
 
   const fetchEmailMessage = useCallback(
     async (overview: EmailOverview) => {
@@ -379,8 +376,7 @@ export function useEmailAppCore() {
     totalEmails,
     isLoadingMore,
 
-    searchText,
-    setSearchText,
+    appliedSearchText,
     applySearch,
 
     selectedId,

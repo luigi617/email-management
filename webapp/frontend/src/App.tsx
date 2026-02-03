@@ -90,11 +90,8 @@ export default function App() {
     <>
       <Layout
         sidebar={{
-          searchQuery: core.searchText,
-          onSearchQueryChange: core.setSearchText,
-          onSearch: () => {
-            core.applySearch();
-          },
+          searchQuery: core.appliedSearchText,
+          onSearch: core.applySearch,
 
           mailboxData: core.mailboxData,
           currentMailbox: core.currentMailbox,

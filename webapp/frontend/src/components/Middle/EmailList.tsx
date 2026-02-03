@@ -109,9 +109,6 @@ export default function EmailList(props: EmailListProps) {
       </div>
 
       <div ref={(el) => {props.sentinelRef.current = el}} style={{ height: 1 }} />
-
-      {props.showLoadingMore ? <div className="list-loading">Loading more…</div> : null}
-      {props.showEnd ? <div className="list-end">End of results</div> : null}
     </div>
   );
 }
