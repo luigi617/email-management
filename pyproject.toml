@@ -61,7 +61,7 @@ ignore = [
   "E501",
   "UP006", # don't force list[str] over List[str]
   "UP007", # don't force X | Y over Union[X, Y] (optional)
-  "UP035", # typing.Any/typing.Optional modernizations etc (optional)
+  "UP045", # typing.Any/typing.Optional modernizations etc (optional)
 ]
 
 [tool.ruff.lint.isort]
