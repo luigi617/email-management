@@ -378,7 +378,7 @@ class IMAPClient:
     # FETCH full message (headers + best text/html via BODYSTRUCTURE)
     # -----------------------
 
-    def fetch(self, refs: Sequence[EmailRef], *, include_attachments: bool = False) -> List[EmailMessage]:
+    def fetch(self, refs: Sequence[EmailRef], *, include_attachment_meta: bool = False) -> List[EmailMessage]:
         if not refs:
             return []
 
@@ -470,7 +470,7 @@ class IMAPClient:
                         text_parts, atts = extract_text_and_attachments(tree)
                         plain_ref, html_ref = pick_best_text_parts(text_parts)
 
-                        if include_attachments:
+                        if include_attachment_meta:
                             attachment_metas = atts
 
                         if plain_ref is not None:
@@ -490,7 +490,7 @@ class IMAPClient:
                     header_bytes,
                     text=text,
                     html=html,
-                    attachments=attachment_metas if include_attachments else [],
+                    attachments=attachment_metas if include_attachment_meta else [],
                     internaldate_raw=internaldate_raw if isinstance(internaldate_raw, str) else None,
                 )
                 out.append(msg)
