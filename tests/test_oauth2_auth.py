@@ -3,8 +3,8 @@ from typing import Callable
 
 import pytest
 
-from email_management.auth import OAuth2Auth
-from email_management.errors import AuthError
+from openmail.auth import OAuth2Auth
+from openmail.errors import AuthError
 
 
 

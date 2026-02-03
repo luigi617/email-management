@@ -1,7 +1,7 @@
 import pytest
 
-from email_management.auth import PasswordAuth
-from email_management.errors import AuthError
+from openmail.auth import PasswordAuth
+from openmail.errors import AuthError
 
 class DummySMTPServer:
     def __init__(self, should_fail: bool = False):

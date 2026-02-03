@@ -7,9 +7,9 @@ import time
 from typing import Dict, List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from email_management import EmailManager, EmailAssistant, EmailQuery
-from email_management.imap import IMAPQuery
-from email_management.models import EmailOverview
+from openmail import EmailManager, EmailAssistant, EmailQuery
+from openmail.imap import IMAPQuery
+from openmail.models import EmailOverview
 from utils import encode_cursor, decode_cursor
 from ttl_cache import TTLCache
 

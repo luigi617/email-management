@@ -4,17 +4,17 @@ from datetime import datetime, timezone
 from typing import List, Optional
 from email.message import EmailMessage as PyEmailMessage
 
-import email_management.subscription.detector as detector_mod
-import email_management.subscription.service as service_mod
-from email_management.subscription.detector import SubscriptionDetector
-from email_management.subscription.service import SubscriptionService
-from email_management.models import (
+import openmail.subscription.detector as detector_mod
+import openmail.subscription.service as service_mod
+from openmail.subscription.detector import SubscriptionDetector
+from openmail.subscription.service import SubscriptionService
+from openmail.models import (
     EmailMessage,
     UnsubscribeCandidate,
     UnsubscribeMethod,
     UnsubscribeActionResult,
 )
-from email_management.types import EmailRef, SendResult
+from openmail.types import EmailRef, SendResult
 
 from tests.fake_imap_client import FakeIMAPClient
 from tests.fake_smtp_client import FakeSMTPClient
@@ -86,7 +86,8 @@ def _mk_email_message(*, subject: str, from_email: str, headers: dict) -> EmailM
         text="",
         html="",
         attachments=[],
-        date=datetime(2025, 1, 2, tzinfo=timezone.utc),
+        sent_at=datetime(2025, 1, 2, tzinfo=timezone.utc),
+        received_at=datetime(2025, 1, 2, tzinfo=timezone.utc),
         message_id=None,
         headers=headers,
     )

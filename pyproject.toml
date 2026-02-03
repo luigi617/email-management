@@ -3,8 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "email_management"
-version = "0.1.4"
+name = "openmail"
+version = "0.1.5"
 description = "API for managing your email"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -34,7 +34,7 @@ web = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/email_management"]
-include = ["src/email_management/py.typed"]
+packages = ["src/openmail"]
+include = ["src/openmail/py.typed"]
 
 

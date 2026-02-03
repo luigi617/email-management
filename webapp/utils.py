@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 
 from fastapi import UploadFile
 
-from email_management.models import Attachment
+from openmail.models import Attachment
 
 def encode_cursor(state: dict) -> str:
     raw = json.dumps(state, separators=(",", ":"), sort_keys=True).encode("utf-8")

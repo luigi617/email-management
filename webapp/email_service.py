@@ -1,8 +1,8 @@
-from email_management.auth import PasswordAuth, OAuth2Auth, NoAuth
-from email_management.config import SMTPConfig, IMAPConfig
-from email_management.smtp.client import SMTPClient
-from email_management.imap.client import IMAPClient
-from email_management import EmailManager
+from openmail.auth import PasswordAuth, OAuth2Auth, NoAuth
+from openmail.config import SMTPConfig, IMAPConfig
+from openmail.smtp.client import SMTPClient
+from openmail.imap.client import IMAPClient
+from openmail import EmailManager
 
 from oauth2 import (
     GoogleOAuth2Config,

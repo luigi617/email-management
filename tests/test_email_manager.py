@@ -7,10 +7,10 @@ from email.message import EmailMessage as PyEmailMessage
 
 import pytest
 
-from email_management.email_manager import EmailManager
-from email_management.models import EmailMessage, Attachment, UnsubscribeCandidate, UnsubscribeMethod
-from email_management.types import EmailRef
-from email_management.utils import ensure_reply_subject, ensure_forward_subject
+from openmail.email_manager import EmailManager
+from openmail.models import EmailMessage, Attachment, UnsubscribeCandidate, UnsubscribeMethod
+from openmail.types import EmailRef
+from openmail.utils import ensure_reply_subject, ensure_forward_subject
 
 from tests.fake_imap_client import FakeIMAPClient
 from tests.fake_smtp_client import FakeSMTPClient
@@ -49,7 +49,8 @@ def make_email_message(
     bcc: list[str] | None = None,
     text: str | None = "Body text",
     html: str | None = None,
-    date: datetime | None = None,
+    received_at: datetime | None = None,
+    sent_at: datetime | None = None,
     message_id: str | None = "<msg-1@example.com>",
     headers: dict[str, str] | None = None,
     attachments: list[Attachment] | None = None,
@@ -75,7 +76,8 @@ def make_email_message(
         text=text,
         html=html,
         attachments=attachments,
-        date=date,
+        received_at=received_at,
+        sent_at=sent_at,
         message_id=message_id,
         headers=headers,
     )
@@ -461,7 +463,7 @@ def test_list_mailboxes_status_move_copy_create_delete(manager: EmailManager, fa
 # ---------------------------------------------------------------------------
 
 def test_list_unsubscribe_candidates_uses_detector(manager: EmailManager, monkeypatch):
-    import email_management.email_manager as em_mod
+    import openmail.email_manager as em_mod
 
     seen_args: list[tuple] = []
 
@@ -491,7 +493,7 @@ def test_list_unsubscribe_candidates_uses_detector(manager: EmailManager, monkey
 
 
 def test_unsubscribe_selected_uses_service(manager: EmailManager, monkeypatch):
-    import email_management.email_manager as em_mod
+    import openmail.email_manager as em_mod
 
     called: list[tuple] = []
 

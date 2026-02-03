@@ -6,8 +6,8 @@ from email.message import EmailMessage as PyEmailMessage
 from email.utils import make_msgid, parseaddr
 from typing import Iterable, List, Optional, Sequence
 
-from email_management.errors import ConfigError, SMTPError
-from email_management.types import SendResult
+from openmail.errors import ConfigError, SMTPError
+from openmail.types import SendResult
 
 
 @dataclass

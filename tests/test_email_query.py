@@ -1,8 +1,8 @@
 import pytest
 
-from email_management.imap import IMAPQuery, PagedSearchResult
-from email_management.email_query import EmailQuery
-import email_management.email_query as easy_mod
+from openmail.imap import IMAPQuery, PagedSearchResult
+from openmail.email_query import EmailQuery
+import openmail.email_query as easy_mod
 
 
 

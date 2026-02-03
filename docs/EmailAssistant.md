@@ -106,7 +106,7 @@ It does **not** send, fetch, or modify mailboxes — those responsibilities belo
 ## Basic Construction
 
 ```
-from email_management import EmailAssistant
+from openmail import EmailAssistant
 
 assistant = EmailAssistant()
 ```
@@ -121,7 +121,7 @@ Although optional, `EmailAssistantProfile` allows the assistant to generate cont
 This results in replies and summaries that are **more suitable and consistent** for real-world workflows (e.g., support, sales, academic, executive).
 
 ```
-from email_management import EmailAssistant, EmailAssistantProfile
+from openmail import EmailAssistant, EmailAssistantProfile
 
 profile = EmailAssistantProfile(
     name="Alex",

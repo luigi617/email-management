@@ -13,11 +13,11 @@ It wraps:
 ## Creating an EmailManager
 
 ```
-from email_management.smtp import SMTPClient
-from email_management.imap import IMAPClient
-from email_management.auth import PasswordAuth
+from openmail.smtp import SMTPClient
+from openmail.imap import IMAPClient
+from openmail.auth import PasswordAuth
 
-from email_management import EmailManager
+from openmail import EmailManager
 
 auth = PasswordAuth(username="you@example.com", password="secret")
 

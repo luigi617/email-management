@@ -6,12 +6,12 @@ from typing import Dict, List, Optional, Sequence, Set, Tuple, Any
 
 from email.message import EmailMessage as PyEmailMessage
 
-from email_management.errors import IMAPError
-from email_management.models import EmailMessage, EmailOverview
-from email_management.types import EmailRef
-from email_management.imap.query import IMAPQuery
-from email_management.imap.parser import parse_rfc822, parse_overview
-from email_management.imap.pagination import PagedSearchResult
+from openmail.errors import IMAPError
+from openmail.models import EmailMessage, EmailOverview
+from openmail.types import EmailRef
+from openmail.imap.query import IMAPQuery
+from openmail.imap.parser import parse_rfc822, parse_overview
+from openmail.imap.pagination import PagedSearchResult
 
 
 @dataclass
@@ -92,7 +92,8 @@ class FakeIMAPClient:
             text=msg.text,
             html=msg.html,
             attachments=list(msg.attachments),
-            date=msg.received_at,
+            received_at=msg.received_at,
+            sent_at=msg.sent_at,
             message_id=msg.message_id,
             headers=dict(msg.headers),
         )
@@ -309,7 +310,8 @@ class FakeIMAPClient:
                         text=msg.text,
                         html=msg.html,
                         attachments=[],
-                        date=msg.received_at,
+                        received_at=msg.received_at,
+                        sent_at=msg.sent_at,
                         message_id=msg.message_id,
                         headers=dict(msg.headers),
                     )

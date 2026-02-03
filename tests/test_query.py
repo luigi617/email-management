@@ -1,14 +1,14 @@
 import pytest
 
-from email_management.imap.query import IMAPQuery
+from openmail.imap.query import IMAPQuery
 
 
 def _maybe_private(name: str):
     # Helper: access private helpers if they exist; otherwise skip.
-    import email_management.imap.query as qmod
+    import openmail.imap.query as qmod
     fn = getattr(qmod, name, None)
     if fn is None:
-        pytest.skip(f"{name} not available in email_management.imap.query")
+        pytest.skip(f"{name} not available in openmail.imap.query")
     return fn
 
 

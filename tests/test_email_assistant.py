@@ -1,13 +1,13 @@
 from pydantic import BaseModel
 from email.message import EmailMessage as PyEmailMessage
 
-from email_management import EmailManager, EmailAssistant
-from email_management.imap.pagination import PagedSearchResult
-import email_management.llm.model as model_mod
-import email_management.email_assistant as assistants_mod
-from email_management.email_assistant import EmailAssistantProfile
-from email_management.models import EmailMessage
-from email_management.types import EmailRef
+from openmail import EmailManager, EmailAssistant
+from openmail.imap.pagination import PagedSearchResult
+import openmail.llm.model as model_mod
+import openmail.email_assistant as assistants_mod
+from openmail.email_assistant import EmailAssistantProfile
+from openmail.models import EmailMessage
+from openmail.types import EmailRef
 
 from tests.fake_imap_client import FakeIMAPClient
 from tests.fake_smtp_client import FakeSMTPClient
@@ -99,7 +99,7 @@ def fake_get_base_llm_pydantic(
 
 
 def test_get_model_with_pydantic(monkeypatch):
-    import email_management.llm.model as model_mod
+    import openmail.llm.model as model_mod
 
     model_mod._get_base_llm.cache_clear()
     monkeypatch.setattr(model_mod, "_get_base_llm", fake_get_base_llm_pydantic)

@@ -16,9 +16,9 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
 
-from email_management import EmailManager
-from email_management.models import EmailMessage
-from email_management.types import EmailRef
+from openmail import EmailManager
+from openmail.models import EmailMessage
+from openmail.types import EmailRef
 
 from email_overview import build_email_overview
 from email_service import parse_accounts
