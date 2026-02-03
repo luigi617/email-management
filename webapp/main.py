@@ -115,7 +115,7 @@ def get_email(account: str, mailbox: str, email_id: int) -> dict:
     email_ref = EmailRef(mailbox=mailbox, uid=email_id)
     message: EmailMessage = manager.fetch_message_by_ref(
         email_ref,
-        include_attachments=True,
+        include_attachment_meta=True,
     )
     manager.mark_seen([email_ref])
 
@@ -329,7 +329,7 @@ async def reply_email(
 
     original: EmailMessage = manager.fetch_message_by_ref(
         EmailRef(mailbox=mailbox, uid=email_id),
-        include_attachments=False,
+        include_attachment_meta=False,
     )
 
     attachment_models = await uploadfiles_to_attachments(attachments)
@@ -384,7 +384,7 @@ async def reply_all_email(
 
     original: EmailMessage = manager.fetch_message_by_ref(
         EmailRef(mailbox=mailbox, uid=email_id),
-        include_attachments=False,
+        include_attachment_meta=False,
     )
 
     attachment_models = await uploadfiles_to_attachments(attachments)
@@ -440,7 +440,7 @@ async def forward_email(
 
     original: EmailMessage = manager.fetch_message_by_ref(
         EmailRef(mailbox=mailbox, uid=email_id),
-        include_attachments=True,
+        include_attachment_meta=True,
     )
 
     attachment_models = await uploadfiles_to_attachments(attachments)

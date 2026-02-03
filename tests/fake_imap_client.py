@@ -279,7 +279,7 @@ class FakeIMAPClient:
         self,
         refs: Sequence[EmailRef],
         *,
-        include_attachments: bool = False,
+        include_attachment_meta: bool = False,
     ) -> List[EmailMessage]:
         self._maybe_fail()
         if not refs:
@@ -295,7 +295,7 @@ class FakeIMAPClient:
                 continue
 
             msg = stored.msg
-            if include_attachments:
+            if include_attachment_meta:
                 out.append(msg)
             else:
                 out.append(
