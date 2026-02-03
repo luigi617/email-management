@@ -246,7 +246,7 @@ class IMAPClient:
             self._search_cache[cache_key] = uids
             return uids
 
-        return self._run_with_conn(_impl)  # type: ignore[return-value]
+        return self._run_with_conn(_impl)
 
     def search_page_cached(
         self,
@@ -497,7 +497,7 @@ class IMAPClient:
 
             return out
 
-        return self._run_with_conn(_impl)  # type: ignore[return-value]
+        return self._run_with_conn(_impl)
 
     # -----------------------
     # FETCH overview
@@ -597,7 +597,7 @@ class IMAPClient:
 
             return overviews
 
-        return self._run_with_conn(_impl)  # type: ignore[return-value]
+        return self._run_with_conn(_impl)
 
     # -----------------------
     # Attachment fetch
@@ -641,7 +641,7 @@ class IMAPClient:
 
             return decode_transfer(payload, cte)
 
-        return self._run_with_conn(_impl)  # type: ignore[return-value]
+        return self._run_with_conn(_impl)
 
     # -----------------------
     # Mutations
@@ -686,7 +686,7 @@ class IMAPClient:
 
         ref = self._run_with_conn(_impl)  # type: ignore[assignment]
         self._invalidate_search_cache(mailbox)
-        return ref  # type: ignore[return-value]
+        return ref
 
     def add_flags(self, refs: Sequence[EmailRef], *, flags: Set[str]) -> None:
         self._store(refs, mode="+FLAGS", flags=flags)
@@ -746,18 +746,23 @@ class IMAPClient:
 
             return mailboxes
 
-        return self._run_with_conn(_impl)  # type: ignore[return-value]
+        return self._run_with_conn(_impl)
 
     def mailbox_status(self, mailbox: str = "INBOX") -> Dict[str, int]:
         def _impl(conn: imaplib.IMAP4) -> Dict[str, int]:
             imap_mailbox = self._format_mailbox_arg(mailbox)
-            typ, data = conn.status(imap_mailbox, "(MESSAGES UNSEEN)")
+
+            typ, data = conn.status(
+                imap_mailbox,
+                "(MESSAGES UNSEEN UIDNEXT UIDVALIDITY HIGHESTMODSEQ)",
+            )
             if typ != "OK":
                 raise IMAPError(f"STATUS {mailbox!r} failed: {data}")
             if not data or not data[0]:
                 raise IMAPError(f"STATUS {mailbox!r} returned empty data")
 
-            s = data[0].decode(errors="ignore") if isinstance(data[0], bytes) else str(data[0])
+            raw = data[0]
+            s = raw.decode(errors="ignore") if isinstance(raw, bytes) else str(raw)
 
             start = s.find("(")
             end = s.rfind(")")
@@ -766,6 +771,7 @@ class IMAPClient:
 
             payload = s[start + 1 : end]
             tokens = payload.split()
+
             status: Dict[str, int] = {}
 
             for i in range(0, len(tokens) - 1, 2):
@@ -779,6 +785,12 @@ class IMAPClient:
                     status["messages"] = val
                 elif key == "UNSEEN":
                     status["unseen"] = val
+                elif key == "UIDNEXT":
+                    status["uidnext"] = val
+                elif key == "UIDVALIDITY":
+                    status["uidvalidity"] = val
+                elif key == "HIGHESTMODSEQ":
+                    status["highestmodseq"] = val
                 else:
                     status[key.lower()] = val
 

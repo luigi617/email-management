@@ -428,7 +428,6 @@ class EmailManager:
 
         return self.send(msg)
 
-
     def forward(
         self,
         original: EmailMessage,
