@@ -262,12 +262,12 @@ export function useEmailAppCore() {
           setEmails((prev) => mergeUniqueById(prev, list));
         } else {
           setEmails(list);
+          setSelectedId(null);
+          setSelectedMessage(null);
+          setSelectedOverview(null);
         }
 
         // reset selection on new list
-        setSelectedId(null);
-        setSelectedOverview(null);
-        setSelectedMessage(null);
         setDetailError("");
 
         setNextCursor(meta.next_cursor ?? null);

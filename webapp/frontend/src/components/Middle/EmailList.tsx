@@ -98,8 +98,6 @@ export default function EmailList(props: EmailListProps) {
               </div>
               <div className="email-subject">{subj}</div>
             </div>
-
-            {isUnread ? <div className="email-unread-dot" aria-hidden="true" /> : null}
           </div>
         );
       })}
