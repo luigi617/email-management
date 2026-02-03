@@ -21,15 +21,17 @@ export type MiddleColumnProps = {
 };
 
 export default function MiddleColumn(props: MiddleColumnProps) {
-  const listRef = useRef<HTMLDivElement | null>(null); // <-- scroll container (.email-list)
-  const sentinelRef = useRef<HTMLDivElement | null>(null); // <-- bottom sentinel
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  const { hasMore, isLoadingMore, emptyList, onLoadMore, emails } = props;
 
   const maybeLoadMore = useCallback(() => {
-    if (!props.hasMore) return;
-    if (props.isLoadingMore) return;
-    if (props.emptyList) return;
-    props.onLoadMore();
-  }, [props.hasMore, props.isLoadingMore, props.emptyList, props.onLoadMore]);
+    if (!hasMore) return;
+    if (isLoadingMore) return;
+    if (emptyList) return;
+    onLoadMore();
+  }, [hasMore, isLoadingMore, emptyList, onLoadMore]);
 
   useEffect(() => {
     const rootEl = listRef.current;
@@ -44,15 +46,15 @@ export default function MiddleColumn(props: MiddleColumnProps) {
         }
       },
       {
-        root: rootEl, // IMPORTANT: observe within the scrolling email list
+        root: rootEl,
         threshold: 0,
-        rootMargin: '200px', // prefetch a bit before hitting the absolute bottom
+        rootMargin: "200px",
       }
     );
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [maybeLoadMore, props.emails.length]); // re-run when list grows so IO recalculates
+  }, [maybeLoadMore, emails.length]);
 
   return (
     <>

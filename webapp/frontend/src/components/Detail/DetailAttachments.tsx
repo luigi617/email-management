@@ -24,7 +24,13 @@ function formatBytes(bytes: number): string {
 }
 
 function safeFilename(name: string) {
-  return name.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '_').trim() || 'attachment';
+  const cleaned = name.replace(/[<>:"/\\|?*]/g, "_").trim();
+
+  const withoutControls = Array.from(cleaned, (ch) =>
+    ch.charCodeAt(0) < 32 ? "_" : ch
+  ).join("");
+
+  return withoutControls || "attachment";
 }
 
 function buildDownloadUrl(params: {
@@ -87,7 +93,7 @@ export default function DetailAttachments(props: DetailAttachmentsProps) {
           const size = typeof att.size === 'number' ? formatBytes(att.size) : '';
 
           // IMPORTANT: use IMAP part from meta
-          const part = (att as any).part as string | undefined;
+          const part = att.part;
 
           const canDownload = Boolean(part && part.trim().length > 0);
 
@@ -109,7 +115,7 @@ export default function DetailAttachments(props: DetailAttachmentsProps) {
 
           return (
             <div
-              key={(att as any).idx ?? `${fullName}-${idx}`}
+              key={att.idx ?? `${fullName}-${idx}`}
               className={`attachment-card ${canDownload ? '' : 'is-disabled'}`}
               role="listitem"
               title={fullName}

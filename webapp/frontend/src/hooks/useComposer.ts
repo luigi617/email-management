@@ -99,7 +99,9 @@ export function useComposer(args: {
     error: '',
   }));
 
-  const accounts = useMemo(() => Object.keys(args.mailboxData || {}), [args.mailboxData]);
+  const { mailboxData, selectedOverview, selectedMessage, getSelectedRef, showCloseConfirm } = args;
+
+  const accounts = useMemo(() => Object.keys(mailboxData || {}), [mailboxData]);
 
   const hasContentNow = useCallback(() => {
     const bodyText = stripHtmlToText(state.html || '');
@@ -146,31 +148,6 @@ export function useComposer(args: {
     setState((s) => ({ ...s, open: false, minimized: false, error: '' }));
   }, []);
 
-  const requestClose = useCallback(() => {
-    if (!state.open) return;
-
-    if (!hasContentNow()) {
-      reset();
-      close();
-      return;
-    }
-
-    args.showCloseConfirm({
-      onSaveDraft: async () => {
-        const ok = await saveDraft();
-
-        if (ok) {
-          reset();
-          close();
-        }
-      },
-      onDiscard: () => {
-        reset();
-        close();
-      },
-    });
-  }, [state.open, state.to, hasContentNow, args, reset, close]);
-
   const toggleExtraField = useCallback((k: ComposerExtraFieldKey) => {
     setState((s) => ({ ...s, extra: { ...s.extra, [k]: !s.extra[k] } }));
   }, []);
@@ -202,14 +179,14 @@ export function useComposer(args: {
 
   const open = useCallback(
     (mode: ComposerMode) => {
-      const ov = args.selectedOverview;
-      const msg = args.selectedMessage;
+      const ov = selectedOverview;
+      const msg = selectedMessage;
       const originalSubj = msg?.subject || ov?.subject || '';
 
       // default From
       let defaultFrom = '';
       if (mode === 'reply' || mode === 'reply_all' || mode === 'forward') {
-        defaultFrom = args.getSelectedRef()?.account ?? '';
+        defaultFrom = getSelectedRef()?.account ?? '';
       } else {
         defaultFrom = accounts[0] ?? '';
       }
@@ -281,7 +258,7 @@ export function useComposer(args: {
         html,
       }));
     },
-    [args.selectedOverview, args.selectedMessage, args.getSelectedRef, accounts]
+    [selectedOverview, selectedMessage, getSelectedRef, accounts]
   );
 
   const minimizeToggle = useCallback(() => {
@@ -322,7 +299,7 @@ export function useComposer(args: {
 
     let ref: EmailRef | null = null;
     if (mode !== 'compose') {
-      ref = args.getSelectedRef();
+      ref = getSelectedRef();
       if (!ref) {
         setError('No email selected to reply or forward.');
         return;
@@ -401,7 +378,7 @@ export function useComposer(args: {
       console.error('Error sending:', e);
       setError('Failed to send message. Please try again.');
     }
-  }, [state, args.getSelectedRef, reset, close, setError]);
+  }, [state, getSelectedRef, reset, close, setError]);
 
   const saveDraft = useCallback(async (): Promise<boolean> => {
     setError('');
@@ -432,7 +409,7 @@ export function useComposer(args: {
     const attachments = state.attachments;
 
     const draftsMailbox =
-      guessDraftsMailbox(Object.keys(args.mailboxData[fromAccount])) ?? 'Drafts';
+      guessDraftsMailbox(Object.keys(mailboxData[fromAccount])) ?? 'Drafts';
 
     try {
       await EmailApi.saveDraft({
@@ -455,7 +432,31 @@ export function useComposer(args: {
       setError('Failed to save draft. Please try again.');
       return false;
     }
-  }, [state, args.mailboxData, setError]);
+  }, [state, mailboxData, setError]);
+
+  const requestClose = useCallback(() => {
+    if (!state.open) return;
+
+    if (!hasContentNow()) {
+      reset();
+      close();
+      return;
+    }
+
+    showCloseConfirm({
+      onSaveDraft: async () => {
+        const ok = await saveDraft();
+        if (ok) {
+          reset();
+          close();
+        }
+      },
+      onDiscard: () => {
+        reset();
+        close();
+      },
+    });
+  }, [state.open, hasContentNow, showCloseConfirm, saveDraft, reset, close]);
 
   return {
     state,

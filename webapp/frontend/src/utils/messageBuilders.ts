@@ -27,7 +27,7 @@ export function buildQuotedOriginalBodyHtml(
   let headerLine = '';
 
   if (dateVal) {
-    const d = new Date(dateVal as any);
+    const d = new Date(dateVal);
     if (!Number.isNaN(d.getTime())) {
       const dateStr = d.toLocaleDateString(undefined, {
         year: 'numeric',
@@ -65,7 +65,7 @@ export function buildForwardedOriginalBodyHtml(
   const dateVal = msg?.received_at || overview?.received_at;
   let dateLine = '';
   if (dateVal) {
-    const d = new Date(dateVal as any);
+    const d = new Date(dateVal);
     if (!Number.isNaN(d.getTime())) {
       dateLine = d.toLocaleString(undefined, {
         weekday: 'short',

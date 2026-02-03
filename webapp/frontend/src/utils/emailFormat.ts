@@ -12,10 +12,10 @@ export const COLOR_PALETTE = [
   '#f97373',
 ] as const;
 
-export function formatDate(value: unknown, verbose?: boolean): string {
+export function formatDate(value: string | null | undefined, verbose?: boolean): string {
   if (!value) return '';
 
-  const date = new Date(value as any);
+  const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
 
   const now = new Date();

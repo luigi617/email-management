@@ -49,7 +49,7 @@ export default function EmailList(props: EmailListProps) {
         const key = emailId || stableFallbackKey(email, index);
         const isSelected = !!emailId && emailId === props.selectedEmailId;
 
-        const isSeenFromServer = isSeenFromFlags((email as any).flags);
+        const isSeenFromServer = isSeenFromFlags(email.flags);
         const isSeen = isSeenFromServer || uiSeenKeys.has(key);
         const isUnread = !isSeen;
 

@@ -45,7 +45,7 @@ function insertHtmlAtSelection(html: string) {
 
   const frag = document.createDocumentFragment();
   let node: ChildNode | null;
-  // eslint-disable-next-line no-cond-assign
+   
   while ((node = temp.firstChild)) frag.appendChild(node);
 
   const lastNode = frag.lastChild;

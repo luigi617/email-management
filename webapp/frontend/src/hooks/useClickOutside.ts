@@ -23,7 +23,7 @@ export function useClickOutside(
 
     document.addEventListener('pointerdown', handler, { capture: true });
     return () => {
-      document.removeEventListener('pointerdown', handler, { capture: true } as any);
+      document.removeEventListener('pointerdown', handler, { capture: true });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, onOutside]);

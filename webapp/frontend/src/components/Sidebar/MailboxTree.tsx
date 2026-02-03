@@ -12,23 +12,26 @@ export type MailboxTreeProps = {
 };
 
 export default function MailboxTree(props: MailboxTreeProps) {
+  const { mailboxData, currentMailbox, filterAccounts, onSelectAllInboxes, onSelectMailbox } =
+    props;
+
   const [collapsedAccounts, setCollapsedAccounts] = useState<Record<string, boolean>>({});
 
-  const entries = useMemo(() => Object.entries(props.mailboxData || {}), [props.mailboxData]);
+  const entries = useMemo(() => Object.entries(mailboxData || {}), [mailboxData]);
 
-  const activeAccounts = useMemo(() => new Set(props.filterAccounts || []), [props.filterAccounts]);
+  const activeAccounts = useMemo(() => new Set(filterAccounts || []), [filterAccounts]);
 
   const allInboxesUnseen = useMemo(() => {
-    const data = props.mailboxData || {};
+    const data = mailboxData || {};
     const accounts = Object.keys(data);
 
     return accounts.reduce((sum, account) => {
-      const mailboxesObj = (data as any)[account] || {};
+      const mailboxesObj = data[account] || {};
       const inboxStatus = mailboxesObj['INBOX'];
       const unseen = Number(inboxStatus?.unseen ?? 0);
       return sum + unseen;
     }, 0);
-  }, [props.mailboxData, props.filterAccounts]);
+  }, [mailboxData]); // ✅ removed filterAccounts (unused)
 
   return (
     <div id="mailbox-list" className="mailbox-list">
@@ -36,15 +39,15 @@ export default function MailboxTree(props: MailboxTreeProps) {
       <div className="mailbox-group">
         <div
           className={`mailbox-item mailbox-item-all ${
-            !activeAccounts.size && props.currentMailbox === 'INBOX' ? 'active' : ''
+            !activeAccounts.size && currentMailbox === 'INBOX' ? 'active' : ''
           }`}
           data-mailbox="INBOX"
           data-account=""
-          onClick={props.onSelectAllInboxes}
+          onClick={onSelectAllInboxes}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') props.onSelectAllInboxes();
+            if (e.key === 'Enter' || e.key === ' ') onSelectAllInboxes();
           }}
         >
           <span className="mailbox-dot" />
@@ -68,8 +71,8 @@ export default function MailboxTree(props: MailboxTreeProps) {
           const mailboxItems = Object.entries(mailboxesObj || {})
             .map(([name, status]) => ({
               name,
-              unseen: Number((status as any)?.unseen ?? 0),
-              messages: Number((status as any)?.messages ?? 0),
+              unseen: Number(status?.unseen ?? 0),
+              messages: Number(status?.messages ?? 0),
             }))
             .sort((a, b) => {
               if (a.name === 'INBOX' && b.name !== 'INBOX') return -1;
@@ -92,9 +95,7 @@ export default function MailboxTree(props: MailboxTreeProps) {
                 {mailboxItems.map(({ name, unseen }) => {
                   // Old rule: when no filterAccounts, only “All inboxes” is active
                   const isActive =
-                    name === props.currentMailbox &&
-                    activeAccounts.size > 0 &&
-                    activeAccounts.has(account);
+                    name === currentMailbox && activeAccounts.size > 0 && activeAccounts.has(account);
 
                   return (
                     <div
@@ -102,12 +103,12 @@ export default function MailboxTree(props: MailboxTreeProps) {
                       className={`mailbox-item ${isActive ? 'active' : ''}`}
                       data-mailbox={name}
                       data-account={account}
-                      onClick={() => props.onSelectMailbox(account, name)}
+                      onClick={() => onSelectMailbox(account, name)}
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ')
-                          props.onSelectMailbox(account, name);
+                          onSelectMailbox(account, name);
                       }}
                     >
                       <span className="mailbox-dot" />
