@@ -4,44 +4,41 @@ import io
 import mimetypes
 import os
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Annotated, Dict, List, Optional, Tuple
 from urllib.parse import unquote
 
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Response, UploadFile
-from fastapi import Form, File
+from email_overview import build_email_overview
+from email_service import parse_accounts
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
-
-from email_management import EmailManager
-from email_management.models import EmailMessage
-from email_management.types import EmailRef
-
-from email_overview import build_email_overview
-from email_service import parse_accounts
 from ttl_cache import TTLCache
 from utils import build_extra_headers, safe_filename, uploadfiles_to_attachments
 
-
-BASE = Path(__file__).parent
-
-app = FastAPI()
+from openmail import EmailManager
+from openmail.models import EmailMessage
+from openmail.types import EmailRef
 
 load_dotenv(override=True)
 
-# ---------------------------
-# Threading / blocking-IO setup
-# ---------------------------
 MAX_WORKERS = int(os.getenv("THREADPOOL_WORKERS", "20"))
 EXECUTOR = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
 
-@app.on_event("shutdown")
-def _shutdown_executor() -> None:
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
     EXECUTOR.shutdown(wait=False)
+
+
+BASE = Path(__file__).parent
+
+app = FastAPI(lifespan=lifespan)
 
 
 async def run_blocking(fn, *args, **kwargs):
@@ -86,23 +83,29 @@ _MESSAGE_CACHE = TTLCache(ttl_seconds=600, maxsize=512)
 async def get_email_overview(
     mailbox: str = "INBOX",
     limit: int = 50,
-    search_query: Optional[str] = Query(
-        default=None,
-        description="Optional natural-language search query (will be converted to IMAP query).",
-    ),
-    search_mode: str = Query(
-        default="general",
-        description='Search mode: "general" (subject/from/to/text) or "ai" (LLM-derived IMAP).',
-        pattern="^(general|ai)$",
-    ),
-    cursor: Optional[str] = Query(
-        default=None,
-        description="Opaque pagination cursor.",
-    ),
-    accounts: Optional[List[str]] = Query(
-        default=None,
-        description="Optional list of account IDs. If omitted, all accounts are used.",
-    ),
+    search_query: Annotated[
+        Optional[str],
+        Query(
+            description="Optional natural-language search query (will be converted to IMAP query).",
+        ),
+    ] = None,
+    search_mode: Annotated[
+        str,
+        Query(
+            description='Search mode: "general" (subject/from/to/text) or "ai" (LLM-derived IMAP).',
+            pattern="^(general|ai)$",
+        ),
+    ] = "general",
+    cursor: Annotated[
+        Optional[str],
+        Query(description="Opaque pagination cursor."),
+    ] = None,
+    accounts: Annotated[
+        Optional[List[str]],
+        Query(
+            description="Optional list of account IDs. If omitted, all accounts are used.",
+        ),
+    ] = None,
 ) -> dict:
     """
     Multi-account email overview with per-account pagination.
@@ -142,7 +145,9 @@ async def get_email_mailbox(
 
 
 async def _compute_mailbox_status_async() -> Dict[str, Dict[str, Dict[str, int]]]:
-    async def per_account(acc_name: str, manager: EmailManager) -> Tuple[str, Dict[str, Dict[str, int]]]:
+    async def per_account(
+        acc_name: str, manager: EmailManager
+    ) -> Tuple[str, Dict[str, Dict[str, int]]]:
         mailboxes = await run_blocking(manager.list_mailboxes)
 
         async def per_mailbox(mb: str) -> Tuple[str, Dict[str, int]]:
@@ -172,7 +177,9 @@ def _refresh_mailbox_cache(cache_key: str) -> None:
 # Single email
 # ---------------------------
 @app.get("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}")
-async def get_email(background_tasks: BackgroundTasks, account: str, mailbox: str, email_id: int) -> dict:
+async def get_email(
+    background_tasks: BackgroundTasks, account: str, mailbox: str, email_id: int
+) -> dict:
     """
     Fetch a single email by UID for a given account and mailbox.
     """
@@ -250,9 +257,9 @@ async def download_email_attachment(
     try:
         attachment_bytes = await run_blocking(manager.fetch_attachment_by_ref_and_meta, ref, part)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch attachment: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch attachment: {e}") from e
 
     filename = safe_filename(filename, fallback=f"email-{email_id}-part-{part}.bin")
 
@@ -296,7 +303,13 @@ async def archive_email(account: str, mailbox: str, email_id: int) -> dict:
 
     await run_blocking(manager.move, [ref], src_mailbox=mailbox, dst_mailbox=archive_mailbox)
 
-    return {"status": "ok", "action": "archive", "account": account, "mailbox": mailbox, "email_id": email_id}
+    return {
+        "status": "ok",
+        "action": "archive",
+        "account": account,
+        "mailbox": mailbox,
+        "email_id": email_id,
+    }
 
 
 @app.delete("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}")
@@ -316,7 +329,13 @@ async def delete_email(account: str, mailbox: str, email_id: int) -> dict:
     await run_blocking(manager.delete, [ref])
     await run_blocking(manager.expunge, mailbox=mailbox)
 
-    return {"status": "ok", "action": "delete", "account": account, "mailbox": mailbox, "email_id": email_id}
+    return {
+        "status": "ok",
+        "action": "delete",
+        "account": account,
+        "mailbox": mailbox,
+        "email_id": email_id,
+    }
 
 
 @app.post("/api/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/move")
@@ -360,18 +379,20 @@ async def move_email(
 @app.post("/api/accounts/{account:path}/draft")
 async def save_draft(
     account: str,
-    subject: Optional[str] = Form(None),
-    to: Optional[List[str]] = Form(None),
-    from_addr: Optional[str] = Form(None),
-    cc: Optional[List[str]] = Form(None),
-    bcc: Optional[List[str]] = Form(None),
-    text: Optional[str] = Form(None),
-    html: Optional[str] = Form(None),
-    reply_to: Optional[List[str]] = Form(None),
-    priority: Optional[str] = Form(None),
+    subject: Annotated[Optional[str], Form()] = None,
+    to: Annotated[Optional[List[str]], Form()] = None,
+    from_addr: Annotated[Optional[str], Form()] = None,
+    cc: Annotated[Optional[List[str]], Form()] = None,
+    bcc: Annotated[Optional[List[str]], Form()] = None,
+    text: Annotated[Optional[str], Form()] = None,
+    html: Annotated[Optional[str], Form()] = None,
+    reply_to: Annotated[Optional[List[str]], Form()] = None,
+    priority: Annotated[Optional[str], Form()] = None,
     drafts_mailbox: str = Form("Drafts", description="Mailbox where the draft will be stored"),
-    attachments: List[UploadFile] = File([]),
+    attachments: Annotated[Optional[List[UploadFile]], File()] = None,
 ) -> dict:
+    if attachments is None:
+        attachments = []
     """
     Save a draft email instead of sending it.
     """
@@ -412,18 +433,20 @@ async def reply_email(
     account: str,
     mailbox: str,
     email_id: int,
-    text: str = Form(...),
-    html: Optional[str] = Form(None),
-    from_addr: Optional[str] = Form(None),
+    text: Annotated[str, Form()],
+    html: Annotated[Optional[str], Form()] = None,
+    from_addr: Annotated[Optional[str], Form()] = None,
     quote_original: bool = Form(True),
-    subject: Optional[str] = Form(None),
-    to: Optional[List[str]] = Form(None),
-    cc: Optional[List[str]] = Form(None),
-    bcc: Optional[List[str]] = Form(None),
-    reply_to: Optional[List[str]] = Form(None),
-    priority: Optional[str] = Form(None),
-    attachments: List[UploadFile] = File([]),
+    subject: Annotated[Optional[str], Form()] = None,
+    to: Annotated[Optional[List[str]], Form()] = None,
+    cc: Annotated[Optional[List[str]], Form()] = None,
+    bcc: Annotated[Optional[List[str]], Form()] = None,
+    reply_to: Annotated[Optional[List[str]], Form()] = None,
+    priority: Annotated[Optional[str], Form()] = None,
+    attachments: Annotated[Optional[List[UploadFile]], File()] = None,
 ) -> dict:
+    if attachments is None:
+        attachments = []
     account = unquote(account)
     mailbox = unquote(mailbox)
 
@@ -470,18 +493,20 @@ async def reply_all_email(
     account: str,
     mailbox: str,
     email_id: int,
-    text: str = Form(...),
-    html: Optional[str] = Form(None),
-    from_addr: Optional[str] = Form(None),
+    text: Annotated[str, Form()],
+    html: Annotated[Optional[str], Form()] = None,
+    from_addr: Annotated[Optional[str], Form()] = None,
     quote_original: bool = Form(True),
-    subject: Optional[str] = Form(None),
-    to: Optional[List[str]] = Form(None),
-    cc: Optional[List[str]] = Form(None),
-    bcc: Optional[List[str]] = Form(None),
-    reply_to: Optional[List[str]] = Form(None),
-    priority: Optional[str] = Form(None),
-    attachments: List[UploadFile] = File([]),
+    subject: Annotated[Optional[str], Form()] = None,
+    to: Annotated[Optional[List[str]], Form()] = None,
+    cc: Annotated[Optional[List[str]], Form()] = None,
+    bcc: Annotated[Optional[List[str]], Form()] = None,
+    reply_to: Annotated[Optional[List[str]], Form()] = None,
+    priority: Annotated[Optional[str], Form()] = None,
+    attachments: Annotated[Optional[List[UploadFile]], File()] = None,
 ) -> dict:
+    if attachments is None:
+        attachments = []
     account = unquote(account)
     mailbox = unquote(mailbox)
 
@@ -528,19 +553,21 @@ async def forward_email(
     account: str,
     mailbox: str,
     email_id: int,
-    to: List[str] = Form(...),
-    text: Optional[str] = Form(None),
-    html: Optional[str] = Form(None),
-    from_addr: Optional[str] = Form(None),
+    to: Annotated[List[str], Form()],
+    text: Annotated[Optional[str], Form()] = None,
+    html: Annotated[Optional[str], Form()] = None,
+    from_addr: Annotated[Optional[str], Form()] = None,
     include_original: bool = Form(True),
     include_attachments: bool = Form(True),
-    cc: Optional[List[str]] = Form(None),
-    bcc: Optional[List[str]] = Form(None),
-    subject: Optional[str] = Form(None),
-    reply_to: Optional[List[str]] = Form(None),
-    priority: Optional[str] = Form(None),
-    attachments: List[UploadFile] = File([]),
+    cc: Annotated[Optional[List[str]], Form()] = None,
+    bcc: Annotated[Optional[List[str]], Form()] = None,
+    subject: Annotated[Optional[str], Form()] = None,
+    reply_to: Annotated[Optional[List[str]], Form()] = None,
+    priority: Annotated[Optional[str], Form()] = None,
+    attachments: Annotated[Optional[List[UploadFile]], File()] = None,
 ) -> dict:
+    if attachments is None:
+        attachments = []
     account = unquote(account)
     mailbox = unquote(mailbox)
 
@@ -586,17 +613,20 @@ async def forward_email(
 @app.post("/api/accounts/{account:path}/send")
 async def send_email(
     account: str,
-    subject: str = Form(...),
-    to: List[str] = Form(...),
-    from_addr: Optional[str] = Form(None),
-    cc: Optional[List[str]] = Form(None),
-    bcc: Optional[List[str]] = Form(None),
-    text: Optional[str] = Form(None),
-    html: Optional[str] = Form(None),
-    reply_to: Optional[List[str]] = Form(None),
-    priority: Optional[str] = Form(None),
-    attachments: List[UploadFile] = File([]),
+    subject: Annotated[str, Form()],
+    to: Annotated[List[str], Form()],
+    from_addr: Annotated[Optional[str], Form()] = None,
+    cc: Annotated[Optional[List[str]], Form()] = None,
+    bcc: Annotated[Optional[List[str]], Form()] = None,
+    text: Annotated[Optional[str], Form()] = None,
+    html: Annotated[Optional[str], Form()] = None,
+    reply_to: Annotated[Optional[List[str]], Form()] = None,
+    priority: Annotated[Optional[str], Form()] = None,
+    attachments: Annotated[Optional[List[UploadFile]], File()] = None,
 ) -> dict:
+    if attachments is None:
+        attachments = []
+
     account = unquote(account)
 
     manager = ACCOUNTS.get(account)

@@ -2,23 +2,22 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from email.message import EmailMessage as PyEmailMessage
 
 import pytest
 
-from email_management.email_manager import EmailManager
-from email_management.models import EmailMessage, Attachment, UnsubscribeCandidate, UnsubscribeMethod
-from email_management.types import EmailRef
-from email_management.utils import ensure_reply_subject, ensure_forward_subject
-
+from openmail.email_manager import EmailManager
+from openmail.models import Attachment, EmailMessage, UnsubscribeCandidate, UnsubscribeMethod
+from openmail.types import EmailRef
+from openmail.utils import ensure_forward_subject, ensure_reply_subject
 from tests.fake_imap_client import FakeIMAPClient
 from tests.fake_smtp_client import FakeSMTPClient
-
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def fake_imap() -> FakeIMAPClient:
@@ -30,6 +29,7 @@ def fake_smtp() -> FakeSMTPClient:
     # Ensure config.from_email exists if EmailManager injects From in some paths.
     class Cfg:
         from_email = "me@example.com"
+
     return FakeSMTPClient(config=Cfg())
 
 
@@ -49,7 +49,8 @@ def make_email_message(
     bcc: list[str] | None = None,
     text: str | None = "Body text",
     html: str | None = None,
-    date: datetime | None = None,
+    received_at: datetime | None = None,
+    sent_at: datetime | None = None,
     message_id: str | None = "<msg-1@example.com>",
     headers: dict[str, str] | None = None,
     attachments: list[Attachment] | None = None,
@@ -75,7 +76,8 @@ def make_email_message(
         text=text,
         html=html,
         attachments=attachments,
-        date=date,
+        received_at=received_at,
+        sent_at=sent_at,
         message_id=message_id,
         headers=headers,
     )
@@ -109,6 +111,7 @@ def get_text_and_html_from_pymsg(msg: PyEmailMessage) -> tuple[str | None, str |
 # ---------------------------------------------------------------------------
 # compose / send / save_draft
 # ---------------------------------------------------------------------------
+
 
 def test_compose_text_html_attachments(manager: EmailManager):
     att = Attachment(
@@ -188,16 +191,25 @@ def test_save_draft_appends_to_drafts_with_flag(manager: EmailManager, fake_imap
 # fetch APIs
 # ---------------------------------------------------------------------------
 
+
 def test_fetch_message_by_ref_and_multi_refs(manager: EmailManager, fake_imap: FakeIMAPClient):
     m1 = make_email_message(
         uid=1,
         text="m1",
-        attachments=[Attachment(idx=1, part="part1", filename="a.txt", content_type="text/plain", data=b"a", size=1)],
+        attachments=[
+            Attachment(
+                idx=1, part="part1", filename="a.txt", content_type="text/plain", data=b"a", size=1
+            )
+        ],
     )
     m2 = make_email_message(
         uid=2,
         text="m2",
-        attachments=[Attachment(idx=2, part="part2", filename="b.txt", content_type="text/plain", data=b"b", size=1)],
+        attachments=[
+            Attachment(
+                idx=2, part="part2", filename="b.txt", content_type="text/plain", data=b"b", size=1
+            )
+        ],
     )
     ref1 = fake_imap.add_parsed_message("INBOX", m1)
     ref2 = fake_imap.add_parsed_message("INBOX", m2)
@@ -222,6 +234,7 @@ def test_fetch_message_by_ref_missing_raises(manager: EmailManager):
 # ---------------------------------------------------------------------------
 # reply / reply_all / forward
 # ---------------------------------------------------------------------------
+
 
 def test_reply_basic(manager: EmailManager, fake_smtp: FakeSMTPClient):
     original = make_email_message(
@@ -311,7 +324,9 @@ def test_reply_all_builds_to_and_cc(manager: EmailManager, fake_smtp: FakeSMTPCl
 
 
 def test_forward_include_original_and_attachments(manager: EmailManager, fake_smtp: FakeSMTPClient):
-    att = Attachment(idx=1, part="part1", filename="file.txt", content_type="text/plain", data=b"123", size=3)
+    att = Attachment(
+        idx=1, part="part1", filename="file.txt", content_type="text/plain", data=b"123", size=3
+    )
     original = make_email_message(
         subject="Orig subject",
         from_email="alice@example.com",
@@ -325,7 +340,7 @@ def test_forward_include_original_and_attachments(manager: EmailManager, fake_sm
         to=["dest@example.com"],
         from_addr="me@example.com",
         text="FYI",
-        include_original=True,          # <-- required to get forwarded content
+        include_original=True,  # <-- required to get forwarded content
         include_attachments=True,
     )
 
@@ -353,12 +368,13 @@ def test_forward_requires_to(manager: EmailManager):
 # fetch_latest / fetch_thread
 # ---------------------------------------------------------------------------
 
+
 def test_fetch_latest_unseen_and_limit(manager: EmailManager, fake_imap: FakeIMAPClient):
     m1 = make_email_message(uid=1, text="m1")
     m2 = make_email_message(uid=2, text="m2")
     m3 = make_email_message(uid=3, text="m3")
-    r1 = fake_imap.add_parsed_message("INBOX", m1)
-    r2 = fake_imap.add_parsed_message("INBOX", m2)
+    fake_imap.add_parsed_message("INBOX", m1)
+    fake_imap.add_parsed_message("INBOX", m2)
     r3 = fake_imap.add_parsed_message("INBOX", m3)
 
     # mark newest as seen
@@ -398,7 +414,10 @@ def test_fetch_thread_includes_root_once(manager: EmailManager, fake_imap: FakeI
 # flag / mailbox operations
 # ---------------------------------------------------------------------------
 
-def test_flagging_and_expunge_and_mark_all_seen(manager: EmailManager, fake_imap: FakeIMAPClient, monkeypatch):
+
+def test_flagging_and_expunge_and_mark_all_seen(
+    manager: EmailManager, fake_imap: FakeIMAPClient, monkeypatch
+):
 
     # Patch only the check site by monkeypatching attribute access pattern:
     # easiest is to monkeypatch EmailManager.mark_all_seen local usage by wrapping search result,
@@ -434,7 +453,9 @@ def test_flagging_and_expunge_and_mark_all_seen(manager: EmailManager, fake_imap
     assert r"\Seen" in fake_imap._mailboxes["INBOX"][r1.uid].flags
 
 
-def test_list_mailboxes_status_move_copy_create_delete(manager: EmailManager, fake_imap: FakeIMAPClient):
+def test_list_mailboxes_status_move_copy_create_delete(
+    manager: EmailManager, fake_imap: FakeIMAPClient
+):
     m = make_email_message(uid=1)
     ref = fake_imap.add_parsed_message("INBOX", m)
 
@@ -460,8 +481,9 @@ def test_list_mailboxes_status_move_copy_create_delete(manager: EmailManager, fa
 # unsubscribe-related APIs (delegation only, via monkeypatch)
 # ---------------------------------------------------------------------------
 
+
 def test_list_unsubscribe_candidates_uses_detector(manager: EmailManager, monkeypatch):
-    import email_management.email_manager as em_mod
+    import openmail.email_manager as em_mod
 
     seen_args: list[tuple] = []
 
@@ -491,7 +513,7 @@ def test_list_unsubscribe_candidates_uses_detector(manager: EmailManager, monkey
 
 
 def test_unsubscribe_selected_uses_service(manager: EmailManager, monkeypatch):
-    import email_management.email_manager as em_mod
+    import openmail.email_manager as em_mod
 
     called: list[tuple] = []
 
@@ -526,12 +548,15 @@ def test_unsubscribe_selected_uses_service(manager: EmailManager, monkeypatch):
 # health_check
 # ---------------------------------------------------------------------------
 
+
 def test_health_check_ok(manager: EmailManager):
     status = manager.health_check()
     assert status == {"imap": True, "smtp": True}
 
 
-def test_health_check_with_failures(manager: EmailManager, fake_imap: FakeIMAPClient, fake_smtp: FakeSMTPClient):
+def test_health_check_with_failures(
+    manager: EmailManager, fake_imap: FakeIMAPClient, fake_smtp: FakeSMTPClient
+):
     fake_imap.fail_next = True
     fake_smtp.fail_next = True
 

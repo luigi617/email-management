@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from bisect import bisect_left, bisect_right
-from typing import Dict, List, Optional, Sequence, Set, Tuple, Any
-
+from dataclasses import dataclass, field
 from email.message import EmailMessage as PyEmailMessage
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
-from email_management.errors import IMAPError
-from email_management.models import EmailMessage, EmailOverview
-from email_management.types import EmailRef
-from email_management.imap.query import IMAPQuery
-from email_management.imap.parser import parse_rfc822, parse_overview
-from email_management.imap.pagination import PagedSearchResult
+from openmail.errors import IMAPError
+from openmail.imap.pagination import PagedSearchResult
+from openmail.imap.parser import parse_overview, parse_rfc822
+from openmail.imap.query import IMAPQuery
+from openmail.models import EmailMessage, EmailOverview
+from openmail.types import EmailRef
 
 
 @dataclass
@@ -92,7 +91,8 @@ class FakeIMAPClient:
             text=msg.text,
             html=msg.html,
             attachments=list(msg.attachments),
-            date=msg.received_at,
+            received_at=msg.received_at,
+            sent_at=msg.sent_at,
             message_id=msg.message_id,
             headers=dict(msg.headers),
         )
@@ -126,11 +126,11 @@ class FakeIMAPClient:
         Compute (and cache) matching UIDs in ascending order.
         """
         self._maybe_fail()
-        criteria = (query.build() or "ALL")
+        criteria = query.build() or "ALL"
         cache_key = (mailbox, criteria)
 
         box = self._mailboxes.get(mailbox, {})
-        parts = list(getattr(query, "parts", []))
+        parts = query.parts
 
         # Ascending old->new, like real client cache.
         uids: List[int] = []
@@ -160,7 +160,7 @@ class FakeIMAPClient:
         if before_uid is not None and after_uid is not None:
             raise ValueError("Cannot specify both before_uid and after_uid")
 
-        criteria = (query.build() or "ALL")
+        criteria = query.build() or "ALL"
         cache_key = (mailbox, criteria)
 
         uids = None if refresh else self._search_cache.get(cache_key)
@@ -309,7 +309,8 @@ class FakeIMAPClient:
                         text=msg.text,
                         html=msg.html,
                         attachments=[],
-                        date=msg.received_at,
+                        received_at=msg.received_at,
+                        sent_at=msg.sent_at,
                         message_id=msg.message_id,
                         headers=dict(msg.headers),
                     )
@@ -339,21 +340,24 @@ class FakeIMAPClient:
             msg = stored.msg
             flags = set(stored.flags)
 
-            # Minimal headers needed by parse_overview()
-            # Keep it conservative; parse_overview reads common fields.
-            hdr_lines: List[str] = []
-            def _add(name: str, value: Optional[str]) -> None:
-                if value is None:
-                    return
-                if value == "":
+            def _add_header(hdr_lines: List[str], name: str, value: Optional[str]) -> None:
+                if not value:  # covers None and ""
                     return
                 hdr_lines.append(f"{name}: {value}")
 
-            _add("From", msg.headers.get("From") or msg.from_email)
-            _add("To", msg.headers.get("To") or (", ".join(msg.to) if msg.to else ""))
-            _add("Subject", msg.headers.get("Subject") or msg.subject)
-            _add("Date", msg.headers.get("Date") or (msg.received_at.isoformat() if msg.received_at else ""))
-            _add("Message-ID", msg.headers.get("Message-ID") or (msg.message_id or ""))
+            hdr_lines: List[str] = []
+            _add_header(hdr_lines, "From", msg.headers.get("From") or msg.from_email)
+            _add_header(
+                hdr_lines, "To", msg.headers.get("To") or (", ".join(msg.to) if msg.to else None)
+            )
+            _add_header(hdr_lines, "Subject", msg.headers.get("Subject") or msg.subject)
+            _add_header(
+                hdr_lines,
+                "Date",
+                msg.headers.get("Date")
+                or (msg.received_at.isoformat() if msg.received_at else None),
+            )
+            _add_header(hdr_lines, "Message-ID", msg.headers.get("Message-ID") or msg.message_id)
 
             # Preserve any other stored headers that might matter for tests (best-effort)
             # but avoid duplicates for the main ones.
@@ -386,17 +390,15 @@ class FakeIMAPClient:
             raise IMAPError(f"Message not found for {ref!r}")
 
         msg = stored.msg
-        atts = getattr(msg, "attachments", None) or []
+        atts = msg.attachments
         for att in atts:
-            part = getattr(att, "part", None) or getattr(att, "attachment_part", None)
+            part = att.part
             if part != attachment_part:
                 continue
 
-            # common payload field names
-            for key in ("content", "data", "payload", "bytes"):
-                val = getattr(att, key, None)
-                if isinstance(val, (bytes, bytearray)):
-                    return bytes(val)
+            val = att.data
+            if isinstance(val, (bytes, bytearray)):
+                return bytes(val)
 
             # if the attachment itself is bytes
             if isinstance(att, (bytes, bytearray)):
@@ -564,7 +566,7 @@ class FakeIMAPClient:
         """
         self._maybe_fail()
 
-    def __enter__(self) -> "FakeIMAPClient":
+    def __enter__(self) -> FakeIMAPClient:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:

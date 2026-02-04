@@ -5,16 +5,16 @@ from typing import Any, Dict, List, Tuple, Type
 import pytest
 from pydantic import BaseModel
 
-from email_management.llm.model import _get_base_llm, get_model
-from email_management.llm.costs import (
+from openmail.llm.costs import (
     _lookup_price,
     compute_cost_usd,
-    TokenUsageCallback,
 )
+from openmail.llm.model import _get_base_llm, get_model
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
 # ---------------------------------------------------------------------------
+
 
 # Important: clear the lru_cache on _get_base_llm between tests so our
 # monkeypatching of get_openai/get_gemini/etc behaves as expected.
@@ -28,13 +28,16 @@ def clear_llm_cache():
 class DummyModel(BaseModel):
     message: str
 
+
 class DummyTransientError(Exception):
     """Simple stand-in for openai transient errors in tests."""
+
     pass
 
 
 class FakeLLMResult:
     """Minimal object that looks like langchain_core.outputs.LLMResult for TokenUsageCallback."""
+
     def __init__(self, token_usage: Dict[str, Any]):
         self.llm_output = {"token_usage": token_usage}
 
@@ -100,8 +103,9 @@ class FlakyChain:
 # Tests for _get_base_llm (correct & wrong providers)
 # ---------------------------------------------------------------------------
 
+
 def test_get_base_llm_openai(monkeypatch):
-    from email_management.llm import model as model_mod
+    from openmail.llm import model as model_mod
 
     captured_args: Dict[str, Any] = {}
 
@@ -125,7 +129,7 @@ def test_get_base_llm_openai(monkeypatch):
 
 
 def test_get_base_llm_gemini(monkeypatch):
-    from email_management.llm import model as model_mod
+    from openmail.llm import model as model_mod
 
     called: Dict[str, Any] = {}
 
@@ -141,7 +145,7 @@ def test_get_base_llm_gemini(monkeypatch):
 
 
 def test_get_base_llm_xai(monkeypatch):
-    from email_management.llm import model as model_mod
+    from openmail.llm import model as model_mod
 
     called: Dict[str, Any] = {}
 
@@ -156,7 +160,7 @@ def test_get_base_llm_xai(monkeypatch):
 
 
 def test_get_base_llm_groq(monkeypatch):
-    from email_management.llm import model as model_mod
+    from openmail.llm import model as model_mod
 
     called: Dict[str, Any] = {}
 
@@ -232,7 +236,7 @@ def test_get_model_success_with_valid_provider_and_model(monkeypatch):
     - compute_cost_usd is used to fill cost_usd
     - history grows across calls
     """
-    from email_management.llm import model as model_mod
+    from openmail.llm import model as model_mod
 
     # Avoid actual sleeping in retry loop
     monkeypatch.setattr(model_mod, "sleep", lambda *_a, **_kw: None)
@@ -309,9 +313,8 @@ def test_get_model_success_with_valid_provider_and_model(monkeypatch):
     assert second_inputs["messages"][2]["content"] == prompt_text_2
 
 
-
 def test_get_model_retries_and_succeeds_on_transient_error(monkeypatch):
-    from email_management.llm import model as model_mod
+    from openmail.llm import model as model_mod
 
     # Avoid real sleeping
     monkeypatch.setattr(model_mod, "APIConnectionError", DummyTransientError)
@@ -361,7 +364,8 @@ def test_get_model_retries_and_succeeds_on_transient_error(monkeypatch):
 
 
 def test_get_model_all_retries_fail_and_raise(monkeypatch):
-    from email_management.llm import model as model_mod
+    from openmail.llm import model as model_mod
+
     monkeypatch.setattr(model_mod, "APIConnectionError", DummyTransientError)
     monkeypatch.setattr(model_mod, "sleep", lambda *_a, **_kw: None)
 
@@ -391,7 +395,8 @@ def test_get_model_all_retries_fail_and_raise(monkeypatch):
 
 
 def test_get_model_all_retries_fail_no_raise_returns_none(monkeypatch):
-    from email_management.llm import model as model_mod
+    from openmail.llm import model as model_mod
+
     monkeypatch.setattr(model_mod, "APIConnectionError", DummyTransientError)
     monkeypatch.setattr(model_mod, "sleep", lambda *_a, **_kw: None)
 

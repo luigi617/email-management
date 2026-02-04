@@ -5,16 +5,19 @@ from typing import Dict, List, Optional
 
 from fastapi import UploadFile
 
-from email_management.models import Attachment
+from openmail.models import Attachment
+
 
 def encode_cursor(state: dict) -> str:
     raw = json.dumps(state, separators=(",", ":"), sort_keys=True).encode("utf-8")
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
+
 def decode_cursor(cursor: str) -> dict:
     padding = "=" * (-len(cursor) % 4)
     raw = base64.urlsafe_b64decode(cursor + padding)
     return json.loads(raw)
+
 
 async def uploadfiles_to_attachments(
     files: List[UploadFile],
@@ -35,6 +38,7 @@ async def uploadfiles_to_attachments(
             )
         )
     return attachments
+
 
 def build_extra_headers(
     reply_to: Optional[List[str]],
@@ -65,6 +69,7 @@ def build_extra_headers(
             )
 
     return headers
+
 
 def safe_filename(name: str, fallback: str = "attachment.bin") -> str:
     if not name:

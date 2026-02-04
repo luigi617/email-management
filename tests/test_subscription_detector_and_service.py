@@ -2,20 +2,18 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import List, Optional
-from email.message import EmailMessage as PyEmailMessage
 
-import email_management.subscription.detector as detector_mod
-import email_management.subscription.service as service_mod
-from email_management.subscription.detector import SubscriptionDetector
-from email_management.subscription.service import SubscriptionService
-from email_management.models import (
+import openmail.subscription.detector as detector_mod
+import openmail.subscription.service as service_mod
+from openmail.models import (
     EmailMessage,
+    UnsubscribeActionResult,
     UnsubscribeCandidate,
     UnsubscribeMethod,
-    UnsubscribeActionResult,
 )
-from email_management.types import EmailRef, SendResult
-
+from openmail.subscription.detector import SubscriptionDetector
+from openmail.subscription.service import SubscriptionService
+from openmail.types import EmailRef, SendResult
 from tests.fake_imap_client import FakeIMAPClient
 from tests.fake_smtp_client import FakeSMTPClient
 
@@ -86,20 +84,11 @@ def _mk_email_message(*, subject: str, from_email: str, headers: dict) -> EmailM
         text="",
         html="",
         attachments=[],
-        date=datetime(2025, 1, 2, tzinfo=timezone.utc),
+        sent_at=datetime(2025, 1, 2, tzinfo=timezone.utc),
+        received_at=datetime(2025, 1, 2, tzinfo=timezone.utc),
         message_id=None,
         headers=headers,
     )
-
-
-def _sent_msg(record):
-    """
-    FakeSMTPClient implementations vary:
-    - sometimes smtp.sent contains message objects directly
-    - sometimes it contains objects with a `.msg` attribute
-    This helper makes the test resilient.
-    """
-    return getattr(record, "msg", record)
 
 
 def test_subscription_detector_builds_candidates_and_uses_query(monkeypatch):
@@ -215,7 +204,7 @@ def test_unsubscribe_mailto_sends_email():
 
     # Check SMTP message
     assert len(smtp.sent) == 1
-    msg = _sent_msg(smtp.sent[0])
+    msg = smtp.sent[0].msg
 
     assert msg["To"] == "unsub@example.com"
     assert msg["Subject"] == "Unsubscribe"

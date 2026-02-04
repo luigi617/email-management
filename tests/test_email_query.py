@@ -1,9 +1,8 @@
 import pytest
 
-from email_management.imap import IMAPQuery, PagedSearchResult
-from email_management.email_query import EmailQuery
-import email_management.email_query as easy_mod
-
+import openmail.email_query as easy_mod
+from openmail.email_query import EmailQuery
+from openmail.imap import IMAPQuery, PagedSearchResult
 
 
 class FakeImap:
@@ -334,7 +333,9 @@ def test_search_calls_manager_imap_search_page_cached():
     assert page.refs == ["ref-1", "ref-2"]
     assert len(mgr.imap.search_page_cached_calls) == 1
 
-    mailbox, query_obj, page_size, before_uid, after_uid, refresh = mgr.imap.search_page_cached_calls[0]
+    mailbox, query_obj, page_size, before_uid, after_uid, refresh = (
+        mgr.imap.search_page_cached_calls[0]
+    )
     assert mailbox == "INBOX"
     assert isinstance(query_obj, IMAPQuery)
     assert page_size == 42

@@ -1,27 +1,19 @@
 import pytest
 
-from email_management.imap.query import IMAPQuery
-
-
-def _maybe_private(name: str):
-    # Helper: access private helpers if they exist; otherwise skip.
-    import email_management.imap.query as qmod
-    fn = getattr(qmod, name, None)
-    if fn is None:
-        pytest.skip(f"{name} not available in email_management.imap.query")
-    return fn
+import openmail.imap.query as qmod
+from openmail.imap.query import IMAPQuery
 
 
 def test_imap_date_formats_correctly():
-    _imap_date = _maybe_private("_imap_date")
+    _imap_date = qmod._imap_date
     assert _imap_date("2025-01-02") == "02-Jan-2025"
     assert _imap_date("1999-12-31") == "31-Dec-1999"
 
 
 def test_q_quotes_and_escapes():
-    _q = _maybe_private("_q")
+    _q = qmod._q
     assert _q("hello") == '"hello"'
-    assert _q('he"llo') == '"he\\\"llo"'
+    assert _q('he"llo') == '"he\\"llo"'
     assert _q(r"c:\path\to\file") == '"c:\\\\path\\\\to\\\\file"'
 
 
@@ -161,9 +153,7 @@ def test_exclude_header_text_body():
         .exclude_body("bar")
     )
     assert q.build() == (
-        'NOT HEADER "List-Id" "mylist@example.com" '
-        'NOT TEXT "foo" '
-        'NOT BODY "bar"'
+        'NOT HEADER "List-Id" "mylist@example.com" ' 'NOT TEXT "foo" ' 'NOT BODY "bar"'
     )
 
 
@@ -224,7 +214,7 @@ def test_or_requires_at_least_two_queries():
 
 def test_raw_appends_tokens():
     # Use public surface (raw with already-quoted token)
-    _q = _maybe_private("_q")
+    _q = qmod._q
     q = IMAPQuery().raw("UNSEEN", "FROM", _q("x@example.com"))
     assert q.build() == 'UNSEEN FROM "x@example.com"'
 
@@ -247,9 +237,5 @@ def test_chaining_builds_expected_query():
         .smaller(5000)
     )
     assert q.build() == (
-        'FROM "a@example.com" '
-        'TO "b@example.com" '
-        'UNSEEN '
-        'SINCE 01-Jan-2025 '
-        "SMALLER 5000"
+        'FROM "a@example.com" ' 'TO "b@example.com" ' "UNSEEN " "SINCE 01-Jan-2025 " "SMALLER 5000"
     )
