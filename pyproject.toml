@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "openmail"
 version = "0.1.5"
 description = "API for managing your email"
-readme = "README.md"
+readme = { file = "docs/Package.md", content-type = "text/markdown" }
 requires-python = ">=3.8"
 dependencies = [
     "requests",
