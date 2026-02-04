@@ -16,7 +16,6 @@ It wraps:
 from openmail.smtp import SMTPClient
 from openmail.imap import IMAPClient
 from openmail.auth import PasswordAuth
-
 from openmail import EmailManager
 
 auth = PasswordAuth(username="you@example.com", password="secret")
@@ -33,6 +32,7 @@ You can also use OAuth-based auth if your provider requires it.
 def token_provider():
     # Must return a fresh OAuth2 access token string
     return get_access_token_somehow()
+
 auth = OAuth2Auth(username="you@example.com", token_provider=token_provider)
 ```
 
@@ -40,9 +40,11 @@ auth = OAuth2Auth(username="you@example.com", token_provider=token_provider)
 
 ## Composing & Sending Email
 
+`EmailManager` composes messages and sends them via SMTP.
+
 ### Compose only
 
-Use `compose()` when you want a `EmailMessage` (from stdlib `email.message.EmailMessage`) you can store or inspect:
+Use `compose()` when you want to build a message you can inspect, store, or modify before sending.
 
 ```
 msg = mgr.compose(
@@ -53,9 +55,45 @@ msg = mgr.compose(
 )
 ```
 
+#### Text + HTML bodies
+
+If you provide both `text` and `html`, the manager builds a `multipart/alternative` email.
+
+```
+msg = mgr.compose(
+    subject="Product update",
+    to=["user@example.com"],
+    from_addr="me@example.com",
+    text="Plain text fallback",
+    html="<p><b>HTML</b> version</p>",
+)
+```
+
+#### Attachments
+
+Attachments use OpenMail’s `Attachment` model and are added to the composed message.
+
+```
+from openmail.models import Attachment
+
+pdf = Attachment(
+    filename="report.pdf",
+    content_type="application/pdf",
+    data=b"%PDF-...",
+)
+
+msg = mgr.compose(
+    subject="Monthly report",
+    to=["boss@example.com"],
+    from_addr="me@example.com",
+    text="Attached is the PDF.",
+    attachments=[pdf],
+)
+```
+
 ### Compose and send
 
-`compose_and_send()` builds and sends in one step:
+`compose_and_send()` builds and sends in one step.
 
 ```
 result = mgr.compose_and_send(
@@ -66,30 +104,29 @@ result = mgr.compose_and_send(
 )
 ```
 
-### Scheduled sending (build now, send later)
+### Sending an existing message
 
-`send_later()` builds a message tagged with `X-Scheduled-At` which you can enqueue in your own scheduler:
+If you already have a `EmailMessage` instance (stdlib), you can send it directly:
 
 ```
-from datetime import datetime, timedelta
+from email.message import EmailMessage
 
-msg = mgr.send_later(
-    subject="Reminder",
-    to=["user@example.com"],
-    from_addr="me@example.com",
-    text="Just checking in.",
-    scheduled_at=datetime.utcnow() + timedelta(hours=2),
-)
+msg = EmailMessage()
+msg["From"] = "me@example.com"
+msg["To"] = "you@example.com"
+msg["Subject"] = "Hello"
+msg.set_content("Hi there!")
 
-# later in your scheduler:
 mgr.send(msg)
 ```
+
+> Note: `send()` extracts envelope recipients from `To`, `Cc`, and `Bcc`, and removes the `Bcc` header before sending.
 
 ---
 
 ## Drafts
 
-Save a draft into an IMAP mailbox (default `"Drafts"`):
+Save a draft into an IMAP mailbox (default `"Drafts"`). This returns an `EmailRef` you can later fetch or manage through IMAP.
 
 ```
 ref = mgr.save_draft(
@@ -100,132 +137,194 @@ ref = mgr.save_draft(
 )
 ```
 
-You can later fetch by `EmailRef` using `imap.fetch(...)` (via `IMAPClient`) if needed.
-
 ---
 
 ## Replies & Forwarding
 
+These helpers manage common email conventions:
+- subject prefixes (`Re:` / `Fwd:`)
+- threading headers (`In-Reply-To`, `References`)
+- optional quoting of the original message
+
 ### Reply
 
-Reply to the sender (or `Reply-To` if present):
+Reply to the sender (or `Reply-To` if present).
 
 ```
 mgr.reply(
-    original=email_msg,         # EmailMessage model
-    body="Thanks for the update.",
+    original=email_msg,         # openmail.models.EmailMessage
+    text="Thanks for the update.",
     from_addr="me@example.com", # optional
     quote_original=True,        # include quoted original body
 )
 ```
 
-- Automatically sets `Subject` as `Re: ...` if needed  
-- Uses `Reply-To` or `From` from the original  
-- Sets `In-Reply-To` and `References` for threading
+Notes:
+- If `to` is not provided, recipients are derived from `Reply-To` or `From`.
+- Threading headers are set automatically when `message_id` is available.
+- Quoting works for both text and HTML (when you provide `html`).
 
 ### Reply all
+
+Reply to everyone. If you do not provide `to/cc/bcc`, recipients are derived from the original message (`Reply-To`/`From` + original `To`/`Cc`), with basic de-duplication and optional removal of your own address.
 
 ```
 mgr.reply_all(
     original=email_msg,
-    body="Looping everyone in.",
+    text="Looping everyone in.",
     from_addr="me@example.com",
     quote_original=True,
 )
 ```
 
-- Sends to main recipient and copies everyone from original `To` / `Cc`, excluding yourself and duplicates.
-
 ### Forward
+
+Forward an existing email.
 
 ```
 mgr.forward(
     original=email_msg,
     to=["other@example.com"],
-    body="FYI.",
+    text="FYI.",
     from_addr="me@example.com",
-    include_attachments=True,
+    include_original=True,        # include quoted original in the forward body
+    include_attachments=True,     # include original attachments by default
 )
 ```
 
-Forward builds a new message summarizing headers and body, with optional attachments.
+Notes:
+- If `include_original=True`, the original message is quoted into the forwarded body.
+- If `include_attachments=True`, original attachments are appended to any explicit `attachments=...`.
+- If you provide `html`, that HTML is used; otherwise HTML is synthesized from the text + optional quoted original.
 
 ---
 
 ## Fetching Email
 
-### Quick inbox overview
+The fetch APIs return paging metadata along with results. Paging uses UIDs and supports both “older” and “newer” directions.
 
-`fetch_overview()` is good for list views / previews:
+### Fetch a page of overview rows
+
+`fetch_overview()` returns:
+- a `PagedSearchResult` (paging info)
+- a list of `EmailOverview` rows (lightweight list-view records)
 
 ```
-overview = mgr.fetch_overview(
+page, overviews = mgr.fetch_overview(
     mailbox="INBOX",
     n=50,
-    preview_bytes=1024,
+    refresh=True,          # build/refresh the cached search
 )
 ```
 
-Returns a list of lightweight `EmailOverview` objects (subject/from/preview).
-
-### Latest messages
+To page older results:
 
 ```
-msgs = mgr.fetch_latest(
+page2, overviews2 = mgr.fetch_overview(
+    mailbox="INBOX",
+    n=50,
+    before_uid=page.next_before_uid,
+)
+```
+
+To page newer results:
+
+```
+page_newer, newer = mgr.fetch_overview(
+    mailbox="INBOX",
+    n=50,
+    after_uid=page.prev_after_uid,
+)
+```
+
+### Fetch a page of full messages
+
+`fetch_latest()` returns:
+- a `PagedSearchResult`
+- a list of full `EmailMessage` objects
+
+```
+page, msgs = mgr.fetch_latest(
     mailbox="INBOX",
     n=50,
     unseen_only=True,
-    include_attachments=False,
+    include_attachment_meta=False,
+    refresh=True,
 )
 ```
 
-Use `unseen_only=True` for basic triage, and `include_attachments=True` when you need full message data.
+> Tip: set `include_attachment_meta=True` when you need attachment *metadata* on fetched messages.
 
-### Thread fetching
+### Fetch a single message by ref
 
-Fetch all messages belonging to the same thread as a root message:
+```
+msg = mgr.fetch_message_by_ref(ref, include_attachment_meta=True)
+```
+
+### Fetch multiple messages by refs
+
+```
+msgs = mgr.fetch_messages_by_multi_refs(refs, include_attachment_meta=False)
+```
+
+### Fetch a single attachment by ref + part id
+
+If you already have attachment metadata (including the attachment part identifier), you can fetch the bytes:
+
+```
+data = mgr.fetch_attachment_by_ref_and_meta(
+    ref=ref,
+    attachment_part="2.1",  # example part id from IMAP metadata
+)
+```
+
+---
+
+## Thread Fetching
+
+Fetch messages belonging to the same thread as a root message (based on `Message-ID` plus `References` / `In-Reply-To`).
 
 ```
 thread = mgr.fetch_thread(
     root=msgs[0],
     mailbox="INBOX",
-    include_attachments=False,
+    include_attachment_meta=False,
 )
 ```
 
-If the `root` has no `message_id`, this simply returns `[root]`.
+If the root has no `message_id`, it returns `[root]`.
 
 ---
 
 ## EmailQuery Integration
 
-Use `imap_query()` to build a fluent filter via `EmailQuery`:
+Use `imap_query()` to build a fluent filter via `EmailQuery`.
 
 ```
 q = (
     mgr.imap_query("INBOX")
        .recent_unread(7)
        .from_any("noreply@github.com", "support@example.com")
+       .limit(100)
 )
 
-msgs = q.fetch(include_attachments=False)
+page, msgs = q.fetch(include_attachment_meta=False)
 ```
 
-See [`docs/EmailQuery.md`](./EmailQuery.md) for all query helpers.
+See `docs/EmailQuery.md` for all query helpers.
 
 ---
 
 ## Flags & Triage
 
-Flags are set at IMAP level using standard markers:
+Flags are manipulated at IMAP level using standard markers such as:
+- `\\Seen` (read)
+- `\\Flagged` (starred)
+- `\\Answered`
+- `\\Deleted`
+- `\\Draft`
 
-- `\Seen` (read)
-- `\Flagged` (starred)
-- `\Answered`
-- `\Deleted`
-- `\Draft`
-
-Most operations take a sequence of `EmailRef`.
+Most flag operations take a sequence of `EmailRef`.
 
 ### Mark as seen / unseen
 
@@ -248,7 +347,9 @@ mgr.mark_answered(refs)
 mgr.clear_answered(refs)
 ```
 
-### Bulk mark all seen
+### Bulk mark all unseen messages as seen
+
+`mark_all_seen()` searches in pages and flags results as seen in chunks.
 
 ```
 count = mgr.mark_all_seen(mailbox="INBOX", chunk_size=500)
@@ -270,7 +371,7 @@ Undo delete:
 mgr.undelete(refs)
 ```
 
-Permanently remove `\Deleted` messages in a mailbox:
+Permanently remove `\\Deleted` messages in a mailbox:
 
 ```
 mgr.expunge(mailbox="INBOX")
@@ -328,7 +429,7 @@ mgr.delete_mailbox("OldStuff")
 
 ## Unsubscribe Utilities
 
-EmailManager integrates with a subscription helper that looks at `List-Unsubscribe` headers.
+`EmailManager` integrates with a subscription helper that looks at `List-Unsubscribe` headers.
 
 ### Finding unsubscribe candidates
 
@@ -336,7 +437,7 @@ EmailManager integrates with a subscription helper that looks at `List-Unsubscri
 candidates = mgr.list_unsubscribe_candidates(
     mailbox="INBOX",
     limit=200,
-    since=None,       # optional IMAP SINCE filter
+    since=None,       # optional provider-specific since filter
     unseen_only=False,
 )
 ```
@@ -357,7 +458,7 @@ results = mgr.unsubscribe_selected(
 
 ### Health check
 
-Ping both IMAP and SMTP:
+Ping both IMAP and SMTP.
 
 ```
 status = mgr.health_check()
@@ -366,11 +467,11 @@ status = mgr.health_check()
 
 ### Context manager usage
 
-EmailManager implements `__enter__` / `__exit__` and `close()` for clean resource handling:
+`EmailManager` implements `__enter__` / `__exit__` and `close()` for clean resource handling.
 
 ```
 with EmailManager(smtp=smtp, imap=imap) as mgr:
-    msgs = mgr.fetch_latest(n=10)
+    page, msgs = mgr.fetch_latest(n=10, refresh=True)
 
 # or manually:
 mgr.close()

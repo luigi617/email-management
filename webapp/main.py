@@ -4,6 +4,7 @@ import io
 import mimetypes
 import os
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Dict, List, Optional, Tuple
 from urllib.parse import unquote
@@ -23,22 +24,21 @@ from openmail import EmailManager
 from openmail.models import EmailMessage
 from openmail.types import EmailRef
 
-BASE = Path(__file__).parent
-
-app = FastAPI()
-
 load_dotenv(override=True)
 
-# ---------------------------
-# Threading / blocking-IO setup
-# ---------------------------
 MAX_WORKERS = int(os.getenv("THREADPOOL_WORKERS", "20"))
 EXECUTOR = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
 
-@app.on_event("shutdown")
-def _shutdown_executor() -> None:
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
     EXECUTOR.shutdown(wait=False)
+
+
+BASE = Path(__file__).parent
+
+app = FastAPI(lifespan=lifespan)
 
 
 async def run_blocking(fn, *args, **kwargs):

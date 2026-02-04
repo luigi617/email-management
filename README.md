@@ -1,167 +1,204 @@
-# Email-Manager
+# OpenMail
 
-Lightweight Python toolkit for working with email via IMAP (read/search) and SMTP (send), with optional LLM-enhanced workflows such as summarization, prioritization, task extraction, reply assistance, and MUCH MORE!
+OpenMail is an **open-source, self-hostable email management product** powered by a robust **Python library**.
 
-Email-Manager provides a clean separation of concerns between:
-- transport (IMAP/SMTP)
-- query building
-- assistant logic
+It provides:
+- a **local-first web application** for managing email
+- a **Python toolkit** for IMAP, SMTP, search, and AI-assisted workflows
 
----
-
-## 📦 Installation
-
-```
-pip install openmail
-```
+You can run OpenMail entirely on your own machine or server — no hosted SaaS required.
 
 ---
 
 ## ✨ Features
 
-- IMAP + SMTP high-level convenience via `EmailManager`
-- Fluent IMAP builder via `EmailQuery`
-- Natural-language IMAP queries, email summarization, reply assistant, email analysis...
+The OpenMail **web application** provides:
+
+- 📥 Inbox, folders, and threaded email navigation
+- 🔍 Advanced search and filtering (rule-based + AI-assisted)
+- 🧵 Conversation and thread views
+- 🧠 AI-powered features (in progress):
+  - email summarization
+  - reply and follow-up generation
+  - task extraction
+  - prioritization and classification
+  - phishing detection
+  - sender trust evaluation
+- 🏷️ Flags, triage, and cleanup workflows
+- 📎 Attachment inspection and summaries
+- 🔕 Newsletter detection and unsubscribe helpers
+- 🗂️ Folder operations (move, copy, archive)
+- 🔐 Local-first, self-hosted execution
+- ⚙️ Configurable LLM providers (OpenAI, Claude, Gemini, Groq, XAI, etc.)
+
+All email credentials and data remain under your control.
 
 ---
 
-## 🧱 Core Components
+## 🌐 Email Website
 
-| Component | Responsibility |
-|---|---|
-| **EmailManager** | Coordinates SMTP & IMAP, handles sending, replying, forwarding, inbox triage |
-| **EmailQuery** | Fluent IMAP builder with optional NL search |
-| **EmailAssistant** | LLM entry point for summary, reply, task extraction, classification, etc. |
-
-Detailed component documentation is provided in:
-- [`docs/EmailAssistant.md`](docs/EmailAssistant.md)
-- [`docs/EmailManager.md`](docs/EmailManager.md)
-- [`docs/EmailQuery.md`](docs/EmailQuery.md)
+![Website Screenshot](docs/demo.jpg)
 
 ---
 
-## 🔧 Quick Start Example
+## 🚀 Getting Started (Run Locally)
+
+These steps explain how to run OpenMail **locally from source**, including the web app.
+
+---
+
+### 1. Clone the repository
 
 ```
-from openmail.smtp import SMTPClient
-from openmail.imap import IMAPClient
-from openmail.auth import PasswordAuth
-from openmail import EmailManager, EmailAssistant, EmailAssistantProfile
-
-# Password Authentication
-auth = PasswordAuth(username="you@example.com", password="secret_app_password")
-
-# Or use OAuth2Auth (e.g. Gmail/Outlook with OAuth tokens).
-# def token_provider():
-#     # Must return a fresh OAuth2 access token string
-#     return get_access_token_somehow()
-# auth = OAuth2Auth(username="you@example.com", token_provider=token_provider)
-
-imap = IMAPClient(host="imap.example.com", port=993, auth=auth)
-smtp = SMTPClient(host="smtp.example.com", port=587, auth=auth)
-
-mgr = EmailManager(imap=imap, smtp=smtp)
-
-profile = EmailAssistantProfile(
-    name="Alex",
-    role="Support Engineer",
-    company="ExampleCorp",
-    tone="friendly",
-)
-
-assistant = EmailAssistant(profile=profile)
+git clone https://github.com/luigi617/openmail.git
+cd openmail
 ```
 
 ---
 
-## 📨 Searching & Fetching Email
-
-IMAP operations can be performed directly:
+### 2. Create and activate a virtual environment
 
 ```
-msgs = mgr.fetch_latest(unseen_only=True, n=20)
-```
-
-Or via fluent IMAP builder:
-
-```
-q = mgr.imap_query().from_any("alerts@example.com").recent_unread(3)
-msgs = q.fetch()
-```
-
-Natural-language searches are also supported:
-
-```
-query, info = assistant.search_emails(
-    "find unread security alerts from Google last week",
-    provider="openai",
-    model_name="gpt-4.1",
-    manager=mgr,
-)
-msgs = query.fetch()
+python -m venv .venv
+source .venv/bin/activate
 ```
 
 ---
 
-## 🤖 Summarization, Classification & Replies
+### 3. Install the Python package (editable mode)
 
 ```
-summary, meta = assistant.summarize_email(
-    message=msgs[0],
-    provider="openai",
-    model_name="gpt-4.1",
-)
-
-reply_text, meta = assistant.generate_reply(
-    reply_context="Confirm resolution and next steps",
-    message=msgs[0],
-    provider="openai",
-    model_name="gpt-4.1",
-)
+pip install -e .
 ```
 
-Utility tasks include:
-- `prioritize_emails()`
-- `classify_emails()`
-- `generate_follow_up()`
-- `extract_tasks()`
-- `summarize_thread()`
-- `detect_phishing()`
-- `evaluate_sender_trust()`
+This installs the OpenMail Python library in development mode.
 
 ---
 
-## 🧰 EmailManager Overview
+### 4. Configure your email account (`.env`)
 
-Supports:
-- Sending & composing
-- Drafts
-- Reply / Reply-all
-- Forwarding
-- Folder operations (move, copy, delete)
-- Flag operations (seen, answered, flagged, etc.)
-- Thread fetching
-- Unsubscribe helpers
-- Health checks
+OpenMail reads email configuration from environment variables.  
+You can see the expected variables in the **email_service** module.
 
-Example:
+Create a `.env` file in the project root:
 
 ```
-mgr.reply(
-    original=msgs[0],
-    body="Thanks! We'll follow up shortly.",
-)
+touch .env
 ```
+
+Example `.env`:
+
+```
+# Email account configuration
+#
+# Format:
+#   ACCOUNTS="<provider>:<email>:<auth_method>:<auth_params>"
+# Email accounts
+# Supported auth methods:
+#   - app
+#   - oauth2
+#
+# Examples:
+#
+# App password authentication:
+#   <provider>:<email>:app:password=<app_password>
+#
+# OAuth2 authentication:
+#   <provider>:<email>:oauth2:client_id=<client_id>:client_secret=<client_secret>:refresh_token=<refresh_token>
+
+ACCOUNTS="gmail:example1@example.com:app:password=example1password
+gmail:example2@example.com:app:password=example2password
+gmail:example3@example.com:oauth2:client_id=example3_ci:client_secret=example3_cs:refresh_token=example3_rt
+"
+
+
+# Optional: LLM providers
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=...
+GOOGLE_API_KEY=...
+XAI_API_KEY=...
+GROQ_API_KEY=...
+```
+
+Notes:
+- Use **app-specific passwords** when required by your email provider
+- You only need to configure the LLM providers you plan to use
+- OAuth-based auth may be added/configured depending on provider support
 
 ---
 
-## 🗂 Documentation Structure
+### 5. Run the web application
 
-This README covers overall usage. Focused guides are in:
+OpenMail includes a helper script to run the web UI locally.
 
-- [`docs/EmailAssistant.md`](docs/EmailAssistant.md)
-- [`docs/EmailManager.md`](docs/EmailManager.md)
-- [`docs/EmailQuery.md`](docs/EmailQuery.md)
+```
+bash run_web.sh
+```
+
+Once started, open your browser at:
+
+```
+http://localhost:<port>
+```
+
+You now have a fully local OpenMail instance running.
+
+---
+
+## 🐍 Python Library Package
+
+OpenMail can also be used **purely as a Python library**, without the web UI.
+
+The library provides:
+
+- `EmailManager` — IMAP/SMTP orchestration
+- `EmailQuery` — fluent, lazy IMAP query builder
+- `EmailAssistant` — optional LLM-powered email intelligence
+
+Example import:
+
+```
+from openmail import EmailManager, EmailQuery, EmailAssistant
+```
+
+The **same core library** powers the web application.
+
+See [here](/docs/Package.md) directory for detailed API documentation.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome.
+
+You can help by:
+- fixing bugs
+- adding features
+- improving the web UI
+- extending email provider support
+- improving documentation
+- adding tests
+
+Basic workflow:
+
+```
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+```
+
+Please keep pull requests focused and well-described.
+
+---
+
+## 🐞 Reporting Issues
+
+If you encounter a bug or have a feature request:
+open an issue [here](https://github.com/luigi617/openmail/issues).
+
+
 
 ---
 
