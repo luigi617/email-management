@@ -21,6 +21,7 @@ from email_service import (
     AccountSecrets,
     BOX,
 )
+from context import ACCOUNTS
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
@@ -93,6 +94,20 @@ class UpdateSecretsIn(BaseModel):
 # ---------------------------
 # Endpoints
 # ---------------------------
+
+@router.get("/{account}/connected")
+def is_account_connected(account: str) -> dict:
+    email_manager = ACCOUNTS.get(account)
+    if not email_manager:
+        return {"result": False, "detail": "Account does not exist"}
+    health_res = email_manager.health_check()
+    if not health_res["imap"] and not health_res["smtp"]:
+        return {"result": False, "detail": "IMAP and SMTP are not active"}
+    elif not health_res["imap"]:
+        return {"result": False, "detail": "IMAP is not active"}
+    elif not health_res["smtp"]:
+        return {"result": False, "detail": "SMTP are not active"}
+    return {"result": True, "detail": "ok"}
 
 @router.get("", response_model=List[AccountUI])
 def get_all_accounts():
@@ -177,7 +192,6 @@ def start_oauth_existing_account(
             redirect_uri=redirect_uri,
             scopes=scopes,
         )
-        print(authorize_url)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

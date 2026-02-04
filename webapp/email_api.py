@@ -1,0 +1,545 @@
+# email_api.py
+import asyncio
+import io
+import mimetypes
+from typing import Annotated, Dict, List, Optional, Tuple
+from urllib.parse import unquote
+
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+)
+from fastapi.responses import StreamingResponse
+
+from email_overview import build_email_overview
+from openmail.models import EmailMessage
+from openmail.types import EmailRef
+from utils import build_extra_headers, safe_filename, uploadfiles_to_attachments
+
+from context import ACCOUNTS, MAILBOX_CACHE, MESSAGE_CACHE, run_blocking
+
+
+router = APIRouter(prefix="/api", tags=["email"])
+
+
+def _safe_mark_seen(account: str, ref: EmailRef) -> None:
+    try:
+        manager = ACCOUNTS.get(account)
+        if manager is None:
+            return
+        manager.mark_seen([ref])
+    except Exception:
+        pass
+
+
+async def _compute_mailbox_status_async() -> Dict[str, Dict[str, Dict[str, int]]]:
+    async def per_account(
+        acc_name: str, manager
+    ) -> Tuple[str, Dict[str, Dict[str, int]]]:
+        try:
+            mailboxes = await run_blocking(manager.list_mailboxes)
+        except Exception:
+            return acc_name, {}
+
+        async def per_mailbox(mb: str) -> Tuple[str, Dict[str, int]]:
+            try:
+                status = await run_blocking(manager.mailbox_status, mb)
+                return mb, status
+            except Exception:
+                return mb, {}
+
+        mailbox_pairs = await asyncio.gather(*(per_mailbox(mb) for mb in mailboxes))
+        return acc_name, dict(mailbox_pairs)
+
+    pairs = await asyncio.gather(
+        *(per_account(name, mgr) for name, mgr in ACCOUNTS.items())
+    )
+    return dict(pairs)
+
+
+def _refreshMAILBOX_CACHE(cache_key: str) -> None:
+    """
+    BackgroundTasks runs this in a threadpool.
+    We can safely run the async computation by creating an event loop in this thread.
+    """
+    try:
+        res = asyncio.run(_compute_mailbox_status_async())
+        MAILBOX_CACHE.set(cache_key, res)
+    except Exception:
+        pass
+
+
+# ---------------------------
+# Routes: overview
+# ---------------------------
+@router.get("/emails/overview")
+async def get_email_overview(
+    mailbox: str = "INBOX",
+    limit: int = 50,
+    search_query: Annotated[
+        Optional[str],
+        Query(description="Optional natural-language search query (will be converted to IMAP query)."),
+    ] = None,
+    search_mode: Annotated[
+        str,
+        Query(
+            description='Search mode: "general" (subject/from/to/text) or "ai" (LLM-derived IMAP).',
+            pattern="^(general|ai)$",
+        ),
+    ] = "general",
+    cursor: Annotated[Optional[str], Query(description="Opaque pagination cursor.")] = None,
+    accounts: Annotated[
+        Optional[List[str]],
+        Query(description="Optional list of account IDs. If omitted, all accounts are used."),
+    ] = None,
+) -> dict:
+    """
+    Multi-account email overview with per-account pagination.
+    build_email_overview is typically blocking (IMAP) -> run in bounded threadpool.
+    """
+    return await build_email_overview(
+        mailbox=mailbox,
+        limit=limit,
+        search_query=search_query,
+        search_mode=search_mode,
+        cursor=cursor,
+        accounts=accounts,
+        ACCOUNTS=ACCOUNTS,
+        run_blocking=run_blocking,
+    )
+
+
+# ---------------------------
+# Routes: mailboxes
+# ---------------------------
+@router.get("/emails/mailbox")
+async def get_email_mailbox(
+    background_tasks: BackgroundTasks,
+) -> Dict[str, Dict[str, Dict[str, int]]]:
+    """
+    Return available mailboxes per account (cached).
+    """
+    cache_key = "mailboxes_all_accounts"
+    cached = MAILBOX_CACHE.get(cache_key)
+    if cached is not None:
+        background_tasks.add_task(_refreshMAILBOX_CACHE, cache_key)
+        return cached
+
+    res = await _compute_mailbox_status_async()
+    MAILBOX_CACHE.set(cache_key, res)
+    return res
+
+
+# ---------------------------
+# Routes: single email
+# ---------------------------
+@router.get("/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}")
+async def get_email(
+    background_tasks: BackgroundTasks, account: str, mailbox: str, email_id: int
+) -> dict:
+    account = unquote(account)
+    mailbox = unquote(mailbox)
+
+    manager = ACCOUNTS.get(account)
+    if manager is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    cache_key = f"{account}|{mailbox}|{int(email_id)}"
+    cached = MESSAGE_CACHE.get(cache_key)
+    if cached is not None:
+        email_ref = EmailRef(mailbox=mailbox, uid=email_id)
+        background_tasks.add_task(_safe_mark_seen, account, email_ref)
+        return cached  # type: ignore
+
+    email_ref = EmailRef(mailbox=mailbox, uid=email_id)
+
+    message: EmailMessage = await run_blocking(
+        manager.fetch_message_by_ref,
+        email_ref,
+        include_attachment_meta=True,
+    )
+
+    background_tasks.add_task(_safe_mark_seen, account, email_ref)
+
+    data = message.to_dict()
+    data["ref"].setdefault("account", account)
+
+    MESSAGE_CACHE.set(cache_key, data)
+    return data
+
+
+# ---------------------------
+# Routes: attachment download
+# ---------------------------
+@router.get("/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/attachment")
+async def download_email_attachment(
+    account: str,
+    mailbox: str,
+    email_id: int,
+    part: str = Query(..., description='IMAP part section for attachment, e.g. "2.1"'),
+    filename: str | None = Query(None, description="Filename to use when downloading"),
+    content_type: str | None = Query(None, description="MIME type, e.g. application/pdf"),
+) -> Response:
+    account = unquote(account)
+    mailbox = unquote(mailbox)
+
+    manager = ACCOUNTS.get(account)
+    if manager is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    part = (part or "").strip()
+    if not part:
+        raise HTTPException(status_code=400, detail="part is required")
+
+    ref = EmailRef(mailbox=mailbox, uid=email_id)
+
+    try:
+        attachment_bytes = await run_blocking(
+            manager.fetch_attachment_by_ref_and_meta, ref, part
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch attachment: {e}") from e
+
+    filename = safe_filename(filename, fallback=f"email-{email_id}-part-{part}.bin")
+    resolved_content_type = (
+        content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    )
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+
+    return StreamingResponse(
+        io.BytesIO(attachment_bytes),
+        media_type=resolved_content_type,
+        headers=headers,
+    )
+
+
+# ---------------------------
+# Routes: archive / delete / move
+# ---------------------------
+@router.post("/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/archive")
+async def archive_email(account: str, mailbox: str, email_id: int) -> dict:
+    account = unquote(account)
+    mailbox = unquote(mailbox)
+
+    manager = ACCOUNTS.get(account)
+    if manager is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    ref = EmailRef(mailbox=mailbox, uid=email_id)
+
+    archive_mailbox = "Archive"
+    mailboxes = await run_blocking(manager.list_mailboxes)
+    if archive_mailbox not in mailboxes:
+        await run_blocking(manager.create_mailbox, archive_mailbox)
+
+    await run_blocking(manager.move, [ref], src_mailbox=mailbox, dst_mailbox=archive_mailbox)
+
+    return {"status": "ok", "action": "archive", "account": account, "mailbox": mailbox, "email_id": email_id}
+
+
+@router.delete("/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}")
+async def delete_email(account: str, mailbox: str, email_id: int) -> dict:
+    account = unquote(account)
+    mailbox = unquote(mailbox)
+
+    manager = ACCOUNTS.get(account)
+    if manager is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    ref = EmailRef(mailbox=mailbox, uid=email_id)
+
+    await run_blocking(manager.delete, [ref])
+    await run_blocking(manager.expunge, mailbox=mailbox)
+
+    return {"status": "ok", "action": "delete", "account": account, "mailbox": mailbox, "email_id": email_id}
+
+
+@router.post("/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/move")
+async def move_email(
+    account: str,
+    mailbox: str,
+    email_id: int,
+    destination_mailbox: str = Form(..., description="Target mailbox to move the message into"),
+) -> dict:
+    account = unquote(account)
+    mailbox = unquote(mailbox)
+
+    manager = ACCOUNTS.get(account)
+    if manager is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    ref = EmailRef(mailbox=mailbox, uid=email_id)
+
+    mailboxes = await run_blocking(manager.list_mailboxes)
+    if destination_mailbox not in mailboxes:
+        await run_blocking(manager.create_mailbox, destination_mailbox)
+
+    await run_blocking(manager.move, [ref], src_mailbox=mailbox, dst_mailbox=destination_mailbox)
+
+    return {
+        "status": "ok",
+        "action": "move",
+        "account": account,
+        "src_mailbox": mailbox,
+        "dst_mailbox": destination_mailbox,
+        "email_id": email_id,
+    }
+
+
+# ---------------------------
+# Routes: draft / reply / reply-all / forward / send
+# ---------------------------
+@router.post("/accounts/{account:path}/draft")
+async def save_draft(
+    account: str,
+    subject: Annotated[Optional[str], Form()] = None,
+    to: Annotated[Optional[List[str]], Form()] = None,
+    from_addr: Annotated[Optional[str], Form()] = None,
+    cc: Annotated[Optional[List[str]], Form()] = None,
+    bcc: Annotated[Optional[List[str]], Form()] = None,
+    text: Annotated[Optional[str], Form()] = None,
+    html: Annotated[Optional[str], Form()] = None,
+    reply_to: Annotated[Optional[List[str]], Form()] = None,
+    priority: Annotated[Optional[str], Form()] = None,
+    drafts_mailbox: str = Form("Drafts", description="Mailbox where the draft will be stored"),
+    attachments: Annotated[Optional[List[UploadFile]], File()] = None,
+) -> dict:
+    if attachments is None:
+        attachments = []
+
+    account = unquote(account)
+    manager = ACCOUNTS.get(account)
+    if manager is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    attachment_models = await uploadfiles_to_attachments(attachments)
+    extra_headers = build_extra_headers(reply_to=reply_to, priority=priority)
+
+    save_result = await run_blocking(
+        manager.save_draft,
+        subject=subject,
+        to=to or [],
+        from_addr=from_addr or account,
+        cc=cc or [],
+        bcc=bcc or [],
+        text=text,
+        html=html,
+        attachments=attachment_models or None,
+        extra_headers=extra_headers or None,
+        mailbox=drafts_mailbox,
+    )
+
+    return {"status": "ok", "action": "save_draft", "account": account, "mailbox": drafts_mailbox, "result": save_result.to_dict()}
+
+
+@router.post("/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/reply")
+async def reply_email(
+    account: str,
+    mailbox: str,
+    email_id: int,
+    text: Annotated[str, Form()],
+    html: Annotated[Optional[str], Form()] = None,
+    from_addr: Annotated[Optional[str], Form()] = None,
+    quote_original: bool = Form(True),
+    subject: Annotated[Optional[str], Form()] = None,
+    to: Annotated[Optional[List[str]], Form()] = None,
+    cc: Annotated[Optional[List[str]], Form()] = None,
+    bcc: Annotated[Optional[List[str]], Form()] = None,
+    reply_to: Annotated[Optional[List[str]], Form()] = None,
+    priority: Annotated[Optional[str], Form()] = None,
+    attachments: Annotated[Optional[List[UploadFile]], File()] = None,
+) -> dict:
+    if attachments is None:
+        attachments = []
+
+    account = unquote(account)
+    mailbox = unquote(mailbox)
+
+    manager = ACCOUNTS.get(account)
+    if manager is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    original: EmailMessage = await run_blocking(
+        manager.fetch_message_by_ref,
+        EmailRef(mailbox=mailbox, uid=email_id),
+        include_attachment_meta=False,
+    )
+
+    attachment_models = await uploadfiles_to_attachments(attachments)
+    extra_headers = build_extra_headers(reply_to=reply_to, priority=priority)
+
+    send_result = await run_blocking(
+        manager.reply,
+        original=original,
+        text=text,
+        html=html,
+        from_addr=from_addr,
+        quote_original=quote_original,
+        to=to,
+        cc=cc,
+        bcc=bcc,
+        subject=subject,
+        attachments=attachment_models or None,
+        extra_headers=extra_headers or None,
+    )
+
+    return {"status": "ok", "action": "reply", "account": account, "mailbox": mailbox, "email_id": email_id, "result": send_result.to_dict()}
+
+
+@router.post("/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/reply-all")
+async def reply_all_email(
+    account: str,
+    mailbox: str,
+    email_id: int,
+    text: Annotated[str, Form()],
+    html: Annotated[Optional[str], Form()] = None,
+    from_addr: Annotated[Optional[str], Form()] = None,
+    quote_original: bool = Form(True),
+    subject: Annotated[Optional[str], Form()] = None,
+    to: Annotated[Optional[List[str]], Form()] = None,
+    cc: Annotated[Optional[List[str]], Form()] = None,
+    bcc: Annotated[Optional[List[str]], Form()] = None,
+    reply_to: Annotated[Optional[List[str]], Form()] = None,
+    priority: Annotated[Optional[str], Form()] = None,
+    attachments: Annotated[Optional[List[UploadFile]], File()] = None,
+) -> dict:
+    if attachments is None:
+        attachments = []
+
+    account = unquote(account)
+    mailbox = unquote(mailbox)
+
+    manager = ACCOUNTS.get(account)
+    if manager is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    original: EmailMessage = await run_blocking(
+        manager.fetch_message_by_ref,
+        EmailRef(mailbox=mailbox, uid=email_id),
+        include_attachment_meta=False,
+    )
+
+    attachment_models = await uploadfiles_to_attachments(attachments)
+    extra_headers = build_extra_headers(reply_to=reply_to, priority=priority)
+
+    send_result = await run_blocking(
+        manager.reply_all,
+        original=original,
+        text=text,
+        html=html,
+        from_addr=from_addr,
+        quote_original=quote_original,
+        to=to,
+        cc=cc,
+        bcc=bcc,
+        subject=subject,
+        attachments=attachment_models or None,
+        extra_headers=extra_headers or None,
+    )
+
+    return {"status": "ok", "action": "reply_all", "account": account, "mailbox": mailbox, "email_id": email_id, "result": send_result.to_dict()}
+
+
+@router.post("/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/forward")
+async def forward_email(
+    account: str,
+    mailbox: str,
+    email_id: int,
+    to: Annotated[List[str], Form()],
+    text: Annotated[Optional[str], Form()] = None,
+    html: Annotated[Optional[str], Form()] = None,
+    from_addr: Annotated[Optional[str], Form()] = None,
+    include_original: bool = Form(True),
+    include_attachments: bool = Form(True),
+    cc: Annotated[Optional[List[str]], Form()] = None,
+    bcc: Annotated[Optional[List[str]], Form()] = None,
+    subject: Annotated[Optional[str], Form()] = None,
+    reply_to: Annotated[Optional[List[str]], Form()] = None,
+    priority: Annotated[Optional[str], Form()] = None,
+    attachments: Annotated[Optional[List[UploadFile]], File()] = None,
+) -> dict:
+    if attachments is None:
+        attachments = []
+
+    account = unquote(account)
+    mailbox = unquote(mailbox)
+
+    manager = ACCOUNTS.get(account)
+    if manager is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    original: EmailMessage = await run_blocking(
+        manager.fetch_message_by_ref,
+        EmailRef(mailbox=mailbox, uid=email_id),
+        include_attachment_meta=True,
+    )
+
+    attachment_models = await uploadfiles_to_attachments(attachments)
+    extra_headers = build_extra_headers(reply_to=reply_to, priority=priority)
+
+    send_result = await run_blocking(
+        manager.forward,
+        original=original,
+        to=to,
+        text=text,
+        html=html,
+        from_addr=from_addr,
+        include_original=include_original,
+        include_attachments=include_attachments,
+        cc=cc,
+        bcc=bcc,
+        subject=subject,
+        attachments=attachment_models or None,
+        extra_headers=extra_headers or None,
+    )
+
+    return {"status": "ok", "action": "forward", "account": account, "mailbox": mailbox, "email_id": email_id, "result": send_result.to_dict()}
+
+
+@router.post("/accounts/{account:path}/send")
+async def send_email(
+    account: str,
+    subject: Annotated[str, Form()],
+    to: Annotated[List[str], Form()],
+    from_addr: Annotated[Optional[str], Form()] = None,
+    cc: Annotated[Optional[List[str]], Form()] = None,
+    bcc: Annotated[Optional[List[str]], Form()] = None,
+    text: Annotated[Optional[str], Form()] = None,
+    html: Annotated[Optional[str], Form()] = None,
+    reply_to: Annotated[Optional[List[str]], Form()] = None,
+    priority: Annotated[Optional[str], Form()] = None,
+    attachments: Annotated[Optional[List[UploadFile]], File()] = None,
+) -> dict:
+    if attachments is None:
+        attachments = []
+
+    account = unquote(account)
+    manager = ACCOUNTS.get(account)
+    if manager is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    attachment_models = await uploadfiles_to_attachments(attachments)
+    extra_headers = build_extra_headers(reply_to=reply_to, priority=priority)
+
+    send_result = await run_blocking(
+        manager.compose_and_send,
+        subject=subject,
+        to=to,
+        from_addr=from_addr or account,
+        cc=cc or [],
+        bcc=bcc or [],
+        text=text,
+        html=html,
+        attachments=attachment_models or None,
+        extra_headers=extra_headers or None,
+    )
+
+    return {"status": "ok", "action": "send", "account": account, "result": send_result.to_dict()}

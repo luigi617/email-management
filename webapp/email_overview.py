@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import copy
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -61,7 +62,7 @@ def _cache_key(
     return f"mb={mailbox}|lim={limit}|cursor={cursor or ''}|acc={acc_key}|mode={search_mode}|q={sq}"
 
 
-def build_email_overview(
+async def build_email_overview(
     *,
     mailbox: str = "INBOX",
     limit: int = 50,
@@ -70,6 +71,7 @@ def build_email_overview(
     cursor: Optional[str] = None,
     accounts: Optional[List[str]] = None,
     ACCOUNTS: Dict[str, EmailManager],
+    run_blocking,
 ) -> dict:
 
     if limit < 1:
@@ -142,17 +144,13 @@ def build_email_overview(
             )
             _DERIVED_QUERY_CACHE.set(ai_key, cached_ai)
 
-    def _fetch_one_account(acc_id: str) -> Tuple[str, int, List[EmailOverview]]:
-        """
-        Returns: (acc_id, total_count, list_of_overviews)
-        """
+    async def _fetch_one_account(acc_id: str) -> Tuple[str, int, List[EmailOverview]]:
         manager = managers[acc_id]
         state = account_state.get(acc_id, {"next_before_uid": None})
         before_uid = state.get("next_before_uid")
 
         q = manager.imap_query(mailbox).limit(limit)
 
-        # Apply search
         if normalized_search:
             if search_mode == "ai" and cached_ai is not None:
                 _apply_cached_query(q, cached_ai)
@@ -164,31 +162,34 @@ def build_email_overview(
                     IMAPQuery().from_(normalized_search),
                 )
 
-        # Refresh only on first page AND only on cache miss (we're here)
         refresh_flag = is_first_page
 
         try:
-            page_meta, overview_list = q.fetch_overview(
+            page_meta, overview_list = await run_blocking(
+                q.fetch_overview,
                 before_uid=before_uid,
                 after_uid=None,
                 refresh=refresh_flag,
             )
-        except:
+        except Exception:
             return acc_id, 0, []
+
         return acc_id, int(page_meta.total), overview_list
 
     combined_entries: List[Tuple[str, EmailOverview]] = []
     total_count = 0
 
     # ---------- Parallel fetch across accounts ----------
-    max_workers = min(8, max(1, len(account_ids)))
-    with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        futures = [ex.submit(_fetch_one_account, acc_id) for acc_id in account_ids]
-        for fut in as_completed(futures):
-            acc_id, acc_total, overview_list = fut.result()
-            total_count += acc_total
-            for ov in overview_list:
-                combined_entries.append((acc_id, ov))
+    results = await asyncio.gather(
+        *(_fetch_one_account(acc_id) for acc_id in account_ids),
+        return_exceptions=False,
+    )
+
+    for acc_id, acc_total, overview_list in results:
+        total_count += acc_total
+        for ov in overview_list:
+            combined_entries.append((acc_id, ov))
+                
 
     def _unique_sort_key(pair: Tuple[str, EmailOverview]) -> Tuple[datetime, str, int]:
         acc_id, ov = pair

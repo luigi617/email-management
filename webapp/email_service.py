@@ -316,7 +316,6 @@ def load_accounts_from_db() -> Dict[str, EmailManager]:
     Returns {email: EmailManager} just like your old parse_accounts().
     """
     results: Dict[str, EmailManager] = {}
-
     with db_session() as db:
         accounts = db.execute(select(Account)).scalars().all()
         for acc in accounts:
@@ -337,7 +336,6 @@ def load_accounts_from_db() -> Dict[str, EmailManager]:
                 continue
 
             results[acc.email] = get_email_manager(acc.provider, acc.email, acc.auth_method, **kwargs)
-
     return results
 
 
