@@ -1,8 +1,12 @@
+export type AccountProvider = 'gmail' | 'outlook' | 'yahoo' | 'icloud';
+
+export type AccountAuth = 'app' | 'oauth2' | 'no-auth';
+
 export type AccountRow = {
   id: number;
-  provider: 'gmail' | 'outlook' | 'yahoo' | 'icloud';
+  provider: AccountProvider;
   email: string;
-  auth_method: 'app' | 'oauth2' | 'no-auth';
+  auth_method: AccountAuth;
   has_password: boolean;
   has_client: boolean;
   has_refresh_token: boolean;

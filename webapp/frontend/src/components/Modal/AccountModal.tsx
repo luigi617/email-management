@@ -1,6 +1,6 @@
 // src/components/Modal/AccountsModal.tsx
 import { useEffect, useMemo, useState } from 'react';
-import type { AccountRow } from '../../types/accountApi';
+import type { AccountAuth, AccountProvider, AccountRow } from '../../types/accountApi';
 import { AccountApi } from '../../api/accountApi';
 import CloseIcon from '@/assets/svg/close.svg?react';
 import { EmailApi } from '../../api/emailApi';
@@ -38,7 +38,9 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
   const [password, setPassword] = useState('');
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
-  const [redirectUri, setRedirectUri] = useState(`http://localhost:8000/api/accounts/oauth/callback`);
+  const [redirectUri, setRedirectUri] = useState(
+    `http://localhost:8000/api/accounts/oauth/callback`
+  );
   const [scopes, setScopes] = useState('');
 
   const connectedCount = useMemo(
@@ -59,22 +61,24 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
           try {
             const key = a.email;
             if (a.auth_method === 'app' && !a.has_password) {
-              return [String(a.id), { ok: false, detail: "needs app password" }] as const;
+              return [String(a.id), { ok: false, detail: 'needs app password' }] as const;
             }
             if (a.auth_method === 'oauth2' && !a.has_refresh_token) {
-              return [String(a.id), { ok: false, detail: "needs OAuth" }] as const;
+              return [String(a.id), { ok: false, detail: 'needs OAuth' }] as const;
             }
             const res = await EmailApi.isAccountConnected(key);
             return [String(a.id), { ok: !!res.result, detail: res.detail }] as const;
-          } catch (e: any) {
-            return [String(a.id), { ok: false, detail: e?.message ?? 'health check failed' }] as const;
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'health check failed';
+
+            return [String(a.id), { ok: false, detail: message }] as const;
           }
         })
       );
 
       setConnectedById(Object.fromEntries(entries));
-    } catch (e: any) {
-      setErr(e?.message ?? String(e));
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -159,10 +163,16 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
           window.open(res.authorize_url, '_blank', 'noopener,noreferrer');
         } else {
           if (!selected) throw new Error('No account selected');
-          const patch: any = {};
+          type OAuth2SecretPatch = Partial<{
+            client_id: string;
+            client_secret: string;
+          }>;
+
+          const patch: OAuth2SecretPatch = {};
           if (clientId.trim()) patch.client_id = clientId.trim();
           if (clientSecret.trim()) patch.client_secret = clientSecret.trim();
-          if (Object.keys(patch).length === 0) throw new Error('Enter client_id and/or client_secret to update');
+          if (Object.keys(patch).length === 0)
+            throw new Error('Enter client_id and/or client_secret to update');
           await AccountApi.updateAccountSecrets(selected.id, patch);
         }
       } else {
@@ -174,8 +184,8 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
       setMode('list');
       setSelected(null);
       resetForm();
-    } catch (e: any) {
-      setErr(e?.message ?? String(e));
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -190,8 +200,8 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
       onAccountsChanged?.();
       if (selected?.id === a.id) setSelected(null);
       setMode('list');
-    } catch (e: any) {
-      setErr(e?.message ?? String(e));
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -205,8 +215,8 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
         scopes.trim() ? scopes.trim() : undefined
       );
       window.open(res.authorize_url, '_blank', 'noopener,noreferrer');
-    } catch (e: any) {
-      setErr(e?.message ?? String(e));
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -218,7 +228,9 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
         <div className="modal-header">
           <div>
             <h3>Accounts</h3>
-            <div className="muted">{loading ? 'Loading…' : `${connectedCount}/${accounts.length} connected`}</div>
+            <div className="muted">
+              {loading ? 'Loading…' : `${connectedCount}/${accounts.length} connected`}
+            </div>
           </div>
 
           <div className="row" style={{ gap: 8 }}>
@@ -319,7 +331,11 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
             <div className="form-grid">
               <label>
                 Provider
-                <select value={provider} onChange={(e) => setProvider(e.target.value as any)} disabled={mode === 'edit'}>
+                <select
+                  value={provider}
+                  onChange={(e) => setProvider(e.target.value as AccountProvider)}
+                  disabled={mode === 'edit'}
+                >
                   <option value="gmail">gmail</option>
                   <option value="outlook">outlook</option>
                   <option value="yahoo">yahoo</option>
@@ -341,7 +357,7 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
                 Auth method
                 <select
                   value={authMethod}
-                  onChange={(e) => setAuthMethod(e.target.value as any)}
+                  onChange={(e) => setAuthMethod(e.target.value as AccountAuth)}
                   disabled={mode === 'edit'}
                 >
                   <option value="app">app</option>
@@ -368,7 +384,9 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
                     }
                   />
                   {mode === 'edit' && selected && !connectedById[String(selected.id)]?.ok ? (
-                    <div className="muted">This account isn’t connected yet — enter the app password and click Save.</div>
+                    <div className="muted">
+                      This account isn’t connected yet — enter the app password and click Save.
+                    </div>
                   ) : null}
                 </label>
               </div>
@@ -399,7 +417,11 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
 
                   <label style={{ gridColumn: '1 / -1' }}>
                     Redirect URI
-                    <input type="text" value={redirectUri} onChange={(e) => setRedirectUri(e.target.value)} />
+                    <input
+                      type="text"
+                      value={redirectUri}
+                      onChange={(e) => setRedirectUri(e.target.value)}
+                    />
                   </label>
 
                   <label style={{ gridColumn: '1 / -1' }}>
@@ -420,11 +442,13 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
                       onClick={async () => {
                         setErr(null);
                         try {
-                          await AccountApi.updateAccountSecrets(selected.id, { clear_refresh_token: true });
+                          await AccountApi.updateAccountSecrets(selected.id, {
+                            clear_refresh_token: true,
+                          });
                           await refresh();
                           onAccountsChanged?.();
-                        } catch (e: any) {
-                          setErr(e?.message ?? String(e));
+                        } catch (e: unknown) {
+                          setErr(e instanceof Error ? e.message : String(e));
                         }
                       }}
                     >
@@ -449,9 +473,9 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
             </div>
 
             <div className="muted" style={{ marginTop: 10 }}>
-              Connected status updates when you click “Refresh status” (or reopen this modal).
-              For OAuth2, click “Connect” to complete the consent flow.
-              For app-password accounts, “Connect” means entering an app password so IMAP/SMTP become active.
+              Connected status updates when you click “Refresh status” (or reopen this modal). For
+              OAuth2, click “Connect” to complete the consent flow. For app-password accounts,
+              “Connect” means entering an app password so IMAP/SMTP become active.
             </div>
           </div>
         )}

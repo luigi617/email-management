@@ -1,34 +1,18 @@
-import asyncio
-import io
-import mimetypes
 import os
-import threading
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated, Dict, List, Optional, Tuple
-from urllib.parse import unquote
 
+from accounts_api import router as accounts_router
+from accounts_api import set_reload_callback
+from context import EXECUTOR, reload_accounts_in_memory
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, Response, UploadFile
+from email_api import router as email_router
+from email_service import init_db
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
-
-from accounts_api import router as accounts_router, set_reload_callback
-from email_overview import build_email_overview
-from email_service import init_db, load_accounts_from_db
-from openmail import EmailManager
-from openmail.models import EmailMessage
-from openmail.types import EmailRef
-from ttl_cache import TTLCache
-from utils import build_extra_headers, safe_filename, uploadfiles_to_attachments
-
-
-from email_api import router as email_router
-from context import ACCOUNTS, EXECUTOR, reload_accounts_in_memory
-
 
 load_dotenv(override=True)
 
@@ -69,7 +53,6 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 set_reload_callback(reload_accounts_in_memory)
 app.include_router(accounts_router)
 app.include_router(email_router)
-
 
 
 # ---------------------------

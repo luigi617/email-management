@@ -5,6 +5,8 @@ import mimetypes
 from typing import Annotated, Dict, List, Optional, Tuple
 from urllib.parse import unquote
 
+from context import ACCOUNTS, MAILBOX_CACHE, MESSAGE_CACHE, run_blocking
+from email_overview import build_email_overview
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -16,14 +18,10 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import StreamingResponse
-
-from email_overview import build_email_overview
-from openmail.models import EmailMessage
-from openmail.types import EmailRef
 from utils import build_extra_headers, safe_filename, uploadfiles_to_attachments
 
-from context import ACCOUNTS, MAILBOX_CACHE, MESSAGE_CACHE, run_blocking
-
+from openmail.models import EmailMessage
+from openmail.types import EmailRef
 
 router = APIRouter(prefix="/api", tags=["email"])
 
@@ -39,9 +37,7 @@ def _safe_mark_seen(account: str, ref: EmailRef) -> None:
 
 
 async def _compute_mailbox_status_async() -> Dict[str, Dict[str, Dict[str, int]]]:
-    async def per_account(
-        acc_name: str, manager
-    ) -> Tuple[str, Dict[str, Dict[str, int]]]:
+    async def per_account(acc_name: str, manager) -> Tuple[str, Dict[str, Dict[str, int]]]:
         try:
             mailboxes = await run_blocking(manager.list_mailboxes)
         except Exception:
@@ -57,9 +53,7 @@ async def _compute_mailbox_status_async() -> Dict[str, Dict[str, Dict[str, int]]
         mailbox_pairs = await asyncio.gather(*(per_mailbox(mb) for mb in mailboxes))
         return acc_name, dict(mailbox_pairs)
 
-    pairs = await asyncio.gather(
-        *(per_account(name, mgr) for name, mgr in ACCOUNTS.items())
-    )
+    pairs = await asyncio.gather(*(per_account(name, mgr) for name, mgr in ACCOUNTS.items()))
     return dict(pairs)
 
 
@@ -84,7 +78,9 @@ async def get_email_overview(
     limit: int = 50,
     search_query: Annotated[
         Optional[str],
-        Query(description="Optional natural-language search query (will be converted to IMAP query)."),
+        Query(
+            description="Optional natural-language search query (will be converted to IMAP query)."
+        ),
     ] = None,
     search_mode: Annotated[
         str,
@@ -200,9 +196,7 @@ async def download_email_attachment(
     ref = EmailRef(mailbox=mailbox, uid=email_id)
 
     try:
-        attachment_bytes = await run_blocking(
-            manager.fetch_attachment_by_ref_and_meta, ref, part
-        )
+        attachment_bytes = await run_blocking(manager.fetch_attachment_by_ref_and_meta, ref, part)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
@@ -242,7 +236,13 @@ async def archive_email(account: str, mailbox: str, email_id: int) -> dict:
 
     await run_blocking(manager.move, [ref], src_mailbox=mailbox, dst_mailbox=archive_mailbox)
 
-    return {"status": "ok", "action": "archive", "account": account, "mailbox": mailbox, "email_id": email_id}
+    return {
+        "status": "ok",
+        "action": "archive",
+        "account": account,
+        "mailbox": mailbox,
+        "email_id": email_id,
+    }
 
 
 @router.delete("/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}")
@@ -259,7 +259,13 @@ async def delete_email(account: str, mailbox: str, email_id: int) -> dict:
     await run_blocking(manager.delete, [ref])
     await run_blocking(manager.expunge, mailbox=mailbox)
 
-    return {"status": "ok", "action": "delete", "account": account, "mailbox": mailbox, "email_id": email_id}
+    return {
+        "status": "ok",
+        "action": "delete",
+        "account": account,
+        "mailbox": mailbox,
+        "email_id": email_id,
+    }
 
 
 @router.post("/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/move")
@@ -337,7 +343,13 @@ async def save_draft(
         mailbox=drafts_mailbox,
     )
 
-    return {"status": "ok", "action": "save_draft", "account": account, "mailbox": drafts_mailbox, "result": save_result.to_dict()}
+    return {
+        "status": "ok",
+        "action": "save_draft",
+        "account": account,
+        "mailbox": drafts_mailbox,
+        "result": save_result.to_dict(),
+    }
 
 
 @router.post("/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/reply")
@@ -391,7 +403,14 @@ async def reply_email(
         extra_headers=extra_headers or None,
     )
 
-    return {"status": "ok", "action": "reply", "account": account, "mailbox": mailbox, "email_id": email_id, "result": send_result.to_dict()}
+    return {
+        "status": "ok",
+        "action": "reply",
+        "account": account,
+        "mailbox": mailbox,
+        "email_id": email_id,
+        "result": send_result.to_dict(),
+    }
 
 
 @router.post("/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/reply-all")
@@ -445,7 +464,14 @@ async def reply_all_email(
         extra_headers=extra_headers or None,
     )
 
-    return {"status": "ok", "action": "reply_all", "account": account, "mailbox": mailbox, "email_id": email_id, "result": send_result.to_dict()}
+    return {
+        "status": "ok",
+        "action": "reply_all",
+        "account": account,
+        "mailbox": mailbox,
+        "email_id": email_id,
+        "result": send_result.to_dict(),
+    }
 
 
 @router.post("/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/forward")
@@ -501,7 +527,14 @@ async def forward_email(
         extra_headers=extra_headers or None,
     )
 
-    return {"status": "ok", "action": "forward", "account": account, "mailbox": mailbox, "email_id": email_id, "result": send_result.to_dict()}
+    return {
+        "status": "ok",
+        "action": "forward",
+        "account": account,
+        "mailbox": mailbox,
+        "email_id": email_id,
+        "result": send_result.to_dict(),
+    }
 
 
 @router.post("/accounts/{account:path}/send")

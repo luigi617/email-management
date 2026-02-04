@@ -562,7 +562,7 @@ button.primary:hover {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -575,7 +575,7 @@ button.primary:hover {
   background: var(--surface);
   border: 1px solid var(--divider);
   border-radius: 14px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
 
   max-height: calc(100vh - 36px);
   display: flex;
@@ -655,7 +655,7 @@ button.primary:hover {
   padding: 2px 8px;
   border-radius: 999px;
   border: 1px solid var(--divider);
-  background: rgba(0,0,0,0.08);
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .pill.ok {
@@ -692,7 +692,6 @@ button.primary:hover {
 .account-header-link:hover {
   background: var(--hover);
 }
-
 
 /* --- Middle column (message list) -------------------------------- */
 .middle {

@@ -6,10 +6,10 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Dict
 
 from dotenv import load_dotenv
+from email_service import load_accounts_from_db
+from ttl_cache import TTLCache
 
 from openmail import EmailManager
-from ttl_cache import TTLCache
-from email_service import load_accounts_from_db
 
 load_dotenv(override=True)
 

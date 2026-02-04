@@ -60,7 +60,6 @@ async function replyImpl<T>(
 }
 
 export const EmailApi = {
-
   async isAccountConnected(account: string): Promise<ConnectedResult> {
     // account is the path param expected by backend (see note below)
     return requestJSON<ConnectedResult>(`/api/accounts/${encodeURIComponent(account)}/connected`, {

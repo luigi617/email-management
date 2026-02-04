@@ -2,26 +2,24 @@
 from __future__ import annotations
 
 import threading
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field
-
+from context import ACCOUNTS
 from email_service import (
-    init_db,
-    load_accounts_from_db,
-    upsert_app_password_account,
-    upsert_oauth2_account,
-    begin_oauth,
-    complete_oauth_callback,
-    list_accounts,
-    get_account,
-    db_session,
+    BOX,
     Account,
     AccountSecrets,
-    BOX,
+    begin_oauth,
+    complete_oauth_callback,
+    db_session,
+    get_account,
+    init_db,
+    list_accounts,
+    upsert_app_password_account,
+    upsert_oauth2_account,
 )
-from context import ACCOUNTS
+from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
@@ -49,6 +47,7 @@ def _reload_accounts_now():
 # ---------------------------
 # Pydantic models
 # ---------------------------
+
 
 class AccountUI(BaseModel):
     id: int
@@ -95,6 +94,7 @@ class UpdateSecretsIn(BaseModel):
 # Endpoints
 # ---------------------------
 
+
 @router.get("/{account}/connected")
 def is_account_connected(account: str) -> dict:
     email_manager = ACCOUNTS.get(account)
@@ -108,6 +108,7 @@ def is_account_connected(account: str) -> dict:
     elif not health_res["smtp"]:
         return {"result": False, "detail": "SMTP are not active"}
     return {"result": True, "detail": "ok"}
+
 
 @router.get("", response_model=List[AccountUI])
 def get_all_accounts():
@@ -150,7 +151,9 @@ def create_or_update_oauth2_account(payload: CreateOAuth2AccountIn):
     Returns the authorize_url to open in browser.
     """
     init_db()
-    account_id = upsert_oauth2_account(payload.provider, payload.email, payload.client_id, payload.client_secret)
+    account_id = upsert_oauth2_account(
+        payload.provider, payload.email, payload.client_id, payload.client_secret
+    )
 
     # Start OAuth immediately (creates oauth_state row)
     try:
@@ -161,7 +164,7 @@ def create_or_update_oauth2_account(payload: CreateOAuth2AccountIn):
             scopes=payload.scopes,
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     return {
         "status": "ok",
@@ -193,7 +196,7 @@ def start_oauth_existing_account(
             scopes=scopes,
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     return {"status": "ok", "authorize_url": authorize_url}
 
@@ -207,7 +210,7 @@ def oauth_callback(state: str = Query(...), code: str = Query(...)):
     try:
         complete_oauth_callback(state=state, code=code)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     # reload runtime accounts so oauth2 accounts become active immediately
     _reload_accounts_now()

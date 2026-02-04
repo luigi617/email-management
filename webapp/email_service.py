@@ -2,17 +2,25 @@
 from __future__ import annotations
 
 import base64
-from contextlib import contextmanager
 import hashlib
 import os
 import secrets
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 from urllib.parse import urlencode, urlparse
 
-from dotenv import load_dotenv
 import requests
 from cryptography.fernet import Fernet
+from dotenv import load_dotenv
+from oauth2 import (
+    GoogleOAuth2Config,
+    MicrosoftOAuth2Config,
+    YahooOAuth2Config,
+    refresh_google_access_token,
+    refresh_microsoft_access_token,
+    refresh_yahoo_access_token,
+)
 from sqlalchemy import (
     Column,
     DateTime,
@@ -25,20 +33,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Session, relationship, sessionmaker
 
-from oauth2 import (
-    GoogleOAuth2Config,
-    MicrosoftOAuth2Config,
-    YahooOAuth2Config,
-    refresh_google_access_token,
-    refresh_microsoft_access_token,
-    refresh_yahoo_access_token,
-)
-
 from openmail import EmailManager
 from openmail.auth import NoAuth, OAuth2Auth, PasswordAuth
 from openmail.config import IMAPConfig, SMTPConfig
 from openmail.imap.client import IMAPClient
 from openmail.smtp.client import SMTPClient
+
 load_dotenv(override=True)
 
 # ---------------------------
@@ -52,9 +52,11 @@ if not SECRET_KEY:
     # To generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     raise RuntimeError("Missing EMAIL_SECRET_KEY (Fernet key). Set it in server environment.")
 
+
 def utcnow() -> datetime:
     """Timezone-aware UTC 'now' (safe for DB defaults + comparisons)."""
     return datetime.now(timezone.utc)
+
 
 class SecretBox:
     def __init__(self, key: str):
@@ -82,14 +84,16 @@ class Account(Base):
     __tablename__ = "accounts"
 
     id = Column(Integer, primary_key=True)
-    provider = Column(String(32), nullable=False)     # gmail|outlook|yahoo|icloud
+    provider = Column(String(32), nullable=False)  # gmail|outlook|yahoo|icloud
     email = Column(String(320), nullable=False, unique=True)
     auth_method = Column(String(16), nullable=False)  # app|oauth2|no-auth
 
     created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 
-    secrets = relationship("AccountSecrets", back_populates="account", uselist=False, cascade="all, delete-orphan")
+    secrets = relationship(
+        "AccountSecrets", back_populates="account", uselist=False, cascade="all, delete-orphan"
+    )
 
 
 class AccountSecrets(Base):
@@ -118,6 +122,7 @@ class OAuthState(Base):
       - redirect_uri: must match in /token exchange for many providers
       - created_at: expire old states
     """
+
     __tablename__ = "oauth_states"
 
     state = Column(String(128), primary_key=True)
@@ -144,6 +149,7 @@ def db_session() -> Session:
 # PKCE
 # ---------------------------
 
+
 def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
@@ -157,6 +163,7 @@ def make_code_challenge(verifier: str) -> str:
     digest = hashlib.sha256(verifier.encode("ascii")).digest()
     return _b64url(digest)
 
+
 def _normalize_redirect_uri(uri: str) -> str:
     if not uri or not isinstance(uri, str):
         raise ValueError("redirect_uri is required")
@@ -165,7 +172,9 @@ def _normalize_redirect_uri(uri: str) -> str:
 
     # reject already-encoded redirect URIs (common cause of "malformed" via double-encoding)
     if "%3A" in uri or "%2F" in uri or "%25" in uri:
-        raise ValueError("redirect_uri looks URL-encoded; pass the raw URL (e.g. http://localhost:8000/callback)")
+        raise ValueError(
+            "redirect_uri looks URL-encoded; pass the raw URL (e.g. http://localhost:8000/callback)"
+        )
 
     parsed = urlparse(uri)
     if parsed.scheme not in ("http", "https"):
@@ -174,6 +183,7 @@ def _normalize_redirect_uri(uri: str) -> str:
         raise ValueError("redirect_uri must include host (and port if needed)")
 
     return uri
+
 
 def _normalize_scopes(scopes: Optional[str]) -> str:
     scopes = (scopes or "").strip()
@@ -196,6 +206,7 @@ def as_utc_aware(dt: datetime) -> datetime:
 # EmailManager factory (reuse your existing behavior)
 # ---------------------------
 
+
 def get_gmail_manager(username, auth_method, **kwargs):
     if auth_method == "app":
         password = kwargs.get("password")
@@ -215,10 +226,14 @@ def get_gmail_manager(username, auth_method, **kwargs):
     else:
         raise ValueError(f"Unsupported auth_method for Gmail: {auth_method}")
 
-    smtp_cfg = SMTPConfig(host="smtp.gmail.com", port=587, use_starttls=True, from_email=username, auth=auth)
+    smtp_cfg = SMTPConfig(
+        host="smtp.gmail.com", port=587, use_starttls=True, from_email=username, auth=auth
+    )
     imap_cfg = IMAPConfig(host="imap.gmail.com", port=993, auth=auth)
 
-    return EmailManager(smtp=SMTPClient.from_config(smtp_cfg), imap=IMAPClient.from_config(imap_cfg))
+    return EmailManager(
+        smtp=SMTPClient.from_config(smtp_cfg), imap=IMAPClient.from_config(imap_cfg)
+    )
 
 
 def get_outlook_manager(username, auth_method, **kwargs):
@@ -232,7 +247,9 @@ def get_outlook_manager(username, auth_method, **kwargs):
         client_secret = kwargs.get("client_secret")
 
         config = MicrosoftOAuth2Config(client_id=client_id, client_secret=client_secret)
-        token_provider = lambda: refresh_microsoft_access_token(config, refresh_token)["access_token"]
+        token_provider = lambda: refresh_microsoft_access_token(config, refresh_token)[
+            "access_token"
+        ]
         auth = OAuth2Auth(username=username, token_provider=token_provider)
 
     elif auth_method == "no-auth":
@@ -240,10 +257,14 @@ def get_outlook_manager(username, auth_method, **kwargs):
     else:
         raise ValueError(f"Unsupported auth_method for Microsoft: {auth_method}")
 
-    smtp_cfg = SMTPConfig(host="smtp.office365.com", port=587, use_starttls=True, from_email=username, auth=auth)
+    smtp_cfg = SMTPConfig(
+        host="smtp.office365.com", port=587, use_starttls=True, from_email=username, auth=auth
+    )
     imap_cfg = IMAPConfig(host="outlook.office365.com", port=993, auth=auth)
 
-    return EmailManager(smtp=SMTPClient.from_config(smtp_cfg), imap=IMAPClient.from_config(imap_cfg))
+    return EmailManager(
+        smtp=SMTPClient.from_config(smtp_cfg), imap=IMAPClient.from_config(imap_cfg)
+    )
 
 
 def get_yahoo_manager(username, auth_method, **kwargs):
@@ -256,7 +277,11 @@ def get_yahoo_manager(username, auth_method, **kwargs):
         client_id = kwargs.get("client_id")
         client_secret = kwargs.get("client_secret")
 
-        config = YahooOAuth2Config(client_id=client_id, client_secret=client_secret, redirect_uri=kwargs.get("redirect_uri", "oob"))
+        config = YahooOAuth2Config(
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uri=kwargs.get("redirect_uri", "oob"),
+        )
         token_provider = lambda: refresh_yahoo_access_token(config, refresh_token)["access_token"]
         auth = OAuth2Auth(username=username, token_provider=token_provider)
 
@@ -265,10 +290,14 @@ def get_yahoo_manager(username, auth_method, **kwargs):
     else:
         raise ValueError(f"Unsupported auth_method for Yahoo: {auth_method}")
 
-    smtp_cfg = SMTPConfig(host="smtp.mail.yahoo.com", port=587, use_starttls=True, from_email=username, auth=auth)
+    smtp_cfg = SMTPConfig(
+        host="smtp.mail.yahoo.com", port=587, use_starttls=True, from_email=username, auth=auth
+    )
     imap_cfg = IMAPConfig(host="imap.mail.yahoo.com", port=993, auth=auth)
 
-    return EmailManager(smtp=SMTPClient.from_config(smtp_cfg), imap=IMAPClient.from_config(imap_cfg))
+    return EmailManager(
+        smtp=SMTPClient.from_config(smtp_cfg), imap=IMAPClient.from_config(imap_cfg)
+    )
 
 
 def get_icloud_manager(username, auth_method, **kwargs):
@@ -276,16 +305,22 @@ def get_icloud_manager(username, auth_method, **kwargs):
         password = kwargs.get("password")
         auth = PasswordAuth(username=username, password=password)
     elif auth_method == "oauth2":
-        raise ValueError("iCloud Mail does not support OAuth2 tokens for IMAP/SMTP; use an app password.")
+        raise ValueError(
+            "iCloud Mail does not support OAuth2 tokens for IMAP/SMTP; use an app password."
+        )
     elif auth_method == "no-auth":
         auth = NoAuth()
     else:
         raise ValueError(f"Unsupported auth_method for iCloud: {auth_method}")
 
-    smtp_cfg = SMTPConfig(host="smtp.mail.me.com", port=587, use_starttls=True, from_email=username, auth=auth)
+    smtp_cfg = SMTPConfig(
+        host="smtp.mail.me.com", port=587, use_starttls=True, from_email=username, auth=auth
+    )
     imap_cfg = IMAPConfig(host="imap.mail.me.com", port=993, auth=auth)
 
-    return EmailManager(smtp=SMTPClient.from_config(smtp_cfg), imap=IMAPClient.from_config(imap_cfg))
+    return EmailManager(
+        smtp=SMTPClient.from_config(smtp_cfg), imap=IMAPClient.from_config(imap_cfg)
+    )
 
 
 def get_email_manager(provider, username, auth_method, **kwargs):
@@ -311,6 +346,7 @@ def get_db():
     finally:
         db.close()
 
+
 def load_accounts_from_db() -> Dict[str, EmailManager]:
     """
     Returns {email: EmailManager} just like your old parse_accounts().
@@ -335,7 +371,9 @@ def load_accounts_from_db() -> Dict[str, EmailManager]:
             else:
                 continue
 
-            results[acc.email] = get_email_manager(acc.provider, acc.email, acc.auth_method, **kwargs)
+            results[acc.email] = get_email_manager(
+                acc.provider, acc.email, acc.auth_method, **kwargs
+            )
     return results
 
 
@@ -365,7 +403,8 @@ def list_accounts():
                 }
             )
         return out
-    
+
+
 def get_account(account_id: int):
     with db_session() as db:
         a = db.get(Account, account_id)
@@ -383,6 +422,7 @@ def get_account(account_id: int):
             "created_at": a.created_at.isoformat(),
             "updated_at": a.updated_at.isoformat(),
         }
+
 
 def upsert_app_password_account(provider: str, email: str, password: str) -> int:
     with db_session() as db:
@@ -464,14 +504,16 @@ def _default_scopes(provider: str) -> str:
     return ""
 
 
-def begin_oauth(provider: str, account_id: int, redirect_uri: str, scopes: Optional[str] = None) -> str:
+def begin_oauth(
+    provider: str, account_id: int, redirect_uri: str, scopes: Optional[str] = None
+) -> str:
     """
     Creates oauth_states row and returns provider authorize URL.
     """
     provider = (provider or "").strip().lower()
     if provider not in ("gmail", "outlook", "yahoo"):
         raise ValueError(f"Unsupported provider for OAuth: {provider}")
-    
+
     redirect_uri = _normalize_redirect_uri(redirect_uri)
     scopes = _normalize_scopes(scopes or _default_scopes(provider))
 
@@ -480,7 +522,9 @@ def begin_oauth(provider: str, account_id: int, redirect_uri: str, scopes: Optio
         if not acc:
             raise ValueError("Account not found")
         if acc.provider != provider:
-            raise ValueError(f"Account provider mismatch: account={acc.provider}, requested={provider}")
+            raise ValueError(
+                f"Account provider mismatch: account={acc.provider}, requested={provider}"
+            )
         if acc.auth_method != "oauth2":
             raise ValueError("Account is not oauth2")
         if not acc.secrets or not (acc.secrets.client_id_enc and acc.secrets.client_secret_enc):
@@ -509,11 +553,9 @@ def begin_oauth(provider: str, account_id: int, redirect_uri: str, scopes: Optio
             "response_type": "code",
             "scope": scopes,
             "state": state,
-
             # refresh token
             "access_type": "offline",
             "prompt": "consent",
-
             # PKCE is supported by Google
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",
@@ -614,7 +656,9 @@ def _exchange_code_for_refresh_token(
         j = r.json()
         rt = j.get("refresh_token")
         if not rt:
-            raise ValueError("Google did not return refresh_token (try prompt=consent + access_type=offline)")
+            raise ValueError(
+                "Google did not return refresh_token (try prompt=consent + access_type=offline)"
+            )
         return rt
 
     if provider == "outlook":
@@ -636,7 +680,7 @@ def _exchange_code_for_refresh_token(
 
     if provider == "yahoo":
         # Yahoo commonly uses Basic auth with client_id:client_secret
-        basic = base64.b64encode(f"{client_id}:{client_secret}".encode("utf-8")).decode("ascii")
+        basic = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode("ascii")
         headers = {"Authorization": f"Basic {basic}"}
         data = {
             "grant_type": "authorization_code",

@@ -9,7 +9,6 @@ import type {
 } from '../types/accountApi';
 
 export const AccountApi = {
-
   // GET /api/accounts
   async listAccounts(): Promise<AccountRow[]> {
     return requestJSON<AccountRow[]>('/api/accounts');
@@ -33,28 +32,30 @@ export const AccountApi = {
   async createOrUpdateOAuth2Account(
     payload: CreateOAuth2AccountPayload
   ): Promise<{ status: string; account_id: number; authorize_url: string; account: AccountRow }> {
-    return requestJSON<{ status: string; account_id: number; authorize_url: string; account: AccountRow }>(
-      '/api/accounts/oauth2',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      }
-    );
+    return requestJSON<{
+      status: string;
+      account_id: number;
+      authorize_url: string;
+      account: AccountRow;
+    }>('/api/accounts/oauth2', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
   },
 
   // POST /api/accounts/:id/oauth2/authorize?redirect_uri=...&scopes=...
-    async startOAuthExistingAccount(
+  async startOAuthExistingAccount(
     accountId: number,
     redirectUri: string,
     scopes?: string
-    ): Promise<{ status: string; authorize_url: string }> {
+  ): Promise<{ status: string; authorize_url: string }> {
     const qs = toQuery({ redirect_uri: redirectUri, scopes });
     return requestJSON<{ status: string; authorize_url: string }>(
-        `/api/accounts/${accountId}/oauth2/authorize${qs}`,
-        { method: 'POST' }
+      `/api/accounts/${accountId}/oauth2/authorize${qs}`,
+      { method: 'POST' }
     );
-    },
+  },
 
   // PATCH /api/accounts/:id
   async updateAccountMeta(
@@ -73,11 +74,14 @@ export const AccountApi = {
     accountId: number,
     payload: UpdateSecretsPayload
   ): Promise<{ status: string; account: AccountRow }> {
-    return requestJSON<{ status: string; account: AccountRow }>(`/api/accounts/${accountId}/secrets`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+    return requestJSON<{ status: string; account: AccountRow }>(
+      `/api/accounts/${accountId}/secrets`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }
+    );
   },
 
   // DELETE /api/accounts/:id

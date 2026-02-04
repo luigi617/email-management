@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import copy
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
@@ -189,7 +188,6 @@ async def build_email_overview(
         total_count += acc_total
         for ov in overview_list:
             combined_entries.append((acc_id, ov))
-                
 
     def _unique_sort_key(pair: Tuple[str, EmailOverview]) -> Tuple[datetime, str, int]:
         acc_id, ov = pair
