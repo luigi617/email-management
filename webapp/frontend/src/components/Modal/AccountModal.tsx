@@ -1,5 +1,5 @@
 // src/components/Modal/AccountsModal.tsx
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AccountAuth, AccountProvider, AccountRow } from '../../types/accountApi';
 import { AccountApi } from '../../api/accountApi';
 import CloseIcon from '@/assets/svg/close.svg?react';
@@ -40,9 +40,7 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
   const [password, setPassword] = useState('');
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
-  const [redirectUri, setRedirectUri] = useState(
-    `${BACKEND_ORIGIN}/api/accounts/oauth/callback`
-  );
+  const [redirectUri, setRedirectUri] = useState(`${BACKEND_ORIGIN}/api/accounts/oauth/callback`);
   const [scopes, setScopes] = useState('');
 
   const connectedCount = useMemo(
@@ -50,14 +48,13 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
     [accounts, connectedById]
   );
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setLoading(true);
     setErr(null);
     try {
       const rows = await AccountApi.listAccounts();
       setAccounts(rows);
 
-      // run health checks for each account
       const entries = await Promise.all(
         rows.map(async (a) => {
           try {
@@ -72,7 +69,6 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
             return [String(a.id), { ok: !!res.result, detail: res.detail }] as const;
           } catch (e: unknown) {
             const message = e instanceof Error ? e.message : 'health check failed';
-
             return [String(a.id), { ok: false, detail: message }] as const;
           }
         })
@@ -84,7 +80,7 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   // check connection status when modal opens
   useEffect(() => {
@@ -92,14 +88,14 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
     setMode('list');
     setSelected(null);
     void refresh();
-  }, [open]);
+  }, [open, refresh]);
 
   useEffect(() => {
     if (!open) return;
+
     function onMessage(event: MessageEvent) {
       if (event.origin !== BACKEND_ORIGIN) return;
-      const data = event.data;
-      if (data?.type === 'oauth-success') {
+      if (event.data?.type === 'oauth-success') {
         void refresh();
         onAccountsChanged?.();
       }
@@ -107,8 +103,7 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
 
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [refresh, onAccountsChanged]);
-
+  }, [open, refresh, onAccountsChanged]);
 
   function resetForm() {
     setProvider('gmail');
@@ -179,7 +174,6 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
           });
 
           window.open(res.authorize_url, '_blank', 'width=500,height=700');
-
         } else {
           if (!selected) throw new Error('No account selected');
           type OAuth2SecretPatch = Partial<{
@@ -234,7 +228,6 @@ export default function AccountsModal({ open, onClose, onAccountsChanged }: Prop
         scopes.trim() ? scopes.trim() : undefined
       );
       window.open(res.authorize_url, '_blank', 'width=500,height=700');
-
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : String(e));
     }

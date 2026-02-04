@@ -4,8 +4,6 @@ from __future__ import annotations
 import threading
 from typing import List, Optional
 
-from fastapi.responses import HTMLResponse
-
 from context import ACCOUNTS
 from email_service import (
     BOX,
@@ -21,6 +19,7 @@ from email_service import (
     upsert_oauth2_account,
 )
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
@@ -212,7 +211,8 @@ def oauth_callback(state: str = Query(...), code: str = Query(...)):
     try:
         complete_oauth_callback(state=state, code=code)
     except Exception as e:
-        return HTMLResponse(f"""
+        return HTMLResponse(
+            f"""
             <html>
             <body>
                 <h3>OAuth failed</h3>
@@ -220,7 +220,9 @@ def oauth_callback(state: str = Query(...), code: str = Query(...)):
                 <p>You can close this tab.</p>
             </body>
             </html>
-            """, status_code=400)
+            """,
+            status_code=400,
+        )
 
     # reload runtime accounts so oauth2 accounts become active immediately
     _reload_accounts_now()
