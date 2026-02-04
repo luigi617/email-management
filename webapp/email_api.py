@@ -82,13 +82,6 @@ async def get_email_overview(
             description="Optional natural-language search query (will be converted to IMAP query)."
         ),
     ] = None,
-    search_mode: Annotated[
-        str,
-        Query(
-            description='Search mode: "general" (subject/from/to/text) or "ai" (LLM-derived IMAP).',
-            pattern="^(general|ai)$",
-        ),
-    ] = "general",
     cursor: Annotated[Optional[str], Query(description="Opaque pagination cursor.")] = None,
     accounts: Annotated[
         Optional[List[str]],
@@ -103,7 +96,6 @@ async def get_email_overview(
         mailbox=mailbox,
         limit=limit,
         search_query=search_query,
-        search_mode=search_mode,
         cursor=cursor,
         accounts=accounts,
         ACCOUNTS=ACCOUNTS,

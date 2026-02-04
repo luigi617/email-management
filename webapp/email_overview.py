@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
+from model import select_email_provider_and_models
 from ttl_cache import TTLCache
 from utils import decode_cursor, encode_cursor
 
@@ -18,6 +19,7 @@ from openmail.models import EmailOverview
 # - cache hit: return cached response (no refresh)
 # - cache miss (incl. TTL expiry): fetch, and if it's first page => refresh=True
 _OVERVIEW_RESPONSE_CACHE = TTLCache(ttl_seconds=15, maxsize=512)
+IS_AI_MODEL_AVAILABLE = select_email_provider_and_models()[0] is not None
 
 
 @dataclass
@@ -43,7 +45,6 @@ def _normalize_search(s: Optional[str]) -> Optional[str]:
 
 
 def _normalize_ai_cache_key(s: str) -> str:
-    # Keep consistent with prior behavior: normalize whitespace + lowercase
     return " ".join(s.strip().split()).lower()
 
 
@@ -54,11 +55,10 @@ def _cache_key(
     cursor: Optional[str],
     account_ids: List[str],
     search_query: Optional[str],
-    search_mode: str,
 ) -> str:
     acc_key = ",".join(account_ids)
     sq = search_query or ""
-    return f"mb={mailbox}|lim={limit}|cursor={cursor or ''}|acc={acc_key}|mode={search_mode}|q={sq}"
+    return f"mb={mailbox}|lim={limit}|cursor={cursor or ''}|acc={acc_key}|q={sq}"
 
 
 async def build_email_overview(
@@ -66,7 +66,6 @@ async def build_email_overview(
     mailbox: str = "INBOX",
     limit: int = 50,
     search_query: Optional[str] = None,
-    search_mode: str = "general",  # "general" | "ai"
     cursor: Optional[str] = None,
     accounts: Optional[List[str]] = None,
     ACCOUNTS: Dict[str, EmailManager],
@@ -82,7 +81,6 @@ async def build_email_overview(
         account_state: Dict[str, Dict[str, Optional[int]]] = cursor_state["accounts"]
         account_ids = list(account_state.keys())
         search_query = cursor_state.get("search_query")
-        search_mode = cursor_state.get("search_mode", search_mode)
     else:
         if accounts is None:
             account_ids = list(ACCOUNTS.keys())
@@ -102,7 +100,6 @@ async def build_email_overview(
         cursor=cursor,
         account_ids=account_ids,
         search_query=normalized_search,
-        search_mode=search_mode,
     )
     cached_resp = _OVERVIEW_RESPONSE_CACHE.get(key)
     if cached_resp is not None:
@@ -119,16 +116,17 @@ async def build_email_overview(
 
     cached_ai: Optional[_CachedDerivedQuery] = None
 
-    if normalized_search and search_mode == "ai":
+    if normalized_search and IS_AI_MODEL_AVAILABLE:
         ai_key = _normalize_ai_cache_key(normalized_search)
         cached_ai = _DERIVED_QUERY_CACHE.get(ai_key)
 
         if cached_ai is None:
+            provider, models = select_email_provider_and_models()
             email_assistant = EmailAssistant()
             easy_imap_query, _ = email_assistant.search_emails(
                 normalized_search,
-                provider="groq",
-                model_name="llama-3.1-8b-instant",
+                provider=provider,
+                model_name=models.fast,
             )
             snap = copy.deepcopy(easy_imap_query.query)
             try:
@@ -151,7 +149,7 @@ async def build_email_overview(
         q = manager.imap_query(mailbox).limit(limit)
 
         if normalized_search:
-            if search_mode == "ai" and cached_ai is not None:
+            if IS_AI_MODEL_AVAILABLE and cached_ai is not None:
                 _apply_cached_query(q, cached_ai)
             else:
                 q.query = q.query.or_(
@@ -239,7 +237,6 @@ async def build_email_overview(
             "limit": limit,
             "accounts": new_state_accounts,
             "search_query": normalized_search,
-            "search_mode": search_mode,
         }
         next_cursor = encode_cursor(next_cursor_state)
 

@@ -5,7 +5,6 @@ export type OverviewParams = {
   mailbox?: string;
   limit?: number;
   search_query?: string;
-  search_mode?: string;
   cursor?: string;
   accounts?: string[];
 };
