@@ -1,5 +1,5 @@
 // src/components/Layout/Layout.tsx
-import Sidebar, { type SidebarProps } from './Sidebar';
+import Sidebar, { type SidebarProps } from '../Middle/Sidebar';
 import MiddleColumn, { type MiddleColumnProps } from './MiddleColumn';
 import DetailColumn, { type DetailColumnProps } from './DetailColumn';
 import '../../styles/layout.css'

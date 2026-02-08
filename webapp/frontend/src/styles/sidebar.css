@@ -24,63 +24,6 @@
   margin-bottom: 0.35rem;
 }
 
-/* Search bar row: input + button on one line, pill-style */
-.search-row {
-  display: flex;
-  align-items: center;
-  padding: 0.15rem 0.25rem;
-  background: var(--input-bg);
-  border-radius: 999px;
-  border: 1px solid var(--input-border);
-}
-
-/* Search input inside the pill */
-.search-input {
-  flex: 1;
-  border: none !important;
-  background: transparent;
-  box-shadow: none;
-  padding: 0.3rem 0.5rem;
-  font: inherit;
-  font-size: 0.8rem;
-  color: var(--text-main);
-}
-
-.search-input:focus {
-  border: none !important;
-  outline: none;
-  box-shadow: none;
-}
-
-/* Modern circular search button coherent with primary/secondary buttons */
-.search-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 999px;
-  border: 1px solid var(--input-border);
-  background: var(--input-bg-2);
-  color: var(--text-main);
-  padding: 0;
-  cursor: pointer;
-  box-shadow: none;
-}
-
-.search-btn:hover {
-  background: var(--hover);
-}
-
-.search-btn:active {
-  transform: translateY(0.5px);
-}
-
-.search-btn .icon {
-  width: 14px;
-  height: 14px;
-  opacity: 0.85;
-}
 
 /* Mailbox list ---------------------------------------------------- */
 .mailbox-list {

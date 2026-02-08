@@ -6,8 +6,6 @@ import type { MailboxData } from '../../types/email';
 import '../../styles/sidebar.css'
 
 export type SidebarProps = {
-  searchQuery: string;
-  onSearch: (v: string) => void;
 
   mailboxData: MailboxData;
   currentMailbox: string;
@@ -25,7 +23,6 @@ export type SidebarProps = {
 export default function Sidebar(props: SidebarProps) {
   return (
     <>
-      <SearchCard searchQuery={props.searchQuery} onSearch={props.onSearch} />
 
       <MailboxesCard
         mailboxData={props.mailboxData}

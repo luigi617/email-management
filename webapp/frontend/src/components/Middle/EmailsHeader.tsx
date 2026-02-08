@@ -1,9 +1,13 @@
+import SearchCard from "../Sidebar/SearchCard";
+
 export type EmailsHeaderProps = {
   totalEmails: number;
   hasMore: boolean;
   isLoadingMore: boolean;
   onLoadMore: () => void;
   onCompose: () => void;
+  searchQuery: string;
+  onSearch: (v: string) => void;
 };
 
 export default function EmailsHeader(props: EmailsHeaderProps) {
@@ -25,6 +29,7 @@ export default function EmailsHeader(props: EmailsHeaderProps) {
           ) : null}
         </div>
       </div>
+      <SearchCard searchQuery={props.searchQuery} onSearch={props.onSearch} />
     </section>
   );
 }

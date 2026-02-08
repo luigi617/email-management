@@ -87,9 +87,6 @@ export default function App() {
     <>
       <Layout
         sidebar={{
-          searchQuery: core.appliedSearchText,
-          onSearch: core.applySearch,
-
           mailboxData: core.mailboxData,
           currentMailbox: core.currentMailbox,
           filterAccounts: core.filterAccounts,
@@ -115,6 +112,9 @@ export default function App() {
           onManageAccounts: () => setAccountsModalOpen(true),
         }}
         middle={{
+          searchQuery: core.appliedSearchText,
+          onSearch: core.applySearch,
+          
           onLoadMore: loadMore,
           hasMore: Boolean(core.nextCursor),
           isLoadingMore: core.isLoadingMore,

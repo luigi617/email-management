@@ -1,0 +1,67 @@
+.card {
+  /* Keep minimal so it doesn't affect global layout */
+}
+
+/* Search bar row: input + button on one line, pill-style */
+.searchRow {
+  display: flex;
+  align-items: center;
+  padding: 0.15rem 0.25rem;
+  background: var(--input-bg);
+  border-radius: 999px;
+  border: 1px solid var(--input-border);
+}
+
+/* Search input inside the pill */
+.searchInput {
+  flex: 1;
+  border: none !important;
+  background: transparent;
+  box-shadow: none;
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text-main);
+}
+
+.searchInput:focus {
+  border: none !important;
+  outline: none;
+  box-shadow: none;
+}
+
+/* ✅ Borderless icon button */
+.searchBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-main);
+  padding: 0;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.searchBtn:hover {
+  background: var(--hover);
+}
+
+.searchBtn:active {
+  transform: translateY(0.5px);
+}
+
+.searchBtn:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.icon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.85;
+}

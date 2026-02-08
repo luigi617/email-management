@@ -5,6 +5,9 @@ import { useEffect, useRef, useCallback } from 'react';
 import '../../styles/middle.css'
 
 export type MiddleColumnProps = {
+  searchQuery: string;
+  onSearch: (v: string) => void;
+
   hasMore: boolean;
   isLoadingMore: boolean;
   totalEmails: number;
@@ -65,6 +68,8 @@ export default function MiddleColumn(props: MiddleColumnProps) {
         isLoadingMore={props.isLoadingMore}
         onLoadMore={props.onLoadMore}
         onCompose={props.onCompose}
+        searchQuery={props.searchQuery}
+        onSearch={props.onSearch}
       />
 
       <section className="card list-container">

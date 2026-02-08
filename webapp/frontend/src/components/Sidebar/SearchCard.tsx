@@ -1,6 +1,6 @@
-// src/components/Sidebar/SearchCard.tsx
-import SearchIcon from '@/assets/svg/search.svg?react';
+import CloseIcon from '@/assets/svg/close.svg?react';
 import { useState } from 'react';
+import styles from '@/styles/SearchCard.module.css';
 
 type Props = {
   searchQuery: string;
@@ -14,7 +14,7 @@ export default function SearchCard(props: Props) {
     const next = e.target.value;
     setValue(next);
 
-    // If cleared, immediately search empty
+    // If cleared via typing, immediately search empty
     if (next.trim() === '') {
       props.onSearch('');
     }
@@ -26,24 +26,31 @@ export default function SearchCard(props: Props) {
     }
   };
 
+  // ✅ Clear input + run empty search
   const handleClick = () => {
-    props.onSearch(value);
+    setValue('');
+    props.onSearch('');
   };
 
   return (
-    <section className="card">
-      <h2>Search</h2>
-      <div className="search-row">
+    <section className={styles.card}>
+      <div className={styles.searchRow}>
         <input
           type="text"
-          className="search-input"
+          className={styles.searchInput}
           placeholder="Search mail"
           value={value}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
         />
-        <button type="button" className="search-btn" aria-label="Search" onClick={handleClick}>
-          <SearchIcon className="icon" aria-hidden />
+
+        <button
+          type="button"
+          className={styles.searchBtn}
+          aria-label="Clear"
+          onClick={handleClick}
+        >
+          <CloseIcon className={styles.icon} aria-hidden />
         </button>
       </div>
     </section>
