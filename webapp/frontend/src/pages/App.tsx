@@ -3,7 +3,6 @@ import { useMemo, useState } from 'react';
 import Layout from '../components/Layout/Layout';
 import Composer from '../components/Composer/Composer';
 import AppAlertModal from '../components/Modal/AppAlertModal';
-import AccountsModal from '../components/Modal/AccountModal';
 
 import { useEmailAppCore } from '../hooks/useEmailApp';
 import { useAppModal } from '../hooks/useAppModal';
@@ -13,8 +12,6 @@ import { useDetailActions } from '../hooks/useDetailActions';
 export default function App() {
   const core = useEmailAppCore();
   const modal = useAppModal();
-
-  const [accountsModalOpen, setAccountsModalOpen] = useState(false);
 
   // local UI toggles for composer menus
   const [composerExtraMenuOpen, setComposerExtraMenuOpen] = useState(false);
@@ -108,8 +105,6 @@ export default function App() {
             core.setCurrentMailbox('INBOX');
           },
 
-          // NEW: pass to MailboxesCard via Layout->Sidebar props
-          onManageAccounts: () => setAccountsModalOpen(true),
         }}
         middle={{
           searchQuery: core.appliedSearchText,
@@ -164,14 +159,6 @@ export default function App() {
             composer.open('forward');
           },
           onMove: (destinationMailbox: string) => detailActions.moveSelected(destinationMailbox),
-        }}
-      />
-
-      <AccountsModal
-        open={accountsModalOpen}
-        onClose={() => setAccountsModalOpen(false)}
-        onAccountsChanged={() => {
-          void core.fetchOverview(null);
         }}
       />
 

@@ -15,15 +15,13 @@ export type SidebarProps = {
   legendAccounts: string[];
   legendColorMap: Record<string, string>;
   onToggleLegendAccount: (account: string) => void;
-
-  onManageAccounts: () => void;
 };
 
 export default function Sidebar(props: SidebarProps) {
   return (
     <aside className={styles.sidebar}>
       <SidebarHome />
-      
+
       <MailboxesCard
         mailboxData={props.mailboxData}
         currentMailbox={props.currentMailbox}

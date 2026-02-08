@@ -1,29 +1,22 @@
-/* Accounts modal */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.page {
   padding: 18px;
-  z-index: 1000;
+  display: flex;
+  justify-content: center;
 }
 
-.modal {
-  width: min(820px, 96vw);
+.card {
+  width: min(820px, 100%);
   background: var(--surface);
   border: 1px solid var(--divider);
   border-radius: 14px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
   max-height: calc(100vh - 36px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.modal-header {
+.header {
   flex: 0 0 auto;
   display: flex;
   align-items: flex-start;
@@ -32,29 +25,42 @@
   border-bottom: 1px solid var(--divider);
 }
 
-.modal-body {
+.body {
   padding: 14px;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
 }
 
-.modal-error {
+.error {
   flex: 0 0 auto;
   padding: 10px 14px;
   border-bottom: 1px solid var(--divider);
-
   color: var(--error-text);
   background: color-mix(in srgb, var(--danger) 14%, transparent);
 }
 
-.accounts-list {
+muted {
+  /* (intentional no-op; see .muted below) */
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+}
+
+.list {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.accounts-row {
+.accountRow {
   display: flex;
   gap: 12px;
   align-items: center;
@@ -65,17 +71,17 @@
   background: var(--surface-2);
 }
 
-.accounts-main {
+.accountMain {
   min-width: 0;
 }
 
-.accounts-title {
+.accountTitle {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.accounts-actions {
+.actions {
   display: flex;
   gap: 8px;
   align-items: center;
@@ -89,37 +95,23 @@
   background: rgba(0, 0, 0, 0.08);
 }
 
-.pill.ok {
+.pillOk {
   background: rgba(0, 200, 0, 0.14);
 }
 
-.pill.bad {
+.pillBad {
   background: rgba(255, 0, 0, 0.12);
 }
 
-.form-grid {
+.formGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
 
-.form-grid label {
+.label {
   display: flex;
   flex-direction: column;
   gap: 6px;
   font-size: 0.85rem;
-}
-
-.account-header-link {
-  border: none;
-  background: transparent;
-  padding: 0.15rem 0.35rem;
-  border-radius: 999px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  color: var(--text-muted);
-}
-
-.account-header-link:hover {
-  background: var(--hover);
 }
