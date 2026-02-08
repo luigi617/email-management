@@ -9,8 +9,6 @@ export type MailboxesCardProps = {
   filterAccounts: string[];
   onSelectAllInboxes: () => void;
   onSelectMailbox: (account: string, mailbox: string) => void;
-
-  onManageAccounts: () => void; // NEW
 };
 
 export default function MailboxesCard(props: MailboxesCardProps) {
@@ -18,10 +16,6 @@ export default function MailboxesCard(props: MailboxesCardProps) {
     <section className={styles.card}>
       <div className={styles.header}>
         <h2 className={styles.title}>Mailboxes</h2>
-
-        <button type="button" className={styles.accountsButton} onClick={props.onManageAccounts}>
-          Accounts
-        </button>
       </div>
 
       <MailboxTree {...props} />

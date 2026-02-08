@@ -28,7 +28,6 @@ export default function Sidebar(props: SidebarProps) {
         filterAccounts={props.filterAccounts}
         onSelectAllInboxes={props.onSelectAllInboxes}
         onSelectMailbox={props.onSelectMailbox}
-        onManageAccounts={props.onManageAccounts}
       />
 
       <LegendCard
