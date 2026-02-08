@@ -1,0 +1,20 @@
+/* --- Middle column (message list) -------------------------------- */
+.middle {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--divider);
+  background: var(--middle-bg);
+}
+
+/* Container around the list (replaces "card list-container") */
+.listContainer {
+  border-radius: 0;
+  box-shadow: none;
+  border-top: none;
+  border-bottom: none;
+  background: var(--middle-bg);
+  padding: 0;
+  height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
+}

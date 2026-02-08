@@ -1,0 +1,137 @@
+/* Scroll container */
+.emailList {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Email rows: closer to Apple Mail list */
+.emailCard {
+  display: grid;
+  grid-template-columns: 4px minmax(0, 1fr) auto;
+  gap: 0.45rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border-soft);
+  margin: 0;
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.08s ease;
+}
+
+.emailCard:hover {
+  background: var(--hover);
+}
+
+/* Read: slightly muted */
+.read :global(.email-from),
+.read :global(.email-subject) {
+  /* (kept for compatibility if you still render those globals elsewhere) */
+  opacity: var(--email-read-opacity);
+}
+
+/* In-module read styles (actual elements) */
+.read .emailFrom,
+.read .emailSubject {
+  opacity: var(--email-read-opacity);
+}
+
+/* Unread: highlight + stronger typography */
+.unread {
+  background: var(--email-unread-bg);
+}
+
+.unread:hover {
+  background: var(--email-unread-hover);
+}
+
+.unread .emailFrom {
+  opacity: 1;
+}
+
+.unread .emailSubject {
+  opacity: 1;
+}
+
+/* Keep selected state winning over unread/read */
+.selected {
+  background: var(--accent-soft);
+}
+
+.selected:hover {
+  background: var(--accent-soft);
+}
+
+.emailColorStrip {
+  border-radius: 999px;
+  background: var(--neutral-dot);
+  align-self: stretch;
+}
+
+/* content inside row */
+.emailMain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.emailRowTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.emailFrom {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.emailSubject {
+  font-size: 0.83rem;
+  line-height: 1.25em;
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* show max 2 lines */
+  -webkit-box-orient: vertical;
+  min-height: calc(2 * 1.25em);
+  word-break: break-word;
+}
+
+.emailDate {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Empty state */
+.emptyState {
+  padding: 0.75rem 0.65rem;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.hidden {
+  display: none;
+}
+
+/* Infinite scroll affordances (optional) */
+.loadingMore,
+.end {
+  padding: 0.6rem 0.65rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+/* Sentinel */
+.sentinel {
+  height: 1px;
+}

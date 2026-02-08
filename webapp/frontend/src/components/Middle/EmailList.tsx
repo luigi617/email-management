@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import type { EmailOverview } from '../../types/email';
-import { formatDate } from '../../utils/emailFormat';
+import { useState } from "react";
+import type { EmailOverview } from "../../types/email";
+import { formatDate } from "../../utils/emailFormat";
+import styles from "@/styles/EmailList.module.css";
 
 export type EmailListProps = {
   emails: EmailOverview[];
@@ -18,18 +19,18 @@ export type EmailListProps = {
 };
 
 function stableFallbackKey(email: EmailOverview, index: number) {
-  const a = email.ref.account ?? '';
-  const m = email.ref.mailbox ?? '';
-  const u = email.ref.uid ?? '';
+  const a = email.ref.account ?? "";
+  const m = email.ref.mailbox ?? "";
+  const u = email.ref.uid ?? "";
   const raw = `${a}:${m}:${String(u)}`;
-  return raw !== '::' ? raw : `row-${index}`;
+  return raw !== "::" ? raw : `row-${index}`;
 }
 
 function isSeenFromFlags(flags: unknown): boolean {
   if (!Array.isArray(flags)) return false;
   return flags.some((f) => {
     const s = String(f).toLowerCase();
-    return s.includes('seen') || s === 'read' || s.includes('\\seen');
+    return s.includes("seen") || s === "read" || s.includes("\\seen");
   });
 }
 
@@ -39,7 +40,7 @@ export default function EmailList(props: EmailListProps) {
   return (
     <div
       id="email-list"
-      className="email-list"
+      className={styles.emailList}
       ref={(el) => {
         props.listRef.current = el;
       }}
@@ -54,14 +55,22 @@ export default function EmailList(props: EmailListProps) {
         const isUnread = !isSeen;
 
         const color = props.getColorForEmail(email);
-        const fromAddr = email.from_email?.name || email.from_email?.email || '(unknown sender)';
+        const fromAddr = email.from_email?.name || email.from_email?.email || "(unknown sender)";
         const dateStr = formatDate(email.received_at);
-        const subj = email.subject || '(no subject)';
+        const subj = email.subject || "(no subject)";
+
+        const cardClassName = [
+          styles.emailCard,
+          isSelected ? styles.selected : "",
+          isUnread ? styles.unread : styles.read,
+        ]
+          .filter(Boolean)
+          .join(" ");
 
         return (
           <div
             key={key}
-            className={`email-card ${isSelected ? 'selected' : ''} ${isUnread ? 'unread' : 'read'}`}
+            className={cardClassName}
             onClick={() => {
               setUiSeenKeys((prev) => {
                 if (prev.has(key)) return prev;
@@ -76,7 +85,7 @@ export default function EmailList(props: EmailListProps) {
             tabIndex={0}
             aria-selected={isSelected}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
+              if (e.key === "Enter" || e.key === " ") {
                 setUiSeenKeys((prev) => {
                   if (prev.has(key)) return prev;
                   const next = new Set(prev);
@@ -87,27 +96,32 @@ export default function EmailList(props: EmailListProps) {
               }
             }}
           >
-            <div className="email-color-strip" style={{ background: color }} />
-            <div className="email-main">
-              <div className="email-row-top">
-                <div className="email-from">{fromAddr}</div>
-                <div className="email-date">{dateStr}</div>
+            <div className={styles.emailColorStrip} style={{ background: color }} />
+
+            <div className={styles.emailMain}>
+              <div className={styles.emailRowTop}>
+                <div className={styles.emailFrom}>{fromAddr}</div>
+                <div className={styles.emailDate}>{dateStr}</div>
               </div>
-              <div className="email-subject">{subj}</div>
+
+              <div className={styles.emailSubject}>{subj}</div>
             </div>
           </div>
         );
       })}
 
-      <div className={`empty-state ${props.emptyList ? '' : 'hidden'}`}>
+      <div className={`${styles.emptyState} ${props.emptyList ? "" : styles.hidden}`}>
         No emails match the current filters.
       </div>
 
+      {props.showLoadingMore ? <div className={styles.loadingMore}>Loading more…</div> : null}
+      {props.showEnd ? <div className={styles.end}>You’re all caught up.</div> : null}
+
       <div
+        className={styles.sentinel}
         ref={(el) => {
           props.sentinelRef.current = el;
         }}
-        style={{ height: 1 }}
       />
     </div>
   );

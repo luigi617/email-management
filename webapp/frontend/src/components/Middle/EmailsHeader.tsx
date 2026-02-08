@@ -1,4 +1,5 @@
-import SearchCard from "../Sidebar/SearchCard";
+import SearchCard from "./SearchCard";
+import styles from '@/styles/EmailsHeader.module.css';
 
 export type EmailsHeaderProps = {
   totalEmails: number;
@@ -11,25 +12,27 @@ export type EmailsHeaderProps = {
 };
 
 export default function EmailsHeader(props: EmailsHeaderProps) {
-  const { totalEmails, onCompose } = props;
+  const { totalEmails, onCompose, searchQuery, onSearch } = props;
 
   const showCount = Number.isFinite(totalEmails) && totalEmails > 0;
 
   return (
-    <section className="card list-header">
-      <div className="list-header-top">
-        <h2>Emails</h2>
+    <section className={styles.listHeader}>
+      <div className={styles.listHeaderTop}>
+        <h2 className={styles.title}>Emails</h2>
 
-        <div className="list-header-right">
-          <button type="button" className="secondary" onClick={onCompose}>
+        <div className={styles.listHeaderRight}>
+          <button type="button" className={styles.composeButton} onClick={onCompose}>
             Compose
           </button>
+
           {showCount ? (
-            <span className="list-count">{totalEmails.toLocaleString()} total</span>
+            <span className={styles.listCount}>{totalEmails.toLocaleString()} total</span>
           ) : null}
         </div>
       </div>
-      <SearchCard searchQuery={props.searchQuery} onSearch={props.onSearch} />
+
+      <SearchCard searchQuery={searchQuery} onSearch={onSearch} />
     </section>
   );
 }

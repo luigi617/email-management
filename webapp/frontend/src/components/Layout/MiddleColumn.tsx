@@ -1,8 +1,8 @@
-import EmailsHeader from '../Middle/EmailsHeader';
-import EmailList from '../Middle/EmailList';
-import type { EmailOverview } from '../../types/email';
-import { useEffect, useRef, useCallback } from 'react';
-import '../../styles/middle.css'
+import { useEffect, useRef, useCallback } from "react";
+import EmailsHeader from "../Middle/EmailsHeader";
+import EmailList from "../Middle/EmailList";
+import type { EmailOverview } from "../../types/email";
+import styles from "@/styles/MiddleColumn.module.css";
 
 export type MiddleColumnProps = {
   searchQuery: string;
@@ -52,7 +52,7 @@ export default function MiddleColumn(props: MiddleColumnProps) {
       {
         root: rootEl,
         threshold: 0,
-        rootMargin: '200px',
+        rootMargin: "200px",
       }
     );
 
@@ -61,7 +61,7 @@ export default function MiddleColumn(props: MiddleColumnProps) {
   }, [maybeLoadMore, emails.length]);
 
   return (
-    <>
+    <div className={styles.middle}>
       <EmailsHeader
         totalEmails={props.totalEmails}
         hasMore={props.hasMore}
@@ -72,7 +72,7 @@ export default function MiddleColumn(props: MiddleColumnProps) {
         onSearch={props.onSearch}
       />
 
-      <section className="card list-container">
+      <section className={styles.listContainer}>
         <EmailList
           emails={props.emails}
           selectedEmailId={props.selectedEmailId}
@@ -86,6 +86,6 @@ export default function MiddleColumn(props: MiddleColumnProps) {
           emptyList={props.emptyList}
         />
       </section>
-    </>
+    </div>
   );
 }
