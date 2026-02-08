@@ -37,6 +37,7 @@ web = [
     "python-multipart",
     "cryptography",
     "SQLAlchemy",
+    "itsdangerous",
 ]
 
 [tool.hatch.build.targets.wheel]

@@ -14,6 +14,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
 
+from auth import setup_auth
+
 load_dotenv(override=True)
 
 BASE = Path(__file__).parent
@@ -36,6 +38,7 @@ app = FastAPI(lifespan=lifespan)
 # ---------------------------
 # Middleware / routing
 # ---------------------------
+setup_auth(app)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
