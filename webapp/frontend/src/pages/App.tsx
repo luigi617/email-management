@@ -1,20 +1,20 @@
 // src/App.tsx
 import { useMemo, useState } from 'react';
-import Layout from './components/Layout/Layout';
-import Composer from './components/Composer/Composer';
-import AppAlertModal from './components/Modal/AppAlertModal';
-import AccountsModal from './components/Modal/AccountModal';
+import Layout from '../components/Layout/Layout';
+import Composer from '../components/Composer/Composer';
+import AppAlertModal from '../components/Modal/AppAlertModal';
+import AccountsModal from '../components/Modal/AccountModal';
 
-import { useEmailAppCore } from './hooks/useEmailApp';
-import { useAppModal } from './hooks/useAppModal';
-import { useComposer } from './hooks/useComposer';
-import { useDetailActions } from './hooks/useDetailActions';
+import { useEmailAppCore } from '../hooks/useEmailApp';
+import { useAppModal } from '../hooks/useAppModal';
+import { useComposer } from '../hooks/useComposer';
+import { useDetailActions } from '../hooks/useDetailActions';
 
 export default function App() {
   const core = useEmailAppCore();
   const modal = useAppModal();
 
-  const [accountsModalOpen, setAccountsModalOpen] = useState(false); // NEW
+  const [accountsModalOpen, setAccountsModalOpen] = useState(false);
 
   // local UI toggles for composer menus
   const [composerExtraMenuOpen, setComposerExtraMenuOpen] = useState(false);

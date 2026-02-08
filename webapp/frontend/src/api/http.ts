@@ -20,8 +20,12 @@ export class HttpError extends Error {
  * - Works with 204 No Content
  * - Works with empty-body 200 responses
  */
-export async function requestJSON<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, options);
+export async function requestJSON<T>(url: string, options: RequestInit = {}): Promise<T> {
+  const finalOptions: RequestInit = {
+    ...options,
+    credentials: options.credentials ?? "include",
+  };
+  const res = await fetch(url, finalOptions);
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
