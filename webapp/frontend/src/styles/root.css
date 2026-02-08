@@ -1,0 +1,173 @@
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  /* window + columns */
+  --bg: #d3d6db; /* window background */
+  --sidebar-bg-top: #f4f1ea;
+  --sidebar-bg-bottom: #e4e5ea;
+  --middle-bg: #f5f5f7;
+  --detail-bg: #ffffff;
+
+  /* surfaces / states */
+  --surface: #ffffff; /* raised panels (composer, modal, menus) */
+  --surface-2: #f5f5f7; /* subtle section backgrounds */
+  --surface-3: #f9fafb; /* header/input-like surfaces */
+  --hover: #e5e5ea; /* hover fill */
+  --hover-2: rgba(255, 255, 255, 0.55); /* sidebar hover */
+
+  /* borders */
+  --border-soft: #d1d5db;
+  --divider: #c7c7cc;
+  --card-border: rgba(15, 23, 42, 0.06);
+
+  /* text */
+  --text-main: #111827;
+  --text-muted: #6b7280;
+
+  /* accents */
+  --accent: #0a84ff; /* macOS blue */
+  --accent-soft: #d6e6ff;
+
+  /* inputs */
+  --input-bg: rgba(255, 255, 255, 0.9);
+  --input-bg-2: rgba(255, 255, 255, 0.8);
+  --input-border: #d1d5db;
+  --focus-ring: rgba(10, 132, 255, 0.3);
+
+  /* danger */
+  --danger: #dc2626;
+
+  /* misc */
+  --radius-lg: 12px;
+  --shadow-soft: 0 2px 8px rgba(15, 23, 42, 0.08);
+
+  /* scrollbars */
+  --scrollbar-thumb: #d1d5db;
+
+  --neutral-dot: #9ca3af;
+
+  /* text on strong colors */
+  --text-on-accent: #ffffff;
+  --text-on-danger: #ffffff;
+
+  /* overlays */
+  --backdrop: rgba(15, 23, 42, 0.38);
+
+  /* misc accents */
+  --quote-bar: rgba(10, 132, 255, 0.45);
+  --focus-ring-strong: rgba(10, 132, 255, 0.28);
+
+  /* errors (if you want slightly different from --danger) */
+  --error-text: #b91c1c;
+
+  /* unread email styling */
+  --email-unread-bg: rgba(10, 132, 255, 0.08);
+  --email-unread-hover: rgba(10, 132, 255, 0.12);
+  --email-unread-dot: #0a84ff;
+  --email-read-opacity: 0.82;
+}
+
+/* =========================================================
+   OPTIONAL: Local "light theme" scope (forces light tokens)
+   ========================================================= */
+.light-island {
+  color-scheme: light;
+
+  /* Only include the tokens you need within this island */
+  --detail-bg: #ffffff;
+
+  --surface: #ffffff;
+  --surface-2: #f5f5f7;
+  --surface-3: #f9fafb;
+
+  --divider: #c7c7cc;
+  --border-soft: #d1d5db;
+  --card-border: rgba(15, 23, 42, 0.06);
+
+  --text-main: #111827;
+  --text-muted: #6b7280;
+
+  --accent: #0a84ff;
+  --focus-ring: rgba(10, 132, 255, 0.3);
+  --focus-ring-strong: rgba(10, 132, 255, 0.28);
+
+  --input-bg: rgba(255, 255, 255, 0.9);
+  --input-bg-2: rgba(255, 255, 255, 0.8);
+  --input-border: #d1d5db;
+
+  --scrollbar-thumb: #d1d5db;
+
+  --email-unread-bg: rgba(10, 132, 255, 0.14);
+  --email-unread-hover: rgba(10, 132, 255, 0.18);
+  --email-unread-dot: #5ab0ff;
+  --email-read-opacity: 0.78;
+}
+
+/* =========================================================
+   SYSTEM DARK THEME (no user selection needed)
+   ========================================================= */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* window + columns */
+    --bg: #0b0f17;
+    --sidebar-bg-top: #141a26;
+    --sidebar-bg-bottom: #0f1420;
+    --middle-bg: #0b0f17;
+    --detail-bg: #0f1624;
+
+    /* surfaces / states */
+    --surface: #0f1624;
+    --surface-2: #0b1220;
+    --surface-3: rgba(255, 255, 255, 0.04);
+    --hover: rgba(255, 255, 255, 0.06);
+    --hover-2: rgba(255, 255, 255, 0.06);
+
+    /* borders */
+    --border-soft: #273247;
+    --divider: #273247;
+    --card-border: rgba(255, 255, 255, 0.06);
+
+    /* text */
+    --text-main: #e7eaf0;
+    --text-muted: #a8b0c0;
+
+    /* accents */
+    --accent: #0a84ff;
+    --accent-soft: rgba(10, 132, 255, 0.22);
+
+    /* inputs */
+    --input-bg: rgba(255, 255, 255, 0.06);
+    --input-bg-2: rgba(255, 255, 255, 0.05);
+    --input-border: #273247;
+    --focus-ring: rgba(10, 132, 255, 0.35);
+
+    /* danger */
+    --danger: #ef4444;
+
+    /* misc */
+    --shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.45);
+
+    /* scrollbars */
+    --scrollbar-thumb: rgba(255, 255, 255, 0.14);
+
+    --neutral-dot: rgba(255, 255, 255, 0.35);
+
+    --text-on-accent: #ffffff;
+    --text-on-danger: #ffffff;
+
+    /* overlay */
+    --backdrop: rgba(0, 0, 0, 0.55);
+
+    /* accents */
+    --quote-bar: rgba(10, 132, 255, 0.45);
+    --focus-ring-strong: var(--focus-ring);
+
+    /* error text */
+    --error-text: var(--danger);
+  }
+}

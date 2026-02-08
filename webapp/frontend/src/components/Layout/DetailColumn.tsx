@@ -5,6 +5,7 @@ import { getMailboxDisplayName } from '../../utils/emailFormat';
 import { getDetailHeader } from '../../utils/detailFormat';
 import DetailBody from '../Detail/DetailBody';
 import DetailToolbar from '../Detail/DetailToolbar';
+import '../../styles/detail.css'
 
 export type DetailColumnProps = {
   selectedOverview: EmailOverview | null;

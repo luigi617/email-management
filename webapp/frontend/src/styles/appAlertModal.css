@@ -1,0 +1,88 @@
+/* === Global modal overlay === */
+.app-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--backdrop);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+/* === Modal card === */
+.app-modal-dialog {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  min-width: 280px;
+  max-width: 380px;
+  padding: 0.9rem 1.1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border: 1px solid var(--card-border);
+  color: var(--text-main);
+}
+
+/* Header */
+.app-modal-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* Body */
+.app-modal-body {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.35rem;
+}
+
+/* Footer (layout only) */
+.app-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+/* === Button variants (matching your UI) === */
+.app-modal-footer .btn {
+  padding: 0.32rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+/* Primary (blue) */
+.btn-primary {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border: none;
+}
+.btn-primary:hover {
+  filter: brightness(0.92);
+}
+
+/* Secondary (neutral) */
+.btn-secondary {
+  background: var(--input-bg-2);
+  border: 1px solid var(--input-border);
+  color: var(--text-main);
+}
+.btn-secondary:hover {
+  background: var(--hover);
+}
+
+/* Danger */
+.btn-danger {
+  background: var(--danger);
+  color: var(--text-on-danger);
+  border: none;
+}
+.btn-danger:hover {
+  filter: brightness(0.92);
+}

@@ -2,6 +2,7 @@ import EmailsHeader from '../Middle/EmailsHeader';
 import EmailList from '../Middle/EmailList';
 import type { EmailOverview } from '../../types/email';
 import { useEffect, useRef, useCallback } from 'react';
+import '../../styles/middle.css'
 
 export type MiddleColumnProps = {
   hasMore: boolean;

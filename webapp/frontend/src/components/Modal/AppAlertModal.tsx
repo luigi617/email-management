@@ -1,3 +1,5 @@
+import '../../styles/appAlertModal.css'
+
 export type AppModalButton = {
   id: number;
   label: string;

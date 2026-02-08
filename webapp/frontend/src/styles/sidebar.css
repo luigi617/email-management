@@ -1,0 +1,243 @@
+/* --- Sidebar (mailbox column) ------------------------------------ */
+.sidebar {
+  background: linear-gradient(to bottom, var(--sidebar-bg-top), var(--sidebar-bg-bottom));
+  border-right: 1px solid var(--divider);
+  padding: 0.75rem 0.5rem 0.75rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sidebar “cards” become sections without floating look */
+.sidebar .card {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+  padding: 0.3rem 0.2rem 0.4rem 0;
+}
+
+.sidebar .card h2 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+/* Search bar row: input + button on one line, pill-style */
+.search-row {
+  display: flex;
+  align-items: center;
+  padding: 0.15rem 0.25rem;
+  background: var(--input-bg);
+  border-radius: 999px;
+  border: 1px solid var(--input-border);
+}
+
+/* Search input inside the pill */
+.search-input {
+  flex: 1;
+  border: none !important;
+  background: transparent;
+  box-shadow: none;
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text-main);
+}
+
+.search-input:focus {
+  border: none !important;
+  outline: none;
+  box-shadow: none;
+}
+
+/* Modern circular search button coherent with primary/secondary buttons */
+.search-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg-2);
+  color: var(--text-main);
+  padding: 0;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.search-btn:hover {
+  background: var(--hover);
+}
+
+.search-btn:active {
+  transform: translateY(0.5px);
+}
+
+.search-btn .icon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.85;
+}
+
+/* Mailbox list ---------------------------------------------------- */
+.mailbox-list {
+  max-height: calc(100vh - 210px);
+  overflow-y: auto;
+  padding-right: 0.1rem;
+  font-size: 0.83rem;
+}
+
+.mailbox-group {
+  margin-bottom: 0.35rem;
+}
+
+.mailbox-item-all {
+  font-weight: 600;
+}
+
+.mailbox-account {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0.18rem 0.35rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.mailbox-account:hover {
+  background: var(--hover-2);
+}
+
+.mailbox-account-chev {
+  font-size: 0.7rem;
+  transition: transform 0.15s ease;
+}
+
+.mailbox-account.collapsed .mailbox-account-chev {
+  transform: rotate(-90deg);
+}
+
+.mailbox-group-items {
+  margin-top: 0.05rem;
+}
+
+.mailbox-group-items.collapsed {
+  display: none;
+}
+
+/* Mailbox row like macOS list */
+.mailbox-item {
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.03rem 0;
+  width: 100%;
+  color: var(--text-main);
+}
+
+.mailbox-item:hover {
+  background: var(--hover-2);
+}
+
+.mailbox-item.active {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.mailbox-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--neutral-dot);
+}
+
+.mailbox-item.active .mailbox-dot {
+  background: #ffffff;
+}
+
+.mailbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mailbox-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.mailbox-badge {
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+}
+.mailbox-item.active .mailbox-badge {
+  background: rgba(0, 0, 0, 0.14);
+}
+
+/* Legend ---------------------------------------------------------- */
+.legend-box {
+  position: relative;
+  max-height: 260px;
+  display: flex;
+  flex-direction: column;
+}
+
+.legend-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin-bottom: 0.3rem;
+}
+
+.legend-list {
+  overflow-y: auto;
+  padding-right: 0.1rem;
+  margin-top: 0.1rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 12px;
+  font-size: 0.78rem;
+}
+
+/* highlight active legend account (matches state.filterAccounts) */
+.legend-item.active {
+  background: var(--hover-2);
+}
+
+.legend-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border-soft);
+}
+
+.mailboxes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mailboxes-header h2 {
+  margin: 0;
+}

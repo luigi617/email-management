@@ -3,6 +3,7 @@ import SearchCard from '../Sidebar/SearchCard';
 import MailboxesCard from '../Sidebar/MailboxesCard';
 import LegendCard from '../Sidebar/LegendCard';
 import type { MailboxData } from '../../types/email';
+import '../../styles/sidebar.css'
 
 export type SidebarProps = {
   searchQuery: string;

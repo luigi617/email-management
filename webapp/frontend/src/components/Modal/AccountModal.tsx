@@ -4,6 +4,7 @@ import type { AccountAuth, AccountProvider, AccountRow } from '../../types/accou
 import { AccountApi } from '../../api/accountApi';
 import CloseIcon from '@/assets/svg/close.svg?react';
 import { EmailApi } from '../../api/emailApi';
+import '../../styles/accountModal.css'
 
 const BACKEND_ORIGIN = import.meta.env.VITE_BACKEND_ORIGIN;
 

@@ -14,6 +14,7 @@ import AttachmentIcon from '@/assets/svg/attachment.svg?react';
 import EmojiIcon from '@/assets/svg/emoji.svg?react';
 import MinimizeIcon from '@/assets/svg/minimize.svg?react';
 import CloseIcon from '@/assets/svg/close.svg?react';
+import '../../styles/composer.css'
 
 export type ComposerProps = {
   open: boolean;
