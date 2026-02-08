@@ -1,0 +1,261 @@
+.hidden {
+  display: none!important;
+}
+
+/* Floating composer – bottom-right web panel */
+.composer {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+
+  width: 640px;
+  max-width: calc(100% - 2.5rem);
+  min-width: 420px;
+
+  min-height: 260px;
+  max-height: calc(100vh - 3rem);
+  height: 420px;
+
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid var(--border-soft);
+
+  display: flex;
+  flex-direction: column;
+  z-index: 999;
+
+  resize: none;
+  overflow: hidden;
+  color: var(--text-main);
+}
+
+/* Avoid input chrome inside the composer */
+.composer input,
+.composer textarea {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.composer input:hover,
+.composer textarea:hover,
+.composer input:focus,
+.composer textarea:focus {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* minimized composer */
+.minimized {
+  min-height: auto;
+  height: auto;
+}
+
+/* when minimized, hide the main + footer from the parent */
+.minimized .main,
+.minimized .footer {
+  display: none;
+}
+
+/* hotspot for resizing (no visible button) */
+.resizeZone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+/* header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--divider);
+  background: var(--surface-2);
+}
+
+.headerLeft,
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.headerLeft {
+  position: relative;
+}
+
+.iconBtn {
+  border: none;
+  background: transparent;
+  padding: 0.25rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconBtnSecondary {
+  font-size: 0.85rem;
+}
+
+.iconBtn:hover {
+  background: var(--hover);
+}
+
+.headerLink {
+  border: none;
+  background: transparent;
+  padding: 0.15rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.headerLink:hover {
+  background: var(--hover);
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.titleHidden {
+  display: none;
+}
+
+/* hide native file input */
+.fileInput {
+  display: none;
+}
+
+/* meta + body share same background */
+.main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  background: var(--surface);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* meta section */
+.meta {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--divider);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  padding: 0.15rem 0;
+}
+
+.rowExtra {
+  /* exists for targeting; no extra styles required */
+}
+
+.label {
+  width: 70px;
+  text-align: right;
+  color: var(--text-muted);
+}
+
+/* default inline fields */
+.inlineInput,
+.inlineSelect {
+  flex: 1;
+  border: none;
+  border-bottom: 1px solid transparent;
+  padding: 0.2rem 0;
+  background: transparent;
+  font: inherit;
+  color: var(--text-main);
+}
+
+.inlineInput:focus,
+.inlineSelect:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
+}
+
+/* footer */
+.footer {
+  padding: 0.45rem 0.75rem 0.5rem;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.4rem;
+  border-top: 1px solid var(--divider);
+  background: var(--surface-2);
+}
+
+.error {
+  margin-right: auto;
+  font-size: 0.85rem;
+  color: var(--error-text);
+}
+
+/* Send-later wrapper positions the menu */
+.sendLaterWrapper {
+  position: relative;
+}
+
+/* Buttons (scoped) */
+.primaryBtn {
+  border-radius: 999px;
+  border: none;
+  background: var(--accent);
+  color: #ffffff;
+  padding: 0.35rem 0.95rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.primaryBtn:hover {
+  filter: brightness(0.92);
+}
+
+.secondaryBtn {
+  border-radius: 999px;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg-2);
+  color: var(--text-main);
+  padding: 0.32rem 0.85rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.secondaryBtn:hover {
+  background: var(--hover);
+}
+
+@media (max-width: 640px) {
+  .composer {
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+  }
+}

@@ -1,0 +1,32 @@
+/* extra-fields menu */
+.menu {
+  position: absolute;
+  right: 0;
+  top: 120%;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  box-shadow: var(--shadow-soft);
+  padding: 0.25rem 0;
+  min-width: 150px;
+  z-index: 1000;
+  color: var(--text-main);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.item:hover {
+  background: var(--hover);
+}
+
+.checkbox {
+  cursor: pointer;
+}

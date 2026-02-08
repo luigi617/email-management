@@ -1,0 +1,52 @@
+/* --- Layout ------------------------------------------------------ */
+.layout {
+  height: 100vh;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 0.9fr) minmax(0, 1.7fr);
+  overflow: hidden;
+}
+
+/* These wrappers exist only to support grid-area assignment on breakpoints */
+.sidebar {
+}
+
+.middle {
+}
+
+.detail {
+}
+
+/* side-by-side layout for smaller screens still works */
+@media (max-width: 1120px) {
+  .layout {
+    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-areas:
+      "sidebar middle"
+      "sidebar detail";
+  }
+
+  .sidebar {
+    grid-area: sidebar;
+  }
+
+  .middle {
+    grid-area: middle;
+  }
+
+  .detail {
+    grid-area: detail;
+  }
+}
+
+@media (max-width: 880px) {
+  .layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "sidebar"
+      "middle"
+      "detail";
+  }
+}

@@ -1,9 +1,10 @@
-import ArchiveIcon from '@/assets/svg/box-archive.svg?react';
-import DeleteIcon from '@/assets/svg/delete.svg?react';
-import ReplyIcon from '@/assets/svg/reply.svg?react';
-import ReplyAllIcon from '@/assets/svg/reply-all.svg?react';
-import ForwardIcon from '@/assets/svg/forward.svg?react';
-import FolderIcon from '@/assets/svg/folder.svg?react';
+import ArchiveIcon from "@/assets/svg/box-archive.svg?react";
+import DeleteIcon from "@/assets/svg/delete.svg?react";
+import ReplyIcon from "@/assets/svg/reply.svg?react";
+import ReplyAllIcon from "@/assets/svg/reply-all.svg?react";
+import ForwardIcon from "@/assets/svg/forward.svg?react";
+import FolderIcon from "@/assets/svg/folder.svg?react";
+import styles from "@/styles/DetailToolbar.module.css";
 
 export type DetailToolbarProps = {
   onArchive: () => void;
@@ -16,69 +17,69 @@ export type DetailToolbarProps = {
 
 export default function DetailToolbar(props: DetailToolbarProps) {
   return (
-    <div className="detail-toolbar">
+    <div className={styles.toolbar}>
       <button
         type="button"
-        className="icon-btn"
+        className={styles.iconBtn}
         title="Archive"
         aria-label="Archive"
         onClick={props.onArchive}
       >
-        <ArchiveIcon className="icon" aria-hidden />
+        <ArchiveIcon className={styles.icon} aria-hidden />
       </button>
 
       <button
         type="button"
-        className="icon-btn"
+        className={styles.iconBtn}
         title="Delete"
         aria-label="Delete"
         onClick={props.onDelete}
       >
-        <DeleteIcon className="icon" aria-hidden />
+        <DeleteIcon className={styles.icon} aria-hidden />
       </button>
 
-      <span className="toolbar-separator" />
+      <span className={styles.separator} />
 
       <button
         type="button"
-        className="icon-btn"
+        className={styles.iconBtn}
         title="Reply"
         aria-label="Reply"
         onClick={props.onReply}
       >
-        <ReplyIcon className="icon" aria-hidden />
+        <ReplyIcon className={styles.icon} aria-hidden />
       </button>
 
       <button
         type="button"
-        className="icon-btn"
+        className={styles.iconBtn}
         title="Reply all"
         aria-label="Reply all"
         onClick={props.onReplyAll}
       >
-        <ReplyAllIcon className="icon" aria-hidden />
+        <ReplyAllIcon className={styles.icon} aria-hidden />
       </button>
 
       <button
         type="button"
-        className="icon-btn"
+        className={styles.iconBtn}
         title="Forward"
         aria-label="Forward"
         onClick={props.onForward}
       >
-        <ForwardIcon className="icon" aria-hidden />
+        <ForwardIcon className={styles.icon} aria-hidden />
       </button>
 
-      <span className="toolbar-spacer" />
+      <span className={styles.spacer} />
 
       <button
         type="button"
-        className="icon-btn"
+        className={styles.iconBtn}
         title="Move"
         aria-label="Move"
         onClick={props.onToggleMove}
       >
-        <FolderIcon className="icon" aria-hidden />
+        <FolderIcon className={styles.icon} aria-hidden />
       </button>
     </div>
   );

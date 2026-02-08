@@ -1,0 +1,168 @@
+/* --- Right column (message detail) -------------------------------- */
+.detailCard {
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+  padding: 0.55rem 0.9rem 0.75rem;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--detail-bg);
+}
+
+.placeholderText {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.emailDetail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Error */
+.inlineError {
+  margin: 0 0 0.4rem 0;
+  padding: 0.45rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid var(--divider);
+  background: var(--surface-2);
+  color: var(--text-main);
+  font-size: 0.82rem;
+}
+
+.hidden {
+  display: none;
+}
+
+/* Move panel */
+.movePanel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--surface-2);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  border: 1px solid var(--divider);
+}
+
+.moveLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.moveSelect {
+  margin-left: 0.25rem;
+  border-radius: 8px;
+  border: 1px solid var(--divider);
+  background: transparent;
+  color: var(--text-main);
+  padding: 0.22rem 0.4rem;
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.secondaryButton {
+  appearance: none;
+  border: 1px solid var(--divider);
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  font-weight: 600;
+  border-radius: 0.55rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.08s ease, opacity 0.08s ease;
+}
+
+.secondaryButton:hover {
+  background: var(--hover);
+}
+
+.secondaryButton:active {
+  opacity: 0.9;
+}
+
+.secondaryButton:focus-visible {
+  outline: 2px solid var(--focus-ring-strong);
+  outline-offset: 2px;
+}
+
+.smallButton {
+  padding: 0.18rem 0.55rem;
+  font-size: 0.73rem;
+}
+
+/* THREAD SCROLLER */
+.detailThread {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+
+  scroll-snap-type: y proximity;
+
+  padding-top: 0.25rem;
+  padding-bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Email card within the thread */
+.threadEmailCard {
+  background: var(--surface-2);
+  border: 1px solid var(--divider);
+  border-radius: 12px;
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  min-height: auto;
+  scroll-snap-align: start;
+}
+
+/* Header and meta */
+.detailHeader {
+  display: flex;
+  gap: 0.55rem;
+  margin-bottom: 0.35rem;
+}
+
+.detailBadge {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  align-self: center;
+  border: 1px solid var(--border-soft);
+}
+
+.detailMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.detailSubject {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.detailLine {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.small {
+  font-size: 0.76rem;
+}
+
+.hr {
+  border: none;
+  border-top: 1px solid var(--divider);
+  margin: 0.3rem 0 0.4rem;
+}

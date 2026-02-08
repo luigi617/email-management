@@ -1,0 +1,139 @@
+/* Attachments container */
+.detailAttachments {
+  margin-top: 0.15rem;
+}
+
+.title {
+  margin: 0 0 0.35rem 0;
+}
+
+/* shared text utilities */
+.detailLine {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.small {
+  font-size: 0.76rem;
+}
+
+/* horizontal strip */
+.strip {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.15rem 0.1rem 0.35rem;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* scrollbar */
+.strip::-webkit-scrollbar {
+  height: 8px;
+}
+
+.strip::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+}
+
+.strip::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* attachment card */
+.card {
+  flex: 0 0 auto;
+  width: 240px;
+  min-width: 220px;
+  max-width: 280px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+
+  padding: 0.5rem 0.6rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-2);
+
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition:
+    transform 0.08s ease,
+    background 0.08s ease,
+    border-color 0.08s ease;
+
+  color: var(--text-main);
+}
+
+.card:hover {
+  background: var(--hover);
+}
+
+.card:active {
+  transform: translateY(0.5px);
+}
+
+.card:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--focus-ring-strong);
+}
+
+.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* card content */
+.cardMain {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.cardName {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardSize {
+  white-space: nowrap;
+}
+
+/* action button */
+.cardAction {
+  flex: 0 0 auto;
+}
+
+.cardAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* icon button (local replacement for global icon-btn) */
+.iconBtn {
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.28rem 0.4rem;
+  cursor: pointer;
+  color: var(--text-main);
+}
+
+.iconBtn:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}

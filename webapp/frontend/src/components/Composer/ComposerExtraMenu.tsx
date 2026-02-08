@@ -1,7 +1,8 @@
 // src/components/Composer/ComposerExtraMenu.tsx
-import { useRef } from 'react';
-import { useClickOutside } from '../../hooks/useClickOutside';
-import type { ComposerExtraFieldKey } from '../../types/composer';
+import { useRef } from "react";
+import { useClickOutside } from "../../hooks/useClickOutside";
+import type { ComposerExtraFieldKey } from "../../types/composer";
+import styles from "@/styles/ComposerExtraMenu.module.css";
 
 export type ComposerExtraMenuProps = {
   open: boolean;
@@ -18,31 +19,43 @@ export default function ComposerExtraMenu(props: ComposerExtraMenuProps) {
   if (!props.open) return null;
 
   return (
-    <div ref={menuRef} id="composer-extra-menu" className="composer-extra-menu">
-      <label className="composer-extra-item">
-        <input type="checkbox" checked={!!props.state.cc} onChange={() => props.onToggle('cc')} />
+    <div ref={menuRef} id="composer-extra-menu" className={styles.menu}>
+      <label className={styles.item}>
+        <input
+          className={styles.checkbox}
+          type="checkbox"
+          checked={!!props.state.cc}
+          onChange={() => props.onToggle("cc")}
+        />
         Cc
       </label>
 
-      <label className="composer-extra-item">
-        <input type="checkbox" checked={!!props.state.bcc} onChange={() => props.onToggle('bcc')} />
+      <label className={styles.item}>
+        <input
+          className={styles.checkbox}
+          type="checkbox"
+          checked={!!props.state.bcc}
+          onChange={() => props.onToggle("bcc")}
+        />
         Bcc
       </label>
 
-      <label className="composer-extra-item">
+      <label className={styles.item}>
         <input
+          className={styles.checkbox}
           type="checkbox"
           checked={!!props.state.replyto}
-          onChange={() => props.onToggle('replyto')}
+          onChange={() => props.onToggle("replyto")}
         />
         Reply-To
       </label>
 
-      <label className="composer-extra-item">
+      <label className={styles.item}>
         <input
+          className={styles.checkbox}
           type="checkbox"
           checked={!!props.state.priority}
-          onChange={() => props.onToggle('priority')}
+          onChange={() => props.onToggle("priority")}
         />
         Priority
       </label>

@@ -1,11 +1,11 @@
 // src/components/Layout/DetailColumn.tsx
-import { useMemo, useState, useEffect } from 'react';
-import type { EmailMessage, EmailOverview, MailboxData } from '../../types/email';
-import { getMailboxDisplayName } from '../../utils/emailFormat';
-import { getDetailHeader } from '../../utils/detailFormat';
-import DetailBody from '../Detail/DetailBody';
-import DetailToolbar from '../Detail/DetailToolbar';
-import '../../styles/detail.css'
+import { useMemo, useState, useEffect } from "react";
+import type { EmailMessage, EmailOverview, MailboxData } from "../../types/email";
+import { getMailboxDisplayName } from "../../utils/emailFormat";
+import { getDetailHeader } from "../../utils/detailFormat";
+import DetailBody from "../Detail/DetailBody";
+import DetailToolbar from "../Detail/DetailToolbar";
+import styles from "@/styles/DetailColumn.module.css";
 
 export type DetailColumnProps = {
   selectedOverview: EmailOverview | null;
@@ -42,18 +42,18 @@ function EmailMessageCard({
   if (!header) return null;
 
   return (
-    <article className="thread-email-card">
-      <div className="detail-header">
-        <span className="detail-badge" style={{ background: badgeColor }} />
-        <div className="detail-meta">
-          <div className="detail-subject">{header.subject}</div>
-          <div className="detail-line">{header.fromLine}</div>
-          <div className="detail-line">{header.toLine}</div>
-          <div className="detail-line small">{header.dateLine}</div>
+    <article className={styles.threadEmailCard}>
+      <div className={styles.detailHeader}>
+        <span className={styles.detailBadge} style={{ background: badgeColor }} />
+        <div className={styles.detailMeta}>
+          <div className={styles.detailSubject}>{header.subject}</div>
+          <div className={styles.detailLine}>{header.fromLine}</div>
+          <div className={styles.detailLine}>{header.toLine}</div>
+          <div className={`${styles.detailLine} ${styles.small}`}>{header.dateLine}</div>
         </div>
       </div>
 
-      <hr />
+      <hr className={styles.hr} />
 
       <DetailBody
         account={header.account}
@@ -80,7 +80,6 @@ export default function DetailColumn(props: DetailColumnProps) {
 
   const [destinationMailbox, setDestinationMailbox] = useState<string>(() => props.currentMailbox);
 
-  // keep destination in sync when mailbox changes or selection changes
   useEffect(() => {
     setDestinationMailbox(props.currentMailbox);
   }, [props.currentMailbox, props.selectedOverview]);
@@ -96,16 +95,15 @@ export default function DetailColumn(props: DetailColumnProps) {
   }, [props.selectedOverview, props.selectedMessage]);
 
   return (
-    <section className="card detail-card">
+    <section className={styles.detailCard}>
       {!props.selectedOverview ? (
         <div id="detail-placeholder">
-          <p className="placeholder-text">
+          <p className={styles.placeholderText}>
             Select an email from the middle column to see its full content here.
           </p>
         </div>
       ) : (
-        <div id="email-detail" className="email-detail">
-          {/* toolbar (stays above the scrolling thread) */}
+        <div id="email-detail" className={styles.emailDetail}>
           <DetailToolbar
             onArchive={props.onArchive}
             onDelete={props.onDelete}
@@ -115,16 +113,19 @@ export default function DetailColumn(props: DetailColumnProps) {
             onToggleMove={() => setMoveOpen((v) => !v)}
           />
 
-          <div id="detail-error" className={`inline-error ${props.detailError ? '' : 'hidden'}`}>
+          <div
+            id="detail-error"
+            className={`${styles.inlineError} ${props.detailError ? "" : styles.hidden}`}
+          >
             {props.detailError}
           </div>
 
-          {/* move panel */}
           {moveOpen && (
-            <div className="move-panel">
-              <label>
+            <div className={styles.movePanel}>
+              <label className={styles.moveLabel}>
                 Move to:
                 <select
+                  className={styles.moveSelect}
                   value={destinationMailbox}
                   onChange={(e) => setDestinationMailbox(e.target.value)}
                   id="move-mailbox-select"
@@ -139,7 +140,7 @@ export default function DetailColumn(props: DetailColumnProps) {
 
               <button
                 type="button"
-                className="secondary small"
+                className={`${styles.secondaryButton} ${styles.smallButton}`}
                 id="move-confirm"
                 onClick={() => {
                   if (destinationMailbox) props.onMove(destinationMailbox);
@@ -151,7 +152,7 @@ export default function DetailColumn(props: DetailColumnProps) {
 
               <button
                 type="button"
-                className="secondary small"
+                className={`${styles.secondaryButton} ${styles.smallButton}`}
                 id="move-cancel"
                 onClick={() => setMoveOpen(false)}
               >
@@ -160,8 +161,7 @@ export default function DetailColumn(props: DetailColumnProps) {
             </div>
           )}
 
-          {/* THREAD SCROLLER */}
-          <div className="detail-thread" role="list">
+          <div className={styles.detailThread} role="list">
             {threadItems.map((item) => (
               <div key={`${item.overview.ref.account}:${item.overview.ref.uid}`} role="listitem">
                 <EmailMessageCard

@@ -1,5 +1,6 @@
 // src/components/Composer/ComposerAttachments.tsx
-import CloseIcon from '@/assets/svg/close.svg?react';
+import CloseIcon from "@/assets/svg/close.svg?react";
+import styles from "@/styles/ComposerAttachments.module.css";
 
 export type ComposerAttachmentsProps = {
   files: File[];
@@ -10,12 +11,12 @@ export type ComposerAttachmentsProps = {
 
 export default function ComposerAttachments(props: ComposerAttachmentsProps) {
   return (
-    <div className={`composer-attachments ${props.visible ? '' : 'hidden'}`}>
+    <div className={`${styles.attachments} ${props.visible ? "" : styles.hidden}`}>
       {props.files.map((f, idx) => (
-        <div key={`${f.name}-${idx}`} className="attachment-pill" role="group">
+        <div key={`${f.name}-${idx}`} className={styles.pill} role="group">
           <button
             type="button"
-            className="attachment-pill-main"
+            className={styles.pillMain}
             onClick={() => props.onPreview(f)}
             title="Preview attachment"
           >
@@ -24,14 +25,14 @@ export default function ComposerAttachments(props: ComposerAttachmentsProps) {
 
           <button
             type="button"
-            className="attachment-pill-remove"
+            className={styles.pillRemove}
             title="Remove attachment"
             onClick={(e) => {
               e.stopPropagation();
               props.onRemove(idx);
             }}
           >
-            <CloseIcon className="icon" aria-hidden />
+            <CloseIcon className={styles.icon} aria-hidden />
           </button>
         </div>
       ))}

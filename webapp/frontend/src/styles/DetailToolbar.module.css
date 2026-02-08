@@ -1,0 +1,53 @@
+/* Toolbar container (macOS-style icon strip) */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-bottom: 0.35rem;
+}
+
+/* Icon button (local replacement for global .icon-btn) */
+.iconBtn {
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.28rem 0.4rem;
+  cursor: pointer;
+  color: var(--text-main);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconBtn:hover {
+  background: var(--hover);
+}
+
+.iconBtn:active {
+  transform: translateY(0.5px);
+}
+
+.iconBtn:focus-visible {
+  outline: 2px solid var(--focus-ring-strong);
+  outline-offset: 1px;
+}
+
+/* SVG icon sizing */
+.icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+/* Separator line */
+.separator {
+  width: 1px;
+  height: 18px;
+  background: var(--divider);
+  margin: 0 0.25rem;
+}
+
+/* Flexible spacer pushes Move button right */
+.spacer {
+  flex: 1;
+}

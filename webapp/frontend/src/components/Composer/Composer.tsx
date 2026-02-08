@@ -1,20 +1,21 @@
 // src/components/Composer/Composer.tsx
-import { useRef } from 'react';
-import { AddressChipsInput } from './AddressChipsInput';
-import ComposerExtraMenu from './ComposerExtraMenu';
-import ComposerEditor from './ComposerEditor';
-import ComposerAttachments from './ComposerAttachments';
-import SendLaterMenu from './SendLaterMenu';
-import { useComposerResize } from '../../hooks/useComposerResize';
-import type { ComposerExtraFieldKey } from '../../types/composer';
-import type { Priority } from '../../types/shared';
+import { useRef } from "react";
+import { AddressChipsInput } from "./AddressChipsInput";
+import ComposerExtraMenu from "./ComposerExtraMenu";
+import ComposerEditor from "./ComposerEditor";
+import ComposerAttachments from "./ComposerAttachments";
+import SendLaterMenu from "./SendLaterMenu";
+import { useComposerResize } from "../../hooks/useComposerResize";
+import type { ComposerExtraFieldKey } from "../../types/composer";
+import type { Priority } from "../../types/shared";
 
-import ListIcon from '@/assets/svg/list.svg?react';
-import AttachmentIcon from '@/assets/svg/attachment.svg?react';
-import EmojiIcon from '@/assets/svg/emoji.svg?react';
-import MinimizeIcon from '@/assets/svg/minimize.svg?react';
-import CloseIcon from '@/assets/svg/close.svg?react';
-import '../../styles/composer.css'
+import ListIcon from "@/assets/svg/list.svg?react";
+import AttachmentIcon from "@/assets/svg/attachment.svg?react";
+import EmojiIcon from "@/assets/svg/emoji.svg?react";
+import MinimizeIcon from "@/assets/svg/minimize.svg?react";
+import CloseIcon from "@/assets/svg/close.svg?react";
+
+import styles from "@/styles/Composer.module.css";
 
 export type ComposerProps = {
   open: boolean;
@@ -77,24 +78,28 @@ export default function Composer(props: ComposerProps) {
   return (
     <div
       ref={composerRef}
-      className={`composer ${props.open ? '' : 'hidden'} ${props.minimized ? 'composer--minimized' : ''}`}
+      className={[
+        styles.composer,
+        props.open ? "" : styles.hidden,
+        props.minimized ? styles.minimized : "",
+      ].join(" ")}
     >
-      {!props.minimized && <div ref={zoneRef} className="composer-resize-zone" />}
+      {!props.minimized && <div ref={zoneRef} className={styles.resizeZone} />}
 
       {/* header */}
-      <div className="composer-header">
-        <div className="composer-header-left">
+      <div className={styles.header}>
+        <div className={styles.headerLeft}>
           <button
             type="button"
             id="composer-extra-toggle"
-            className="composer-icon-btn composer-icon-btn--secondary"
+            className={`${styles.iconBtn} ${styles.iconBtnSecondary}`}
             title="Show fields"
             onClick={(e) => {
               e.stopPropagation();
               props.onToggleExtraMenu();
             }}
           >
-            <ListIcon className="icon" aria-hidden />
+            <ListIcon className={styles.icon} aria-hidden />
           </button>
 
           <ComposerExtraMenu
@@ -107,72 +112,67 @@ export default function Composer(props: ComposerProps) {
           <button
             type="button"
             id="composer-attach"
-            className="composer-icon-btn"
+            className={styles.iconBtn}
             title="Add attachment"
             onClick={() => fileInputRef.current?.click()}
           >
-            <AttachmentIcon className="icon" aria-hidden />
+            <AttachmentIcon className={styles.icon} aria-hidden />
           </button>
 
           <input
             ref={fileInputRef}
             type="file"
-            className="composer-file-input"
+            className={styles.fileInput}
             multiple
             onChange={(e) => {
               const files = Array.from(e.target.files ?? []);
               if (files.length) props.onAddAttachments(files);
-              e.currentTarget.value = '';
+              e.currentTarget.value = "";
             }}
           />
 
-          <button type="button" id="composer-emoji" className="composer-icon-btn" title="Add emoji">
-            <EmojiIcon className="icon" aria-hidden />
+          <button type="button" id="composer-emoji" className={styles.iconBtn} title="Add emoji">
+            <EmojiIcon className={styles.icon} aria-hidden />
           </button>
 
-          <button
-            type="button"
-            id="composer-format"
-            className="composer-icon-btn"
-            title="Format text"
-          >
+          <button type="button" id="composer-format" className={styles.iconBtn} title="Format text">
             Aa
           </button>
 
-          <span id="composer-title" className="composer-title-hidden">
+          <span id="composer-title" className={styles.titleHidden}>
             {props.title}
           </span>
         </div>
 
-        <div className="composer-header-right">
+        <div className={styles.headerRight}>
           <button
             type="button"
             id="composer-minimize"
-            className="composer-icon-btn"
+            className={styles.iconBtn}
             title="Minimize"
             onClick={props.onMinimizeToggle}
           >
-            <MinimizeIcon className="icon" aria-hidden />
+            <MinimizeIcon className={styles.icon} aria-hidden />
           </button>
 
           <button
             type="button"
             id="composer-close"
-            className="composer-header-link"
+            className={styles.headerLink}
             title="Close"
             aria-label="Close"
             onClick={props.onClose}
           >
-            <CloseIcon className="icon" aria-hidden />
+            <CloseIcon className={styles.icon} aria-hidden />
           </button>
         </div>
       </div>
 
       {!props.minimized && (
-        <div className="composer-main">
-          <div className="composer-meta">
-            <label className="composer-row">
-              <span className="composer-label">To:</span>
+        <div className={styles.main}>
+          <div className={styles.meta}>
+            <label className={styles.row}>
+              <span className={styles.label}>To:</span>
               <AddressChipsInput
                 fieldId="composer-to"
                 placeholder="Recipients (comma or semicolon separated)"
@@ -182,10 +182,14 @@ export default function Composer(props: ComposerProps) {
             </label>
 
             <label
-              className={`composer-row composer-row-extra ${props.extra.cc ? '' : 'hidden'}`}
+              className={[
+                styles.row,
+                styles.rowExtra,
+                props.extra.cc ? "" : styles.hidden,
+              ].join(" ")}
               data-field="cc"
             >
-              <span className="composer-label">Cc:</span>
+              <span className={styles.label}>Cc:</span>
               <AddressChipsInput
                 fieldId="composer-cc"
                 placeholder="Cc"
@@ -195,10 +199,14 @@ export default function Composer(props: ComposerProps) {
             </label>
 
             <label
-              className={`composer-row composer-row-extra ${props.extra.bcc ? '' : 'hidden'}`}
+              className={[
+                styles.row,
+                styles.rowExtra,
+                props.extra.bcc ? "" : styles.hidden,
+              ].join(" ")}
               data-field="bcc"
             >
-              <span className="composer-label">Bcc:</span>
+              <span className={styles.label}>Bcc:</span>
               <AddressChipsInput
                 fieldId="composer-bcc"
                 placeholder="Bcc"
@@ -207,11 +215,12 @@ export default function Composer(props: ComposerProps) {
               />
             </label>
 
-            <label className="composer-row">
-              <span className="composer-label">Subject:</span>
+            <label className={styles.row}>
+              <span className={styles.label}>Subject:</span>
               <input
                 type="text"
                 id="composer-subject"
+                className={styles.inlineInput}
                 placeholder="Subject"
                 value={props.subject}
                 onChange={(e) => props.onSubjectChange(e.target.value)}
@@ -219,13 +228,18 @@ export default function Composer(props: ComposerProps) {
             </label>
 
             <label
-              className={`composer-row composer-row-extra ${props.extra.replyto ? '' : 'hidden'}`}
+              className={[
+                styles.row,
+                styles.rowExtra,
+                props.extra.replyto ? "" : styles.hidden,
+              ].join(" ")}
               data-field="replyto"
             >
-              <span className="composer-label">Reply-To:</span>
+              <span className={styles.label}>Reply-To:</span>
               <input
                 type="text"
                 id="composer-replyto"
+                className={styles.inlineInput}
                 placeholder="Reply-To"
                 value={props.replyToRaw}
                 onChange={(e) => props.onReplyToRawChange(e.target.value)}
@@ -233,12 +247,17 @@ export default function Composer(props: ComposerProps) {
             </label>
 
             <label
-              className={`composer-row composer-row-extra ${props.extra.priority ? '' : 'hidden'}`}
+              className={[
+                styles.row,
+                styles.rowExtra,
+                props.extra.priority ? "" : styles.hidden,
+              ].join(" ")}
               data-field="priority"
             >
-              <span className="composer-label">Priority:</span>
+              <span className={styles.label}>Priority:</span>
               <select
                 id="composer-priority"
+                className={styles.inlineSelect}
                 value={props.priority}
                 onChange={(e) => props.onPriorityChange(e.target.value as Priority)}
               >
@@ -248,10 +267,11 @@ export default function Composer(props: ComposerProps) {
               </select>
             </label>
 
-            <label className="composer-row">
-              <span className="composer-label">From:</span>
+            <label className={styles.row}>
+              <span className={styles.label}>From:</span>
               <select
                 id="composer-from"
+                className={styles.inlineSelect}
                 value={props.fromAccount}
                 onChange={(e) => props.onFromChange(e.target.value)}
               >
@@ -273,8 +293,7 @@ export default function Composer(props: ComposerProps) {
             onRemove={props.onRemoveAttachmentAt}
             onPreview={(file) => {
               const url = URL.createObjectURL(file);
-              window.open(url, '_blank', 'noopener,noreferrer');
-              // optional cleanup (delay so the tab has time to load)
+              window.open(url, "_blank", "noopener,noreferrer");
               setTimeout(() => URL.revokeObjectURL(url), 60_000);
             }}
           />
@@ -282,20 +301,20 @@ export default function Composer(props: ComposerProps) {
       )}
 
       {!props.minimized && (
-        <div className="composer-footer">
-          <div id="composer-error" className={`composer-error ${props.error ? '' : 'hidden'}`}>
+        <div className={styles.footer}>
+          <div className={`${styles.error} ${props.error ? "" : styles.hidden}`} id="composer-error">
             {props.error}
           </div>
 
-          <button type="button" id="composer-send" className="primary" onClick={props.onSend}>
+          <button type="button" id="composer-send" className={styles.primaryBtn} onClick={props.onSend}>
             Send
           </button>
 
-          <div className="send-later-wrapper">
+          <div className={styles.sendLaterWrapper}>
             <button
               type="button"
               id="composer-send-later-toggle"
-              className="secondary"
+              className={styles.secondaryBtn}
               onClick={(e) => {
                 e.stopPropagation();
                 props.onToggleSendLater();

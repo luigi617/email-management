@@ -1,0 +1,122 @@
+/* Mailbox list ---------------------------------------------------- */
+.mailboxList {
+  max-height: calc(100vh - 210px);
+  overflow-y: auto;
+  padding-right: 0.1rem;
+  font-size: 0.83rem;
+}
+
+.mailboxGroup {
+  margin-bottom: 0.35rem;
+}
+
+/* All inboxes row */
+.mailboxItemAll {
+  font-weight: 600;
+}
+
+/* Account header button */
+.mailboxAccount {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0.18rem 0.35rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.mailboxAccount:hover {
+  background: var(--hover-2);
+}
+
+.mailboxAccountChev {
+  font-size: 0.7rem;
+  transition: transform 0.15s ease;
+}
+
+.collapsed .mailboxAccountChev {
+  transform: rotate(-90deg);
+}
+
+.mailboxAccountName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mailboxGroupItems {
+  margin-top: 0.05rem;
+}
+
+.itemsCollapsed {
+  display: none;
+}
+
+/* Mailbox row like macOS list */
+.mailboxItem {
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0.03rem 0;
+  width: 100%;
+  color: var(--text-main);
+}
+
+.mailboxItem:hover {
+  background: var(--hover-2);
+}
+
+.active {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.mailboxDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--neutral-dot);
+  flex: 0 0 auto;
+}
+
+.active .mailboxDot {
+  background: #ffffff;
+}
+
+.mailboxName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mailboxBadge {
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  flex: 0 0 auto;
+}
+
+.active .mailboxBadge {
+  background: rgba(0, 0, 0, 0.14);
+}
+
+/* Empty state */
+.empty {
+  padding: 0.35rem 0.45rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}

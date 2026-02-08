@@ -1,0 +1,66 @@
+/* address pill wrapper for To/Cc/Bcc */
+.wrapper {
+  flex: 1;
+  min-height: 1.8rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.15rem 0;
+  border-bottom: 1px solid transparent;
+}
+
+/* If you add focus tracking later, you can toggle this class:
+   e.g. wrapper + focused => border-bottom-color accent */
+.focused {
+  border-bottom-color: var(--accent);
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.input {
+  flex: 1;
+  min-width: 120px;
+  border-bottom: none !important;
+  padding: 0;
+  margin: 0;
+
+  /* match your inline field look */
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  color: var(--text-main);
+}
+
+/* individual address pill */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  background: var(--hover);
+  font-size: 0.78rem;
+  max-width: 200px;
+}
+
+.pillText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pillRemove {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.8rem;
+  margin-left: 0.2rem;
+  padding: 0;
+  line-height: 1;
+  color: inherit;
+}

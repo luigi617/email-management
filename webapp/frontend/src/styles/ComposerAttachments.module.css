@@ -1,0 +1,70 @@
+.hidden {
+  display: none;
+}
+
+/* attachments bar */
+.attachments {
+  padding: 0.4rem 0.75rem;
+  border-top: 1px solid var(--divider);
+  border-bottom: 1px solid var(--divider);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  background: var(--surface);
+}
+
+/* pill */
+.pill {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  background: var(--hover);
+}
+
+.pill:hover {
+  filter: brightness(0.95);
+}
+
+/* filename button */
+.pillMain {
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  max-width: 220px; /* similar to your old 180px ellipsis intent, but a bit more flexible */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* remove (X) button */
+.pillRemove {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pillRemove:focus,
+.pillRemove:focus-visible,
+.pillMain:focus,
+.pillMain:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}

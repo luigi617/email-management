@@ -1,12 +1,13 @@
 // src/components/Composer/AddressChipsInput.tsx
-import { useRef, useState } from 'react';
+import { useRef, useState } from "react";
+import styles from "@/styles/AddressChipsInput.module.css";
 
 type Props = {
   fieldId: string; // used for id attribute (composer-to, etc.)
   placeholder?: string;
   value: string[]; // chips
   onChange: (next: string[]) => void;
-  className?: string;
+  className?: string; // optional extra class for the <input>
 };
 
 function splitAddresses(raw: string): string[] {
@@ -17,14 +18,14 @@ function splitAddresses(raw: string): string[] {
 }
 
 export function AddressChipsInput({ fieldId, placeholder, value, onChange, className }: Props) {
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   function commit() {
     const parts = splitAddresses(draft);
     if (!parts.length) return;
     onChange([...value, ...parts]);
-    setDraft('');
+    setDraft("");
   }
 
   function removeAt(idx: number) {
@@ -34,19 +35,22 @@ export function AddressChipsInput({ fieldId, placeholder, value, onChange, class
   }
 
   return (
-    <div className="composer-address-wrapper" data-field={fieldId.replace('composer-', '')}>
-      <div className="composer-address-pills">
+    <div
+      className={styles.wrapper}
+      data-field={fieldId.replace("composer-", "")}
+    >
+      <div className={styles.pills}>
         {value.map((addr, idx) => (
           <span
             key={`${addr}-${idx}`}
-            className="composer-address-pill"
+            className={styles.pill}
             onMouseDown={(e) => e.preventDefault()}
             onClick={(e) => e.preventDefault()}
           >
-            <span className="composer-address-pill-text">{addr}</span>
+            <span className={styles.pillText}>{addr}</span>
             <button
               type="button"
-              className="composer-address-pill-remove"
+              className={styles.pillRemove}
               title="Remove"
               onClick={() => removeAt(idx)}
             >
@@ -60,15 +64,15 @@ export function AddressChipsInput({ fieldId, placeholder, value, onChange, class
         ref={inputRef}
         id={fieldId}
         type="text"
-        className={className}
+        className={[styles.input, className].filter(Boolean).join(" ")}
         placeholder={placeholder}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ';' || e.key === ',') {
+          if (e.key === "Enter" || e.key === ";" || e.key === ",") {
             e.preventDefault();
             commit();
-          } else if (e.key === 'Backspace' && !draft) {
+          } else if (e.key === "Backspace" && !draft) {
             if (value.length) onChange(value.slice(0, -1));
           }
         }}

@@ -1,6 +1,7 @@
 // src/components/Composer/SendLaterMenu.tsx
-import { useRef } from 'react';
-import { useClickOutside } from '../../hooks/useClickOutside';
+import { useRef } from "react";
+import { useClickOutside } from "../../hooks/useClickOutside";
+import styles from "@/styles/SendLaterMenu.module.css";
 
 export type SendLaterMenuProps = {
   open: boolean;
@@ -19,27 +20,28 @@ export default function SendLaterMenu(props: SendLaterMenuProps) {
     <div
       ref={menuRef}
       id="composer-send-later-menu"
-      className="composer-send-later-menu"
+      className={styles.menu}
       onClick={(e) => {
         const btn = (e.target as HTMLElement).closest(
-          'button[data-delay]'
+          "button[data-delay]"
         ) as HTMLButtonElement | null;
         if (!btn) return;
-        const delayKey = btn.dataset.delay || '';
-        const label = (btn.textContent || '').trim();
+
+        const delayKey = btn.dataset.delay || "";
+        const label = (btn.textContent || "").trim();
         props.onPick(label, delayKey);
       }}
     >
-      <button type="button" data-delay="10m">
+      <button type="button" className={styles.item} data-delay="10m">
         In 10 minutes
       </button>
-      <button type="button" data-delay="1h">
+      <button type="button" className={styles.item} data-delay="1h">
         In 1 hour
       </button>
-      <button type="button" data-delay="tomorrow_morning">
+      <button type="button" className={styles.item} data-delay="tomorrow_morning">
         Tomorrow morning
       </button>
-      <button type="button" data-delay="custom">
+      <button type="button" className={styles.item} data-delay="custom">
         Pick date &amp; time…
       </button>
     </div>

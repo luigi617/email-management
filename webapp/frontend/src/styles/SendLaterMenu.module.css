@@ -1,0 +1,34 @@
+.menu {
+  position: absolute;
+  right: 0;
+  bottom: 110%;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  box-shadow: var(--shadow-soft);
+  padding: 0.25rem 0;
+  min-width: 170px;
+  z-index: 1000;
+  color: var(--text-main);
+}
+
+.item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0.3rem 0.75rem;
+  text-align: left;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.item:hover {
+  background: var(--hover);
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--focus-ring-strong);
+  outline-offset: 2px;
+}

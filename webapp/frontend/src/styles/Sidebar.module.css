@@ -1,0 +1,8 @@
+/* --- Sidebar (mailbox column) ------------------------------------ */
+.sidebar {
+  background: linear-gradient(to bottom, var(--sidebar-bg-top), var(--sidebar-bg-bottom));
+  border-right: 1px solid var(--divider);
+  padding: 0.75rem 0.5rem 0.75rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+}

@@ -1,0 +1,71 @@
+/* Legend ---------------------------------------------------------- */
+.legendBox {
+  position: relative;
+  max-height: 260px;
+  display: flex;
+  flex-direction: column;
+
+  /* If you relied on a global ".card" reset inside ".sidebar .card",
+     replicate that behavior here so this works standalone. */
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+  padding: 0.3rem 0.2rem 0.4rem 0;
+}
+
+.legendHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin-bottom: 0.3rem;
+}
+
+.title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin: 0 0 0.35rem 0;
+}
+
+.legendList {
+  overflow-y: auto;
+  padding-right: 0.1rem;
+  margin-top: 0.1rem;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.legendItem:hover {
+  background: var(--hover-2);
+}
+
+/* highlight active legend account (matches state.filterAccounts) */
+.active {
+  background: var(--hover-2);
+}
+
+.legendColorDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border-soft);
+  flex: 0 0 auto;
+}
+
+.legendText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

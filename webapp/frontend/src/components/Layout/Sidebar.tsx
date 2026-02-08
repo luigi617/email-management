@@ -1,11 +1,11 @@
 // src/components/Layout/Sidebar.tsx
-import MailboxesCard from '../Sidebar/MailboxesCard';
-import LegendCard from '../Sidebar/LegendCard';
-import type { MailboxData } from '../../types/email';
-import '../../styles/sidebar.css'
+import MailboxesCard from "../Sidebar/MailboxesCard";
+import LegendCard from "../Sidebar/LegendCard";
+import type { MailboxData } from "../../types/email";
+import styles from "@/styles/Sidebar.module.css";
+import SidebarHome from "../Sidebar/SidebarHome";
 
 export type SidebarProps = {
-
   mailboxData: MailboxData;
   currentMailbox: string;
   filterAccounts: string[];
@@ -21,8 +21,9 @@ export type SidebarProps = {
 
 export default function Sidebar(props: SidebarProps) {
   return (
-    <>
-
+    <aside className={styles.sidebar}>
+      <SidebarHome />
+      
       <MailboxesCard
         mailboxData={props.mailboxData}
         currentMailbox={props.currentMailbox}
@@ -38,6 +39,6 @@ export default function Sidebar(props: SidebarProps) {
         activeAccounts={props.filterAccounts}
         onToggleAccount={props.onToggleLegendAccount}
       />
-    </>
+    </aside>
   );
 }

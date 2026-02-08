@@ -1,0 +1,70 @@
+.sidebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0px;
+
+  background: var(--sidebar-bg-top);
+
+  border-bottom: 1px solid var(--divider);
+  color: var(--text-main);
+}
+
+/* =========================
+   Logo
+   ========================= */
+
+.logo {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+
+  color: var(--text-main);
+  text-decoration: none;
+}
+
+.logo:hover {
+  background-color: var(--hover-2);
+}
+
+/* =========================
+   Settings button
+   ========================= */
+
+.settingsButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 36px;
+  height: 36px;
+
+  border-radius: 10px;
+  text-decoration: none;
+
+  transition: background-color 0.18s ease;
+}
+
+.settingsButton:hover {
+  background-color: var(--hover);
+}
+
+.settingsButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+/* =========================
+   Icon
+   ========================= */
+
+.icon {
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
+  transition: color 0.18s ease;
+}
+
+.settingsButton:hover .icon {
+  color: var(--text-main);
+}
