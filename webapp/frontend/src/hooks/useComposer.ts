@@ -75,12 +75,11 @@ function mergeUniqueCaseInsensitive(a: string[], b: string[]): string[] {
 
 export function useComposer(args: {
   mailboxData: MailboxData; // account -> mailboxes
-  selectedOverview: EmailOverview | null;
-  selectedMessage: EmailMessage | null;
   getSelectedRef: () => EmailRef | null;
 
   showCloseConfirm: (cfg: { onSaveDraft: () => Promise<void>; onDiscard: () => void }) => void;
 }) {
+  const [selectedMessage, setSelectedMessage] = useState<EmailMessage | null>(null)
   const [state, setState] = useState<ComposerState>(() => ({
     open: false,
     minimized: false,
@@ -99,7 +98,7 @@ export function useComposer(args: {
     error: '',
   }));
 
-  const { mailboxData, selectedOverview, selectedMessage, getSelectedRef, showCloseConfirm } = args;
+  const { mailboxData, getSelectedRef, showCloseConfirm } = args;
 
   const accounts = useMemo(() => Object.keys(mailboxData || {}), [mailboxData]);
 
@@ -178,10 +177,9 @@ export function useComposer(args: {
   }, []);
 
   const open = useCallback(
-    (mode: ComposerMode) => {
-      const ov = selectedOverview;
-      const msg = selectedMessage;
-      const originalSubj = msg?.subject || ov?.subject || '';
+    (mode: ComposerMode, emailMessage: EmailMessage | null) => {
+      setSelectedMessage(emailMessage)
+      const originalSubj = emailMessage?.subject || '';
 
       // default From
       let defaultFrom = '';
@@ -200,7 +198,7 @@ export function useComposer(args: {
         toStr = '';
         html = '';
       } else if (mode === 'reply') {
-        const fromObj = msg?.from_email || ov?.from_email;
+        const fromObj = emailMessage?.from_email;
         if (fromObj) toStr = formatAddress(fromObj);
 
         subject = originalSubj.toLowerCase().startsWith('re:')
@@ -208,12 +206,12 @@ export function useComposer(args: {
           : originalSubj
             ? `Re: ${originalSubj}`
             : '';
-        const rawQuote = buildQuotedOriginalBodyHtml(ov, msg);
+        const rawQuote = buildQuotedOriginalBodyHtml(emailMessage);
         html = '\n' + sanitizeForComposer(rawQuote);
       } else if (mode === 'reply_all') {
-        const fromObj = msg?.from_email || ov?.from_email;
-        const toList = msg?.to || ov?.to || [];
-        const ccList = msg?.cc || [];
+        const fromObj = emailMessage?.from_email;
+        const toList = emailMessage?.to || [];
+        const ccList = emailMessage?.cc || [];
 
         const allRecipients = [...(fromObj ? [fromObj] : []), ...toList, ...ccList];
 
@@ -224,7 +222,7 @@ export function useComposer(args: {
           : originalSubj
             ? `Re: ${originalSubj}`
             : '';
-        const rawQuote = buildQuotedOriginalBodyHtml(ov, msg);
+        const rawQuote = buildQuotedOriginalBodyHtml(emailMessage);
         html = '\n' + sanitizeForComposer(rawQuote);
       } else if (mode === 'forward') {
         subject = originalSubj.toLowerCase().startsWith('fwd:')
@@ -232,7 +230,7 @@ export function useComposer(args: {
           : originalSubj
             ? `Fwd: ${originalSubj}`
             : '';
-        const rawFwd = buildForwardedOriginalBodyHtml(ov, msg);
+        const rawFwd = buildForwardedOriginalBodyHtml(emailMessage);
         html = '\n' + sanitizeForComposer(rawFwd);
       }
 
@@ -258,7 +256,7 @@ export function useComposer(args: {
         html,
       }));
     },
-    [selectedOverview, selectedMessage, getSelectedRef, accounts]
+    [getSelectedRef, accounts]
   );
 
   const minimizeToggle = useCallback(() => {

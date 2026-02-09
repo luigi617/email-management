@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from email.message import EmailMessage as PyEmailMessage
+from typing import List
 
 import pytest
 
@@ -403,7 +404,7 @@ def test_fetch_thread_includes_root_once(manager: EmailManager, fake_imap: FakeI
     )
     fake_imap.add_parsed_message("INBOX", reply)
 
-    msgs = manager.fetch_thread(root, mailbox="INBOX")
+    msgs: List[EmailMessage] = manager.fetch_thread(EmailRef(uid=1, mailbox="INBOX"), mailbox="INBOX")
     mids = [m.message_id for m in msgs]
 
     assert mids.count("<root@example.com>") == 1

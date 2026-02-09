@@ -4,7 +4,6 @@ import { EmailApi } from '../api/emailApi';
 import type { EmailRef } from '../types/shared';
 
 export function useDetailActions(args: {
-  getSelectedRef: () => EmailRef | null;
   refreshOverview: () => Promise<void> | void;
   confirm: (cfg: {
     title?: string;
@@ -16,9 +15,8 @@ export function useDetailActions(args: {
   }) => Promise<boolean>;
   setDetailError: (msg: string) => void;
 }) {
-  const archiveSelected = useCallback(async () => {
+  const archiveSelected = useCallback(async (ref: EmailRef) => {
     args.setDetailError('');
-    const ref = args.getSelectedRef();
     if (!ref) {
       args.setDetailError('No email selected to archive.');
       return;
@@ -43,9 +41,8 @@ export function useDetailActions(args: {
     }
   }, [args]);
 
-  const deleteSelected = useCallback(async () => {
+  const deleteSelected = useCallback(async (ref: EmailRef) => {
     args.setDetailError('');
-    const ref = args.getSelectedRef();
     if (!ref) {
       args.setDetailError('No email selected to delete.');
       return;
@@ -71,9 +68,8 @@ export function useDetailActions(args: {
   }, [args]);
 
   const moveSelected = useCallback(
-    async (destinationMailbox: string) => {
+    async (ref: EmailRef, destinationMailbox: string) => {
       args.setDetailError('');
-      const ref = args.getSelectedRef();
       if (!ref) {
         args.setDetailError('No email selected to move.');
         return;

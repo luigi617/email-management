@@ -556,7 +556,7 @@ class EmailManager:
 
     def fetch_thread(
         self,
-        root: EmailMessage,
+        root: EmailRef,
         *,
         mailbox: str = "INBOX",
         include_attachment_meta: bool = False,
@@ -564,18 +564,18 @@ class EmailManager:
         """
         Fetch messages belonging to the same thread as `root`.
         """
-        if not root.message_id:
-            return [root]
+        email_message = self.fetch_message_by_ref(root)
+        if not email_message.message_id:
+            return [email_message]
 
-        q = self.imap_query(mailbox).for_thread_root(root).limit(200)
+        q = self.imap_query(mailbox).for_thread_root(email_message).limit(200)
 
         _, msgs = q.fetch(include_attachment_meta=include_attachment_meta)
 
         # Ensure root is present exactly once
-        mid = root.message_id
+        mid = email_message.message_id
         if all(m.message_id != mid for m in msgs):
-            msgs = [root] + msgs
-
+            msgs = [email_message] + msgs
         return msgs
 
     def add_flags(self, refs: Sequence[EmailRef], flags: Set[str]) -> None:

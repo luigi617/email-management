@@ -20,7 +20,7 @@ export type MiddleColumnProps = {
 
   emails: EmailOverview[];
   emptyList: boolean;
-  selectedEmailId: string | null;
+  selectedOverview: EmailOverview | null;
   onSelectEmail: (email: EmailOverview) => void;
 
   getEmailId: (email: EmailOverview) => string;
@@ -79,7 +79,7 @@ export default function MiddleColumn(props: MiddleColumnProps) {
       <section className={styles.listContainer}>
         <EmailList
           emails={props.emails}
-          selectedEmailId={props.selectedEmailId}
+          selectedOverview={props.selectedOverview}
           getColorForEmail={props.getColorForEmail}
           getEmailId={props.getEmailId}
           onSelectEmail={props.onSelectEmail}

@@ -15,15 +15,14 @@ function preferOriginalHtml(msg?: EmailMessage | null) {
 }
 
 export function buildQuotedOriginalBodyHtml(
-  overview: EmailOverview | null,
   msg: EmailMessage | null
 ) {
-  if (!overview && !msg) return '';
+  if (!msg) return '';
 
-  const fromObj = msg?.from_email || overview?.from_email;
+  const fromObj = msg?.from_email;
   const who = senderLabel(fromObj);
 
-  const dateVal = msg?.received_at || overview?.received_at;
+  const dateVal = msg?.received_at;
   let headerLine = '';
 
   if (dateVal) {
@@ -54,15 +53,14 @@ export function buildQuotedOriginalBodyHtml(
 }
 
 export function buildForwardedOriginalBodyHtml(
-  overview: EmailOverview | null,
   msg: EmailMessage | null
 ) {
-  if (!overview && !msg) return '';
+  if (!msg) return '';
 
-  const fromObj = msg?.from_email || overview?.from_email;
+  const fromObj = msg?.from_email;
   const who = senderLabel(fromObj);
 
-  const dateVal = msg?.received_at || overview?.received_at;
+  const dateVal = msg?.received_at;
   let dateLine = '';
   if (dateVal) {
     const d = new Date(dateVal);
@@ -81,8 +79,8 @@ export function buildForwardedOriginalBodyHtml(
     }
   }
 
-  const originalSubj = msg?.subject || overview?.subject || '(no subject)';
-  const toList = msg?.to || overview?.to || [];
+  const originalSubj = msg?.subject || '(no subject)';
+  const toList = msg?.to || [];
   const toAddr = formatAddressList(toList);
 
   const originalHtml = preferOriginalHtml(msg);

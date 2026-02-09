@@ -169,9 +169,8 @@ export function useEmailAppCore() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // selection + detail
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedOverview, setSelectedOverview] = useState<EmailOverview | null>(null);
-  const [selectedMessage, setSelectedMessage] = useState<EmailMessage | null>(null);
+  const [selectedMessages, setSelectedMessages] = useState<EmailMessage[] | null>(null);
 
   // errors (inline)
   const [listError, setListError] = useState<string>('');
@@ -240,8 +239,7 @@ export function useEmailAppCore() {
           setEmails((prev) => mergeUniqueById(prev, list));
         } else {
           setEmails(list);
-          setSelectedId(null);
-          setSelectedMessage(null);
+          setSelectedMessages(null);
           setSelectedOverview(null);
         }
 
@@ -276,25 +274,25 @@ export function useEmailAppCore() {
       const uid = overview.ref.uid;
 
       if (!account || !mailbox || uid == null) {
-        setSelectedMessage(null);
+        setSelectedMessages(null);
         return;
       }
 
       try {
         setDetailError('');
-        setSelectedMessage(null);
+        setSelectedMessages(null);
 
-        const msg = await EmailApi.getEmail({
+        const msgs = await EmailApi.getEmail({
           account: String(account),
           mailbox: String(mailbox),
           uid: uid,
         });
 
-        setSelectedMessage(msg);
+        setSelectedMessages(msgs);
       } catch (e) {
         console.error('Error fetching email detail:', e);
         setDetailError('Failed to load full email content.');
-        setSelectedMessage(null);
+        setSelectedMessages(null);
       }
     },
     [currentMailbox]
@@ -315,10 +313,8 @@ export function useEmailAppCore() {
 
   const selectEmail = useCallback(
     (email: EmailOverview) => {
-      const id = getEmailId(email);
-      setSelectedId(id || null);
       setSelectedOverview(email);
-      setSelectedMessage(null);
+      setSelectedMessages(null);
       void fetchEmailMessage(email);
     },
     [fetchEmailMessage]
@@ -350,9 +346,8 @@ export function useEmailAppCore() {
     appliedSearchText,
     applySearch,
 
-    selectedId,
     selectedOverview,
-    selectedMessage,
+    selectedMessages,
     getSelectedRef,
     selectEmail,
 

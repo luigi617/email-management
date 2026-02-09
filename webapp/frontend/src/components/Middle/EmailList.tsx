@@ -6,7 +6,7 @@ import { EmailApi } from "../../api/emailApi";
 
 export type EmailListProps = {
   emails: EmailOverview[];
-  selectedEmailId: string | null;
+  selectedOverview: EmailOverview | null;
   getColorForEmail: (e: EmailOverview) => string;
   getEmailId: (e: EmailOverview) => string;
   onSelectEmail: (email: EmailOverview) => void;
@@ -81,7 +81,9 @@ export default function EmailList(props: EmailListProps) {
       {props.emails.map((email, index) => {
         const emailId = props.getEmailId(email);
         const key = emailId || stableFallbackKey(email, index);
-        const isSelected = !!emailId && emailId === props.selectedEmailId;
+
+        const selectedEmailId = props.selectedOverview ? props.getEmailId(props.selectedOverview) : null
+        const isSelected = !!emailId && emailId === selectedEmailId;
 
         const isSeenFromServer = isSeenFromFlags(email.flags);
         const isSeen = isSeenFromServer || uiSeenKeys.has(key);

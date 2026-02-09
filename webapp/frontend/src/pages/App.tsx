@@ -8,6 +8,8 @@ import { useEmailAppCore } from '../hooks/useEmailApp';
 import { useAppModal } from '../hooks/useAppModal';
 import { useComposer } from '../hooks/useComposer';
 import { useDetailActions } from '../hooks/useDetailActions';
+import type { EmailMessage } from '../types/email';
+import type { EmailRef } from '../types/shared';
 
 export default function App() {
   const core = useEmailAppCore();
@@ -18,7 +20,6 @@ export default function App() {
   const [sendLaterOpen, setSendLaterOpen] = useState(false);
 
   const detailActions = useDetailActions({
-    getSelectedRef: core.getSelectedRef,
     refreshOverview: () => core.fetchOverview(null),
     confirm: modal.confirm,
     setDetailError: core.setDetailError,
@@ -26,8 +27,6 @@ export default function App() {
 
   const composer = useComposer({
     mailboxData: core.mailboxData,
-    selectedOverview: core.selectedOverview,
-    selectedMessage: core.selectedMessage,
     getSelectedRef: core.getSelectedRef,
     showCloseConfirm: ({ onSaveDraft, onDiscard }) => {
       modal.show({
@@ -108,7 +107,7 @@ export default function App() {
           onCompose: () => {
             setComposerExtraMenuOpen(false);
             setSendLaterOpen(false);
-            composer.open('compose');
+            composer.open('compose', null);
           },
         }}
         middle={{
@@ -127,12 +126,12 @@ export default function App() {
           onCompose: () => {
             setComposerExtraMenuOpen(false);
             setSendLaterOpen(false);
-            composer.open('compose');
+            composer.open('compose', null);
           },
 
           emails: core.emails,
           emptyList: core.emails.length == 0,
-          selectedEmailId: core.selectedId,
+          selectedOverview: core.selectedOverview,
 
           onSelectEmail: (email) => {
             core.selectEmail(email);
@@ -142,32 +141,30 @@ export default function App() {
           getColorForEmail: core.helpers.getColorForEmail,
         }}
         detail={{
-          selectedOverview: core.selectedOverview,
-          selectedMessage: core.selectedMessage,
+          selectedMessages: core.selectedMessages,
           mailboxData: core.mailboxData,
           currentMailbox: core.currentMailbox,
 
           detailError: core.detailError,
-          getColorForEmail: core.helpers.getColorForEmail,
 
           onArchive: detailActions.archiveSelected,
           onDelete: detailActions.deleteSelected,
-          onReply: () => {
+          onReply: (msg: EmailMessage) => {
             setComposerExtraMenuOpen(false);
             setSendLaterOpen(false);
-            composer.open('reply');
+            composer.open('reply', msg);
           },
-          onReplyAll: () => {
+          onReplyAll: (msg: EmailMessage) => {
             setComposerExtraMenuOpen(false);
             setSendLaterOpen(false);
-            composer.open('reply_all');
+            composer.open('reply_all', msg);
           },
-          onForward: () => {
+          onForward: (msg: EmailMessage) => {
             setComposerExtraMenuOpen(false);
             setSendLaterOpen(false);
-            composer.open('forward');
+            composer.open('forward', msg);
           },
-          onMove: (destinationMailbox: string) => detailActions.moveSelected(destinationMailbox),
+          onMove: detailActions.moveSelected,
         }}
       />
 
