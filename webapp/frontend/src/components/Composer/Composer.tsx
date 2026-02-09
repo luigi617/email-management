@@ -16,6 +16,7 @@ import MinimizeIcon from "@/assets/svg/minimize.svg?react";
 import CloseIcon from "@/assets/svg/close.svg?react";
 
 import styles from "@/styles/Composer.module.css";
+import Button from "../ui/Button/Button";
 
 export type ComposerProps = {
   open: boolean;
@@ -306,9 +307,9 @@ export default function Composer(props: ComposerProps) {
             {props.error}
           </div>
 
-          <button type="button" id="composer-send" className={styles.primaryBtn} onClick={props.onSend}>
+          <Button type="button" id="composer-send" variant="primary" onClick={props.onSend}>
             Send
-          </button>
+          </Button>
 
           <div className={styles.sendLaterWrapper}>
             <button

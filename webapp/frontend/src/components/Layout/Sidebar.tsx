@@ -4,6 +4,7 @@ import LegendCard from "../Sidebar/LegendCard";
 import type { MailboxData } from "../../types/email";
 import styles from "@/styles/Sidebar.module.css";
 import SidebarHome from "../Sidebar/SidebarHome";
+import Button from "../ui/Button/Button";
 
 export type SidebarProps = {
   mailboxData: MailboxData;
@@ -15,12 +16,18 @@ export type SidebarProps = {
   legendAccounts: string[];
   legendColorMap: Record<string, string>;
   onToggleLegendAccount: (account: string) => void;
+
+  onCompose: () => void;
 };
 
 export default function Sidebar(props: SidebarProps) {
   return (
     <aside className={styles.sidebar}>
       <SidebarHome />
+
+      <Button type="button" variant="primary" onClick={props.onCompose} style={{marginBottom: "6px"}}>
+        Compose
+      </Button>
 
       <MailboxesCard
         mailboxData={props.mailboxData}

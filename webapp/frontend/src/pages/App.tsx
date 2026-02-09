@@ -105,6 +105,11 @@ export default function App() {
             core.setCurrentMailbox('INBOX');
           },
 
+          onCompose: () => {
+            setComposerExtraMenuOpen(false);
+            setSendLaterOpen(false);
+            composer.open('compose');
+          },
         }}
         middle={{
           searchQuery: core.appliedSearchText,

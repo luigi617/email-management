@@ -1,0 +1,50 @@
+/* -------------------------------------------------- */
+/* Button.module.css */
+
+.primaryBtn {
+  border-radius: 999px;
+  border: none;
+  background: var(--accent);
+  color: #ffffff;
+  padding: 0.35rem 0.95rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: filter 0.15s ease, opacity 0.15s ease;
+}
+
+.primaryBtn:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.secondaryBtn {
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  padding: 0.35rem 0.95rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.secondaryBtn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.ghostBtn {
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  padding: 0.35rem 0.95rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.ghostBtn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

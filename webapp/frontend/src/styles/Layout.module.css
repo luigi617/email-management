@@ -11,12 +11,15 @@
 
 /* These wrappers exist only to support grid-area assignment on breakpoints */
 .sidebar {
+  height: 100vh;
 }
 
 .middle {
+  height: 100vh;
 }
 
 .detail {
+  height: 100vh;
 }
 
 /* side-by-side layout for smaller screens still works */

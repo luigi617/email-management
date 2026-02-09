@@ -67,7 +67,6 @@ export default function MiddleColumn(props: MiddleColumnProps) {
         hasMore={props.hasMore}
         isLoadingMore={props.isLoadingMore}
         onLoadMore={props.onLoadMore}
-        onCompose={props.onCompose}
         searchQuery={props.searchQuery}
         onSearch={props.onSearch}
       />
