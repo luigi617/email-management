@@ -26,8 +26,7 @@ export default function SearchCard(props: Props) {
     }
   };
 
-  // ✅ Clear input + run empty search
-  const handleClick = () => {
+  const handleClear = () => {
     setValue('');
     props.onSearch('');
   };
@@ -46,9 +45,9 @@ export default function SearchCard(props: Props) {
 
         <button
           type="button"
-          className={styles.searchBtn}
+          className={styles.clearBtn}
           aria-label="Clear"
-          onClick={handleClick}
+          onClick={handleClear}
         >
           <CloseIcon className={styles.icon} aria-hidden />
         </button>

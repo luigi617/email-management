@@ -27,13 +27,6 @@ export default function LegendCard(props: LegendCardProps) {
             <div
               key={account}
               className={[styles.legendItem, isActive ? styles.active : ""].filter(Boolean).join(" ")}
-              data-key={account}
-              onClick={() => props.onToggleAccount(account)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") props.onToggleAccount(account);
-              }}
-              role="button"
-              tabIndex={0}
             >
               <span className={styles.legendColorDot} style={{ background: color }} />
               <span className={styles.legendText}>{account}</span>

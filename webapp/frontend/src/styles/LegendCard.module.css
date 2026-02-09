@@ -42,12 +42,6 @@
   padding: 0.2rem 0.45rem;
   border-radius: 12px;
   font-size: 0.78rem;
-  cursor: pointer;
-  user-select: none;
-}
-
-.legendItem:hover {
-  background: var(--hover-2);
 }
 
 /* highlight active legend account (matches state.filterAccounts) */

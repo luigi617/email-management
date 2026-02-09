@@ -18,7 +18,7 @@
   border: none !important;
   background: transparent;
   box-shadow: none;
-  padding: 0.3rem 0.5rem;
+  padding: 0.1rem 0.3rem;
   font: inherit;
   font-size: 0.8rem;
   color: var(--text-main);
@@ -31,7 +31,7 @@
 }
 
 /* ✅ Borderless icon button */
-.searchBtn {
+.clearBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -47,15 +47,15 @@
   box-shadow: none;
 }
 
-.searchBtn:hover {
+.clearBtn:hover {
   background: var(--hover);
 }
 
-.searchBtn:active {
+.clearBtn:active {
   transform: translateY(0.5px);
 }
 
-.searchBtn:focus {
+.clearBtn:focus {
   outline: none;
   box-shadow: none;
 }
@@ -63,5 +63,4 @@
 .icon {
   width: 14px;
   height: 14px;
-  opacity: 0.85;
 }

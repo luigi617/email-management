@@ -25,7 +25,7 @@ export default function Sidebar(props: SidebarProps) {
     <aside className={styles.sidebar}>
       <SidebarHome />
 
-      <Button type="button" variant="primary" onClick={props.onCompose} style={{marginBottom: "6px"}}>
+      <Button type="button" variant="primary" onClick={props.onCompose} >
         Compose
       </Button>
 

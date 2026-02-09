@@ -112,6 +112,10 @@ export default function App() {
           },
         }}
         middle={{
+
+          currentMailbox: core.currentMailbox,
+          currentAccounts: core.filterAccounts,
+
           searchQuery: core.appliedSearchText,
           onSearch: core.applySearch,
           

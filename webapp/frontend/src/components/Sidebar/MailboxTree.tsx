@@ -104,7 +104,6 @@ export default function MailboxTree(props: MailboxTreeProps) {
                   .join(" ")}
               >
                 {mailboxItems.map(({ name, unseen }) => {
-                  // Old rule: when no filterAccounts, only “All inboxes” is active
                   const isActive =
                     name === currentMailbox &&
                     activeAccounts.size > 0 &&
