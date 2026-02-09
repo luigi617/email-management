@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { EmailOverview } from "../../types/email";
 import { formatDate } from "../../utils/emailFormat";
 import styles from "@/styles/EmailList.module.css";
+import { EmailApi } from "../../api/emailApi";
 
 export type EmailListProps = {
   emails: EmailOverview[];
@@ -10,7 +11,6 @@ export type EmailListProps = {
   getEmailId: (e: EmailOverview) => string;
   onSelectEmail: (email: EmailOverview) => void;
 
-  // NEW:
   listRef: React.RefObject<HTMLDivElement | null>;
   sentinelRef: React.RefObject<HTMLDivElement | null>;
   showLoadingMore: boolean;
@@ -34,8 +34,41 @@ function isSeenFromFlags(flags: unknown): boolean {
   });
 }
 
+function isStarredFromFlags(flags: unknown): boolean {
+  if (!Array.isArray(flags)) return false;
+  return flags.some((f) => {
+    const s = String(f).toLowerCase();
+    return s.includes("flagged") || s.includes("\\flagged") || s === "starred";
+  });
+}
+
+function StarIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M12 17.27l5.18 3.73-1.64-6.03L20 10.24l-6.19-.52L12 4 10.19 9.72 4 10.24l4.46 4.73L6.82 21z"
+        fill={filled ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function EmailList(props: EmailListProps) {
   const [uiSeenKeys, setUiSeenKeys] = useState<Set<string>>(() => new Set());
+
+  // optimistic starred overrides
+  const [uiStarOn, setUiStarOn] = useState<Set<string>>(() => new Set());
+  const [uiStarOff, setUiStarOff] = useState<Set<string>>(() => new Set());
+  const [starBusy, setStarBusy] = useState<Set<string>>(() => new Set());
 
   return (
     <div
@@ -54,8 +87,16 @@ export default function EmailList(props: EmailListProps) {
         const isSeen = isSeenFromServer || uiSeenKeys.has(key);
         const isUnread = !isSeen;
 
+        const starredFromServer = isStarredFromFlags(email.flags);
+
+        const isStarred =
+          (starredFromServer && !uiStarOff.has(key)) || uiStarOn.has(key);
+
+        const isStarBusy = starBusy.has(key);
+
         const color = props.getColorForEmail(email);
-        const fromAddr = email.from_email?.name || email.from_email?.email || "(unknown sender)";
+        const fromAddr =
+          email.from_email?.name || email.from_email?.email || "(unknown sender)";
         const dateStr = formatDate(email.received_at);
         const subj = email.subject || "(no subject)";
 
@@ -66,6 +107,75 @@ export default function EmailList(props: EmailListProps) {
         ]
           .filter(Boolean)
           .join(" ");
+
+        const toggleStarred = async () => {
+          const account = email.ref.account;
+          const mailbox = email.ref.mailbox;
+          const uid = email.ref.uid;
+
+          if (!account || !mailbox || uid == null) return;
+          if (isStarBusy) return;
+
+          const nextStarred = !isStarred;
+
+          // optimistic busy
+          setStarBusy((prev) => {
+            const next = new Set(prev);
+            next.add(key);
+            return next;
+          });
+
+          // optimistic override sets
+          setUiStarOn((prev) => {
+            const next = new Set(prev);
+            if (nextStarred) next.add(key);
+            else next.delete(key);
+            return next;
+          });
+
+          setUiStarOff((prev) => {
+            const next = new Set(prev);
+            if (!nextStarred) next.add(key);
+            else next.delete(key);
+            return next;
+          });
+
+          try {
+            await EmailApi.setFlagged({
+              account,
+              mailbox,
+              uid,
+              flagged: nextStarred,
+            });
+          } catch (err) {
+            // revert on failure
+            setUiStarOn((prev) => {
+              const next = new Set(prev);
+              if (nextStarred) next.delete(key);
+              else next.add(key);
+              return next;
+            });
+            setUiStarOff((prev) => {
+              const next = new Set(prev);
+              if (!nextStarred) next.delete(key);
+              else next.add(key);
+              return next;
+            });
+            console.error(err);
+          } finally {
+            setStarBusy((prev) => {
+              const next = new Set(prev);
+              next.delete(key);
+              return next;
+            });
+          }
+        };
+
+        const starDisabled =
+          isStarBusy ||
+          !email.ref.account ||
+          !email.ref.mailbox ||
+          email.ref.uid == null;
 
         return (
           <div
@@ -96,15 +206,45 @@ export default function EmailList(props: EmailListProps) {
               }
             }}
           >
-            <div className={styles.emailColorStrip} style={{ background: color }} />
+            <div
+              className={styles.emailColorStrip}
+              style={{ background: color }}
+            />
 
             <div className={styles.emailMain}>
+              {/* Row 1: From (left) + Date (right) */}
               <div className={styles.emailRowTop}>
                 <div className={styles.emailFrom}>{fromAddr}</div>
                 <div className={styles.emailDate}>{dateStr}</div>
               </div>
 
-              <div className={styles.emailSubject}>{subj}</div>
+              {/* Row 2: Subject (left) + Star (right) */}
+              <div className={styles.emailRowBottom}>
+                <div className={styles.emailSubject}>{subj}</div>
+
+                <button
+                  type="button"
+                  className={[
+                    styles.starButton,
+                    isStarred ? styles.starButtonActive : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  aria-label={isStarred ? "Unstar email" : "Star email"}
+                  aria-pressed={isStarred}
+                  disabled={starDisabled}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation(); // don't trigger card select
+                    toggleStarred();
+                  }}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                  }}
+                >
+                  <StarIcon filled={isStarred} />
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -114,8 +254,10 @@ export default function EmailList(props: EmailListProps) {
         No emails match the current filters.
       </div>
 
-      {props.showLoadingMore ? <div className={styles.loadingMore}>Loading more…</div> : null}
-      {props.showEnd ? <div className={styles.end}>You’re all caught up.</div> : null}
+      {props.showLoadingMore ? (
+        <div className={styles.loadingMore}>Loading more…</div>
+      ) : null}
+      {props.showEnd ? <div className={styles.end}>You're all caught up.</div> : null}
 
       <div
         className={styles.sentinel}

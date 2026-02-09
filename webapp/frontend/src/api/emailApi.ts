@@ -60,6 +60,20 @@ async function replyImpl<T>(
 }
 
 export const EmailApi = {
+
+  async setFlagged<T>(
+    args: EmailRef & { flagged: boolean }
+  ): Promise<T> {
+    const form = new FormData();
+    form.append('flagged', String(args.flagged));
+    const url = buildEmailUrl(args.account, args.mailbox, args.uid.toString(), "/flagged");
+
+    return requestJSON<T>(url, {
+      method: "PATCH",
+      body: form,
+    });
+  },
+
   async isAccountConnected(account: string): Promise<ConnectedResult> {
     // account is the path param expected by backend (see note below)
     return requestJSON<ConnectedResult>(`/api/accounts/${encodeURIComponent(account)}/connected`, {

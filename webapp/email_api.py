@@ -25,6 +25,17 @@ from openmail.types import EmailRef
 
 router = APIRouter(prefix="/api", tags=["email"])
 
+def _safe_set_flagged(account: str, ref: EmailRef, flagged: bool) -> None:
+    try:
+        manager = ACCOUNTS.get(account)
+        if manager is None:
+            return
+        if flagged:
+            manager.flag([ref])
+        else:
+            manager.unflag([ref])
+    except Exception:
+        pass
 
 def _safe_mark_seen(account: str, ref: EmailRef) -> None:
     try:
@@ -568,3 +579,31 @@ async def send_email(
     )
 
     return {"status": "ok", "action": "send", "account": account, "result": send_result.to_dict()}
+
+
+@router.patch("/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}/flagged")
+async def set_email_flagged(
+    account: str,
+    mailbox: str,
+    email_id: int,
+    flagged: Annotated[bool, Form()] ,
+) -> dict:
+    account = unquote(account)
+    mailbox = unquote(mailbox)
+
+
+    ref = EmailRef(mailbox=mailbox, uid=email_id)
+
+    try:
+        await run_blocking(_safe_set_flagged, account, ref, flagged)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update flagged state: {e}") from e
+
+    return {
+        "status": "ok",
+        "action": "set_flagged",
+        "account": account,
+        "mailbox": mailbox,
+        "email_id": email_id,
+        "flagged": flagged,
+    }

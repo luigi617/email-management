@@ -25,7 +25,6 @@
 /* Read: slightly muted */
 .read :global(.email-from),
 .read :global(.email-subject) {
-  /* (kept for compatibility if you still render those globals elsewhere) */
   opacity: var(--email-read-opacity);
 }
 
@@ -74,10 +73,19 @@
   gap: 0.18rem;
 }
 
+/* Row 1: From + Date */
 .emailRowTop {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 0.5rem;
+}
+
+/* Row 2: Subject + Star */
+.emailRowBottom {
+  display: flex;
+  align-items: flex-start; /* change to center if you prefer */
+  justify-content: space-between;
   gap: 0.5rem;
 }
 
@@ -92,9 +100,20 @@
   text-overflow: ellipsis;
 }
 
+.emailDate {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .emailSubject {
   font-size: 0.83rem;
   line-height: 1.25em;
+
+  flex: 1;
+  min-width: 0;
+
   white-space: normal;
   overflow: hidden;
   display: -webkit-box;
@@ -104,10 +123,41 @@
   word-break: break-word;
 }
 
-.emailDate {
-  font-size: 0.72rem;
+/* ===== Star button (right side of subject row) ===== */
+.starButton {
+  position: static;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+
+  border: none;
+  background: transparent;
   color: var(--text-muted);
-  white-space: nowrap;
+
+  flex-shrink: 0;
+
+  cursor: pointer;
+  transition: background 0.08s ease, color 0.08s ease;
+}
+
+.starButton:hover {
+  background: var(--hover);
+  color: var(--text-main);
+}
+
+.starButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Active/starred state */
+.starButtonActive {
+  color: var(--accent);
 }
 
 /* Empty state */
