@@ -106,8 +106,14 @@ export const EmailApi = {
   },
 
   // GET single email
-  async getEmail(key: EmailRef): Promise<EmailMessage[]> {
-    return requestJSON<EmailMessage[]>(buildEmailUrl(key.account, key.mailbox, key.uid.toString()));
+  async getEmail(
+    { date = null, ...key }: EmailRef & { date?: string | null }
+  ): Promise<EmailMessage[]> {
+    const suffix = date ? `?date=${encodeURIComponent(date)}` : '';
+
+    return requestJSON<EmailMessage[]>(
+      buildEmailUrl(key.account, key.mailbox, key.uid.toString(), suffix)
+    );
   },
 
   // POST archive

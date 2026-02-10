@@ -56,55 +56,8 @@ class _ConnState:
     conn: imaplib.IMAP4
     selected_mailbox: Optional[str] = None
     selected_readonly: Optional[bool] = None
+    capabilities: Optional[Set[str]] = None
 
-
-@dataclass
-class _CacheEntry:
-    expires_at: float
-    uids: List[int]
-
-
-class _TTL_LRU_Cache:
-    """
-    Small, dependency-free TTL + LRU cache.
-    Keys: (mailbox, criteria_str)
-    Values: list[int] (ascending UIDs)
-    """
-
-    def __init__(self, *, max_keys: int, ttl_seconds: float):
-        self._max_keys = max_keys
-        self._ttl = ttl_seconds
-        self._d: "OrderedDict[tuple[str, str], _CacheEntry]" = OrderedDict()
-        self._lock = threading.Lock()
-
-    def get(self, key: tuple[str, str]) -> Optional[List[int]]:
-        now = time.time()
-        with self._lock:
-            ent = self._d.get(key)
-            if ent is None:
-                return None
-            if ent.expires_at < now:
-                self._d.pop(key, None)
-                return None
-            self._d.move_to_end(key)
-            return ent.uids
-
-    def set(self, key: tuple[str, str], uids: List[int]) -> None:
-        now = time.time()
-        with self._lock:
-            self._d[key] = _CacheEntry(expires_at=now + self._ttl, uids=uids)
-            self._d.move_to_end(key)
-            while len(self._d) > self._max_keys:
-                self._d.popitem(last=False)
-
-    def invalidate(self, mailbox: Optional[str] = None) -> None:
-        with self._lock:
-            if mailbox is None:
-                self._d.clear()
-                return
-            keys = [k for k in self._d.keys() if k[0] == mailbox]
-            for k in keys:
-                self._d.pop(k, None)
 
 
 @dataclass
@@ -123,9 +76,6 @@ class IMAPClient:
     max_retries: int = 1
     backoff_seconds: float = 0.2
 
-    # ---- cache knobs ----
-    cache_ttl_seconds: float = 60.0
-    cache_max_keys: int = 256
     max_uids_per_key: int = 10_000        # cap UID list size stored
 
     # ---- progressive SEARCH knobs ----
@@ -136,9 +86,9 @@ class IMAPClient:
     _pool: "Queue[_ConnState]" = field(default_factory=Queue, init=False, repr=False)
     _pool_lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
     pool_acquire_timeout: float = 5.0
+    _closing: bool = field(default=False, init=False, repr=False)
 
     _search_sem: threading.Semaphore = field(init=False, repr=False)
-    _search_cache: _TTL_LRU_Cache = field(init=False, repr=False)
 
     @classmethod
     def from_config(cls, config: IMAPConfig) -> "IMAPClient":
@@ -150,10 +100,6 @@ class IMAPClient:
 
     def __post_init__(self) -> None:
         self._search_sem = threading.Semaphore(self.max_concurrent_searches)
-        self._search_cache = _TTL_LRU_Cache(
-            max_keys=self.cache_max_keys,
-            ttl_seconds=self.cache_ttl_seconds,
-        )
 
         # initialize pool
         for _ in range(max(1, self.pool_size)):
@@ -192,17 +138,52 @@ class IMAPClient:
 
     @contextmanager
     def _acquire(self):
+        if self._closing:
+            raise IMAPError("IMAPClient is closed")
+
         state = self._pool.get(timeout=self.pool_acquire_timeout)
         try:
+            if self._closing:
+                try:
+                    state.conn.logout()
+                except Exception:
+                    pass
+                raise IMAPError("IMAPClient is closed")
+
             yield state
-            self._pool.put(state)
+
         except REPLACE_ON:
+            # Replace bad conn; only return to pool if not closing.
             new_state = self._replace_bad_conn(state)
-            self._pool.put(new_state)
+            if self._closing:
+                try:
+                    new_state.conn.logout()
+                except Exception:
+                    pass
+            else:
+                self._pool.put(new_state)
             raise
+
         except Exception:
-            self._pool.put(state)
+            # Return or close depending on shutdown state.
+            if self._closing:
+                try:
+                    state.conn.logout()
+                except Exception:
+                    pass
+            else:
+                self._pool.put(state)
             raise
+
+        else:
+            # Normal path: return to pool unless we're closing.
+            if self._closing:
+                try:
+                    state.conn.logout()
+                except Exception:
+                    pass
+            else:
+                self._pool.put(state)
 
     def _run(self, op: Callable[[_ConnState], T]) -> T:
         """
@@ -216,7 +197,8 @@ class IMAPClient:
                 with self._acquire() as state:
                     return op(state)
             except Empty as e:
-                # pool exhausted / deadlock upstream
+                if self._closing:
+                    raise IMAPError("IMAPClient is closed") from e
                 raise IMAPError("IMAP connection pool exhausted") from e
             except retryable as e:
                 last_exc = e
@@ -277,13 +259,6 @@ class IMAPClient:
         return mailbox
 
     # -----------------------
-    # Cache invalidation
-    # -----------------------
-
-    def _invalidate_search_cache(self, mailbox: Optional[str] = None) -> None:
-        self._search_cache.invalidate(mailbox)
-
-    # -----------------------
     # LIST parsing
     # -----------------------
 
@@ -310,6 +285,42 @@ class IMAPClient:
 
     def _clone_query(self, base: IMAPQuery) -> IMAPQuery:
         return IMAPQuery(parts=list(base.parts))
+    
+    def _capabilities(self, state: _ConnState) -> Set[str]:
+        if state.capabilities is not None:
+            return state.capabilities
+        typ, data = state.conn.capability()
+        if typ != "OK":
+            state.capabilities = set()
+            return state.capabilities
+        caps: Set[str] = set()
+        for item in data or []:
+            s = item.decode(errors="ignore") if isinstance(item, (bytes, bytearray)) else str(item)
+            for tok in s.split():
+                caps.add(tok.upper())
+        state.capabilities = caps
+        return caps
+
+    def supports_gmail_ext(self) -> bool:
+        def _impl(state: _ConnState) -> bool:
+            return "X-GM-EXT-1" in self._capabilities(state)
+        return self._run(_impl)
+
+    def fetch_gmail_thrid(self, ref: EmailRef) -> Optional[str]:
+        def _impl(state: _ConnState) -> Optional[str]:
+            self._ensure_selected(state, ref.mailbox, readonly=True)
+            typ, data = state.conn.uid("FETCH", str(ref.uid), "(X-GM-THRID)")
+            if typ != "OK" or not data:
+                return None
+            for raw in data:
+                if not raw:
+                    continue
+                s = raw.decode(errors="ignore") if isinstance(raw, (bytes, bytearray)) else str(raw)
+                m = re.search(r"X-GM-THRID\s+(\d+)", s)
+                if m:
+                    return m.group(1)
+            return None
+        return self._run(_impl)
 
     def _uidnext(self, state: _ConnState, mailbox: str) -> int:
         """
@@ -394,7 +405,7 @@ class IMAPClient:
         uids = [int(x) for x in raw.split() if x]
         return criteria, uids  # server returns ascending
 
-    def _refresh_search_cache_progressive(
+    def _search_progressive(
         self,
         *,
         mailbox: str,
@@ -403,27 +414,40 @@ class IMAPClient:
         before_uid: Optional[int],
         after_uid: Optional[int],
     ) -> Tuple[str, List[int]]:
-        """
-        Progressive widening UID-window SEARCH.
-        Returns (criteria_str_used_for_cache, uids_asc).
-        """
+
         def _impl(state: _ConnState) -> Tuple[str, List[int]]:
-            want = max(1, page_size)
-            window_size = max(want * self.search_window_factor, want)
+            want = max(1, page_size * self.search_window_factor)
+
+            # IMPORTANT: chunk size is page-sized, so windows look like 100-91, 90-81, ...
+            chunk_size = want
+
+            # Track newest for "after_uid" forward scanning and for bounds checks.
+            uidnext = self._uidnext(state, mailbox)
+            newest = max(1, uidnext - 1)
+
+            # Start with the first window as before (tail, or before_uid, or after_uid).
+            win = self._make_window(
+                state=state,
+                mailbox=mailbox,
+                before_uid=before_uid,
+                after_uid=after_uid,
+                window_size=chunk_size,
+            )
+
+            # Accumulate across windows.
+            acc: List[int] = []
+            seen: Set[int] = set()
+
+            # Track total UID span scanned to enforce search_max_window_uids.
+            scanned_low = win.start if win.end >= win.start else None
+            scanned_high = win.end if win.end >= win.start else None
 
             last_criteria = query.build() or "ALL"
-            last_uids: List[int] = []
 
             for _round in range(self.search_max_rounds):
-                window_size = min(window_size, self.search_max_window_uids)
-
-                win = self._make_window(
-                    state=state,
-                    mailbox=mailbox,
-                    before_uid=before_uid,
-                    after_uid=after_uid,
-                    window_size=window_size,
-                )
+                # empty window => nothing more in that direction
+                if win.end < win.start:
+                    break
 
                 criteria, uids = self._search_in_window(
                     state=state,
@@ -431,45 +455,66 @@ class IMAPClient:
                     base_query=query,
                     win=win,
                 )
-
                 last_criteria = criteria
-                last_uids = uids
+
+                # add (dedupe) while preserving ascending order overall
+                for u in uids:
+                    if u not in seen:
+                        seen.add(u)
+                        acc.append(u)
+
+                # keep acc ascending (each window SEARCH returns ascending,
+                # but across windows we might append older/newer chunks)
+                acc.sort()
 
                 # enough to fill the page: stop early
-                if len(uids) >= want:
+                if len(acc) >= want:
                     break
 
-                # hit the bottom boundary for older/tail: cannot expand further
-                if before_uid is not None or (before_uid is None and after_uid is None):
-                    if win.start == 1:
+                # update scanned span
+                if scanned_low is None or win.start < scanned_low:
+                    scanned_low = win.start
+                if scanned_high is None or win.end > scanned_high:
+                    scanned_high = win.end
+
+                if scanned_low is not None and scanned_high is not None:
+                    scanned_span = scanned_high - scanned_low + 1
+                    if scanned_span >= self.search_max_window_uids:
                         break
 
-                # hit the top boundary for newer: cannot expand further
+                # Compute the next non-overlapping window in the right direction.
+                chunk_size *= self.search_window_factor
                 if after_uid is not None:
-                    uidnext = self._uidnext(state, mailbox)
-                    newest = max(1, uidnext - 1)
-                    if win.end >= newest:
+                    # move newer: [end+1 : end+chunk]
+                    next_start = win.end + 1
+                    if next_start > newest:
                         break
-
-                # widen window and retry
-                window_size *= 2
+                    next_end = min(newest, next_start + chunk_size - 1)
+                    win = _UIDWindow(start=next_start, end=next_end)
+                else:
+                    # move older (covers before_uid and "tail" initial paging):
+                    # [start-chunk : start-1]
+                    next_end = win.start - 1
+                    if next_end < 1:
+                        break
+                    next_start = max(1, next_end - chunk_size + 1)
+                    win = _UIDWindow(start=next_start, end=next_end)
 
             # memory guard: keep tail (most useful for "older" paging)
-            if len(last_uids) > self.max_uids_per_key:
-                last_uids = last_uids[-self.max_uids_per_key :]
+            if len(acc) > self.max_uids_per_key:
+                acc = acc[-self.max_uids_per_key :]
 
-            return last_criteria, last_uids
+            return last_criteria, acc
 
         return self._run_search(_impl)
-
     # -----------------------
     # SEARCH + pagination
     # -----------------------
 
-    def refresh_search_cache(self, *, mailbox: str, query: IMAPQuery) -> List[int]:
+    def uid_search(self, *, mailbox: str, query: IMAPQuery) -> List[int]:
         """
-        Legacy: unbounded criteria search (still windowed if query already includes UID).
-        Prefer search_page_cached() which uses progressive windows automatically.
+        Single UID SEARCH with the given query (no progressive windowing).
+        Returns ascending UIDs.
         """
         criteria = query.build() or "ALL"
 
@@ -478,17 +523,12 @@ class IMAPClient:
             typ, data = state.conn.uid("SEARCH", None, criteria)
             if typ != "OK":
                 raise IMAPError(f"SEARCH failed: {data}")
-
             raw = data[0] or b""
-            uids = [int(x) for x in raw.split() if x]
-
-            if len(uids) > self.max_uids_per_key:
-                uids = uids[-self.max_uids_per_key :]
-            return uids
+            return [int(x) for x in raw.split() if x]
 
         return self._run_search(_impl)
 
-    def search_page_cached(
+    def search_page(
         self,
         *,
         mailbox: str,
@@ -496,64 +536,41 @@ class IMAPClient:
         page_size: int = 50,
         before_uid: Optional[int] = None,
         after_uid: Optional[int] = None,
-        refresh: bool = False,
     ) -> PagedSearchResult:
         """
         Efficient paging: uses progressive widening UID windows to avoid huge SEARCH responses.
-        Cache key includes the *actual* criteria string used (including UID range).
+        (Cache removed.)
         """
         if before_uid is not None and after_uid is not None:
             raise ValueError("Cannot specify both before_uid and after_uid")
 
-        # Always compute the progressive window result when refresh=True,
-        # otherwise try cache (but we need the exact criteria key).
-        if refresh:
-            criteria, uids = self._refresh_search_cache_progressive(
-                mailbox=mailbox,
-                query=query,
-                page_size=page_size,
-                before_uid=before_uid,
-                after_uid=after_uid,
-            )
-            cache_key = (mailbox, criteria)
-            self._search_cache.set(cache_key, uids)
-        else:
-            # We still need the criteria key; we compute it via progressive search once
-            # (it’s the same work we’d do on cache-miss).
-            criteria, uids = self._refresh_search_cache_progressive(
-                mailbox=mailbox,
-                query=query,
-                page_size=page_size,
-                before_uid=before_uid,
-                after_uid=after_uid,
-            )
-            cache_key = (mailbox, criteria)
-            cached = self._search_cache.get(cache_key)
-            if cached is not None:
-                uids = cached
-            else:
-                self._search_cache.set(cache_key, uids)
+        criteria, uids = self._search_progressive(
+            mailbox=mailbox,
+            query=query,
+            page_size=page_size,
+            before_uid=before_uid,
+            after_uid=after_uid,
+        )
 
         if not uids:
             return PagedSearchResult(refs=[], total=0, has_next=False, has_prev=False)
 
         # uids are ascending
         if before_uid is not None:
-            page_uids_asc = uids[-page_size:]     # newest among “older”
+            page_uids_asc = uids[-page_size:]
         elif after_uid is not None:
-            page_uids_asc = uids[:page_size]      # oldest among “newer”
+            page_uids_asc = uids[:page_size]
         else:
-            page_uids_asc = uids[-page_size:]     # newest overall
+            page_uids_asc = uids[-page_size:]
 
         if not page_uids_asc:
             return PagedSearchResult(refs=[], total=0, has_next=False, has_prev=False)
 
+        # refs newest-first
         refs = [EmailRef(uid=u, mailbox=mailbox) for u in reversed(page_uids_asc)]
         oldest_uid = page_uids_asc[0]
         newest_uid = page_uids_asc[-1]
 
-        # These flags are "best effort" within the current window.
-        # Global has_older/has_newer is unknown without extra probes.
         known_more_in_window = len(uids) > len(page_uids_asc)
 
         if before_uid is not None:
@@ -578,11 +595,10 @@ class IMAPClient:
         )
 
     def search(self, *, mailbox: str, query: IMAPQuery, limit: int = 50) -> List[EmailRef]:
-        page = self.search_page_cached(
+        page = self.search_page(
             mailbox=mailbox,
             query=query,
             page_size=limit,
-            refresh=True,
         )
         return page.refs
 
@@ -804,6 +820,40 @@ class IMAPClient:
 
         return self._run(_impl)
 
+    def fetch_message_id(self, ref: EmailRef) -> Optional[str]:
+        mailbox = ref.mailbox
+        uid = ref.uid
+
+        def _impl(state: _ConnState) -> Optional[str]:
+            self._ensure_selected(state, mailbox, readonly=True)
+            attrs = "(UID BODY.PEEK[HEADER.FIELDS (Message-ID)])"
+            typ, data = state.conn.uid("FETCH", str(uid), attrs)
+            if typ != "OK" or not data:
+                return None
+
+            header_bytes = b""
+            current_uid: Optional[int] = None
+            for piece in iter_fetch_pieces(data):
+                u = parse_uid(piece.meta)
+                if u is not None:
+                    current_uid = u
+                if current_uid == uid and piece.payload is not None:
+                    header_bytes = piece.payload
+                    break
+
+            if not header_bytes:
+                return None
+
+            try:
+                msg = BytesParser(policy=default_policy).parsebytes(header_bytes)
+                mid = msg.get("Message-ID")
+                return mid.strip() if mid else None
+            except Exception:
+                return None
+
+        return self._run(_impl)
+
+
     # -----------------------
     # Attachment fetch
     # -----------------------
@@ -825,7 +875,6 @@ class IMAPClient:
 
     def append(self, mailbox: str, msg: PyEmailMessage, *, flags: Optional[Set[str]] = None) -> EmailRef:
         def _impl(state: _ConnState) -> EmailRef:
-            self._ensure_selected(state, mailbox, readonly=False)
 
             flags_arg = "(" + " ".join(sorted(flags)) + ")" if flags else None
             date_time = imaplib.Time2Internaldate(time.time())
@@ -844,18 +893,11 @@ class IMAPClient:
                     uid = int(m.group(1))
 
             if uid is None:
-                typ_search, data_search = state.conn.uid("SEARCH", None, "ALL")
-                if typ_search == "OK" and data_search and data_search[0]:
-                    all_uids = [int(x) for x in data_search[0].split() if x.strip()]
-                    uid = max(all_uids) if all_uids else None
-
-            if uid is None:
                 raise IMAPError("APPEND succeeded but could not determine UID")
 
             return EmailRef(uid=uid, mailbox=mailbox)
 
         ref = self._run(_impl)
-        self._invalidate_search_cache(mailbox)
         return ref
 
     def add_flags(self, refs: Sequence[EmailRef], *, flags: Set[str]) -> None:
@@ -878,7 +920,6 @@ class IMAPClient:
                 raise IMAPError(f"STORE failed: {data}")
 
         self._run(_impl)
-        self._invalidate_search_cache(mailbox)
 
     def expunge(self, mailbox: str = "INBOX") -> None:
         def _impl(state: _ConnState) -> None:
@@ -888,7 +929,6 @@ class IMAPClient:
                 raise IMAPError(f"EXPUNGE failed: {data}")
 
         self._run(_impl)
-        self._invalidate_search_cache(mailbox)
 
     # -----------------------
     # Mailboxes
@@ -990,14 +1030,16 @@ class IMAPClient:
             typ_store, data_store = state.conn.uid("STORE", uids, "+FLAGS.SILENT", r"(\Deleted)")
             if typ_store != "OK":
                 raise IMAPError(f"STORE +FLAGS.SILENT \\Deleted failed: {data_store}")
-
-            typ_expunge, data_expunge = state.conn.expunge()
-            if typ_expunge != "OK":
-                raise IMAPError(f"EXPUNGE (after MOVE fallback) failed: {data_expunge}")
+            
+            typ_ue, _data_ue = state.conn.uid("EXPUNGE", uids)
+            if typ_ue == "OK":
+                return
+            
+            typ_ex, data_ex = state.conn.expunge()
+            if typ_ex != "OK":
+                raise IMAPError(f"EXPUNGE after MOVE fallback failed: {data_ex}")
 
         self._run(_impl)
-        self._invalidate_search_cache(src_mailbox)
-        self._invalidate_search_cache(dst_mailbox)
 
     def copy(self, refs: Sequence[EmailRef], *, src_mailbox: str, dst_mailbox: str) -> None:
         if not refs:
@@ -1016,7 +1058,6 @@ class IMAPClient:
                 raise IMAPError(f"COPY failed: {data}")
 
         self._run(_impl)
-        self._invalidate_search_cache(dst_mailbox)
 
     def create_mailbox(self, name: str) -> None:
         def _impl(state: _ConnState) -> None:
@@ -1026,7 +1067,6 @@ class IMAPClient:
                 raise IMAPError(f"CREATE {name!r} failed: {data}")
 
         self._run(_impl)
-        self._invalidate_search_cache()
 
     def delete_mailbox(self, name: str) -> None:
         def _impl(state: _ConnState) -> None:
@@ -1036,7 +1076,6 @@ class IMAPClient:
                 raise IMAPError(f"DELETE {name!r} failed: {data}")
 
         self._run(_impl)
-        self._invalidate_search_cache()
 
     def ping(self) -> None:
         def _impl(state: _ConnState) -> None:
@@ -1047,15 +1086,18 @@ class IMAPClient:
         self._run(_impl)
 
     def close(self) -> None:
-        # drain and close all conns
         with self._pool_lock:
-            while not self._pool.empty():
-                state = self._pool.get_nowait()
+            self._closing = True
+            while True:
+                try:
+                    state = self._pool.get_nowait()
+                except Empty:
+                    break
                 try:
                     state.conn.logout()
                 except Exception:
                     pass
-
+                
     def __enter__(self) -> "IMAPClient":
         return self
 

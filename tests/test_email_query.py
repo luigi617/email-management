@@ -7,11 +7,11 @@ from openmail.imap import IMAPQuery, PagedSearchResult
 
 class FakeImap:
     def __init__(self):
-        self.search_page_cached_calls = []
+        self.search_page_calls = []
         self.fetch_calls = []
         self.fetch_overview_calls = []
 
-    def search_page_cached(
+    def search_page(
         self,
         *,
         mailbox: str,
@@ -19,10 +19,9 @@ class FakeImap:
         page_size: int = 50,
         before_uid=None,
         after_uid=None,
-        refresh: bool = False,
     ):
-        self.search_page_cached_calls.append(
-            (mailbox, query, page_size, before_uid, after_uid, refresh)
+        self.search_page_calls.append(
+            (mailbox, query, page_size, before_uid, after_uid)
         )
         # EmailQuery expects newest-first refs; tests can treat them as opaque.
         return PagedSearchResult(refs=["ref-1", "ref-2"])
@@ -197,38 +196,6 @@ def test_inbox_triage_shape(monkeypatch):
     assert "OR" in built
 
 
-def test_thread_like_subject_only():
-    mgr = FakeEmailManager()
-    easy = EmailQuery(mgr)
-
-    easy.thread_like(subject="hello thread", participants=())
-    built = easy.query.build()
-
-    assert 'SUBJECT "hello thread"' in built
-    # no participants => no OR clause added by thread_like
-    # (There could still be OR from earlier calls; here there aren't.)
-    assert "OR" not in built
-
-
-def test_thread_like_with_participants():
-    mgr = FakeEmailManager()
-    easy = EmailQuery(mgr)
-
-    easy.thread_like(
-        subject=None,
-        participants=["a@example.com", "b@example.com"],
-    )
-    built = easy.query.build()
-
-    assert "OR" in built
-    assert '"a@example.com"' in built
-    assert '"b@example.com"' in built
-
-    assert "FROM" in built
-    assert "TO" in built
-    assert "CC" in built
-
-
 def test_newsletters_adds_list_unsubscribe_header():
     mgr = FakeEmailManager()
     easy = EmailQuery(mgr)
@@ -331,17 +298,16 @@ def test_search_calls_manager_imap_search_page_cached():
     page = easy.search()
 
     assert page.refs == ["ref-1", "ref-2"]
-    assert len(mgr.imap.search_page_cached_calls) == 1
+    assert len(mgr.imap.search_page_calls) == 1
 
-    mailbox, query_obj, page_size, before_uid, after_uid, refresh = (
-        mgr.imap.search_page_cached_calls[0]
+    mailbox, query_obj, page_size, before_uid, after_uid = (
+        mgr.imap.search_page_calls[0]
     )
     assert mailbox == "INBOX"
     assert isinstance(query_obj, IMAPQuery)
     assert page_size == 42
     assert before_uid is None
     assert after_uid is None
-    assert refresh is False
     assert "UNSEEN" in query_obj.build()
 
 
@@ -354,7 +320,7 @@ def test_fetch_calls_search_then_fetch():
     assert page.refs == ["ref-1", "ref-2"]
     assert msgs == ["msg-1", "msg-2"]
 
-    assert len(mgr.imap.search_page_cached_calls) == 1
+    assert len(mgr.imap.search_page_calls) == 1
     assert len(mgr.imap.fetch_calls) == 1
 
     refs, include_attachment_meta = mgr.imap.fetch_calls[0]
@@ -371,6 +337,6 @@ def test_fetch_overview_calls_search_then_fetch_overview():
     assert page.refs == ["ref-1", "ref-2"]
     assert ovs == ["ov-1", "ov-2"]
 
-    assert len(mgr.imap.search_page_cached_calls) == 1
+    assert len(mgr.imap.search_page_calls) == 1
     assert len(mgr.imap.fetch_overview_calls) == 1
     assert mgr.imap.fetch_overview_calls[0] == ["ref-1", "ref-2"]

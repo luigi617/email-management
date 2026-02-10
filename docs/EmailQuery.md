@@ -205,7 +205,7 @@ q = mgr.imap_query().limit(25)
 Paging works in both directions using UIDs:
 
 ```
-page1 = q.search(refresh=True)
+page1 = q.search()
 page2 = q.search(before_uid=page1.next_before_uid)
 page_newer = q.search(after_uid=page1.prev_after_uid)
 ```

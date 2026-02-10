@@ -1,6 +1,7 @@
+# tests/fake_imap_client.py
+
 from __future__ import annotations
 
-from bisect import bisect_left, bisect_right
 from dataclasses import dataclass, field
 from email.message import EmailMessage as PyEmailMessage
 from typing import Dict, List, Optional, Sequence, Set, Tuple
@@ -24,10 +25,15 @@ class FakeIMAPClient:
     """
     In-memory IMAP client for testing.
 
-    Goals:
-      - Keep public API compatible with current IMAPClient (search cache/pagination, fetch, fetch_overview,
-        append, flag ops, mailbox ops, copy/move, expunge, ping, close, ctx manager).
-      - Deterministic, in-memory behavior; no real IMAP semantics beyond what tests need.
+    Keeps the public API compatible with the current IMAPClient surface:
+      - search_page (progressive window semantics)
+      - search (returns List[EmailRef])
+      - fetch / fetch_overview / fetch_attachment
+      - append / flag ops / mailbox ops / copy / move / expunge / ping / close / ctx manager
+
+    Notes vs old Fake:
+      - SEARCH caching removed (real IMAPClient).
+      - PagedSearchResult.total is "window total" (not global total), matching real client.
     """
 
     config: Optional[object] = None
@@ -35,9 +41,6 @@ class FakeIMAPClient:
     # mailbox -> uid -> _StoredMessage
     _mailboxes: Dict[str, Dict[int, _StoredMessage]] = field(default_factory=dict)
     _next_uid: int = 1
-
-    # cache key: (mailbox, criteria_str) -> ascending UID list
-    _search_cache: Dict[Tuple[str, str], List[int]] = field(default_factory=dict)
 
     # If True, the next IMAP operation will raise IMAPError (for error paths).
     fail_next: bool = False
@@ -56,14 +59,6 @@ class FakeIMAPClient:
         if self.fail_next:
             self.fail_next = False
             raise IMAPError("FakeIMAPClient forced failure")
-
-    def _invalidate_search_cache(self, mailbox: Optional[str] = None) -> None:
-        if mailbox is None:
-            self._search_cache.clear()
-            return
-        keys = [k for k in self._search_cache.keys() if k[0] == mailbox]
-        for k in keys:
-            self._search_cache.pop(k, None)
 
     def _assert_same_mailbox(self, refs: Sequence[EmailRef], op_name: str) -> str:
         if not refs:
@@ -116,111 +111,9 @@ class FakeIMAPClient:
 
         stored_msg = self._clone_message_with_ref(msg, ref)
         box[uid] = _StoredMessage(stored_msg, set(flags or set()))
-        self._invalidate_search_cache(mailbox)
         return ref
 
     # --- SEARCH + pagination (matches current IMAPClient surface) ---------
-
-    def refresh_search_cache(self, *, mailbox: str, query: IMAPQuery) -> List[int]:
-        """
-        Compute (and cache) matching UIDs in ascending order.
-        """
-        self._maybe_fail()
-        criteria = query.build() or "ALL"
-        cache_key = (mailbox, criteria)
-
-        box = self._mailboxes.get(mailbox, {})
-        parts = query.parts
-
-        # Ascending old->new, like real client cache.
-        uids: List[int] = []
-        for uid in sorted(box.keys()):
-            if self._matches_query(box[uid], parts):
-                uids.append(uid)
-
-        self._search_cache[cache_key] = uids
-        return uids
-
-    def search_page_cached(
-        self,
-        *,
-        mailbox: str,
-        query: IMAPQuery,
-        page_size: int = 50,
-        before_uid: Optional[int] = None,
-        after_uid: Optional[int] = None,
-        refresh: bool = False,
-    ) -> PagedSearchResult:
-        """
-        Mirrors current IMAPClient.search_page_cached contract:
-        - Cache stores ascending UIDs.
-        - Returned refs are newest-first (descending) for the page.
-        """
-        self._maybe_fail()
-        if before_uid is not None and after_uid is not None:
-            raise ValueError("Cannot specify both before_uid and after_uid")
-
-        criteria = query.build() or "ALL"
-        cache_key = (mailbox, criteria)
-
-        uids = None if refresh else self._search_cache.get(cache_key)
-        if uids is None:
-            uids = self.refresh_search_cache(mailbox=mailbox, query=query)
-
-        if not uids:
-            return PagedSearchResult(refs=[], total=0, has_next=False, has_prev=False)
-
-        uids_sorted = uids  # ascending old->new
-        total_matches = len(uids_sorted)
-
-        if before_uid is not None:
-            idx = bisect_left(uids_sorted, before_uid)
-            end = idx
-            start = max(0, end - page_size)
-        elif after_uid is not None:
-            idx = bisect_right(uids_sorted, after_uid)
-            start = idx
-            end = min(len(uids_sorted), start + page_size)
-        else:
-            end = len(uids_sorted)
-            start = max(0, end - page_size)
-
-        if start >= end:
-            return PagedSearchResult(refs=[], total=total_matches, has_next=False, has_prev=False)
-
-        page_uids_asc = uids_sorted[start:end]
-        page_uids_desc = list(reversed(page_uids_asc))
-
-        refs = [EmailRef(uid=uid, mailbox=mailbox) for uid in page_uids_desc]
-
-        oldest_uid = page_uids_asc[0]
-        newest_uid = page_uids_asc[-1]
-
-        has_older = start > 0
-        has_newer = end < len(uids_sorted)
-
-        return PagedSearchResult(
-            refs=refs,
-            next_before_uid=oldest_uid if has_older else None,
-            prev_after_uid=newest_uid if has_newer else None,
-            newest_uid=newest_uid,
-            oldest_uid=oldest_uid,
-            total=total_matches,
-            has_next=has_older,
-            has_prev=has_newer,
-        )
-
-    def search(self, *, mailbox: str, query: IMAPQuery, limit: int = 50) -> PagedSearchResult:
-        """
-        Matches current IMAPClient.search(): refresh cache and return newest-first refs.
-        """
-        page = self.search_page_cached(
-            mailbox=mailbox,
-            query=query,
-            page_size=limit,
-            refresh=True,
-        )
-        return page.refs
 
     def _matches_query(self, stored: _StoredMessage, parts: List[str]) -> bool:
         """
@@ -255,23 +148,114 @@ class FakeIMAPClient:
         if "UNFLAGGED" in parts and r"\Flagged" in flags:
             return False
 
-        # Simple header presence check:
+        # Simple header presence/value check:
         # IMAPQuery.header("List-Unsubscribe", "")
         for i, token in enumerate(parts):
             if token == "HEADER" and i + 2 < len(parts):
                 name_token = parts[i + 1].strip('"')
                 value_token = parts[i + 2].strip('"')
                 if name_token.lower() == "list-unsubscribe":
-                    has_header = any(k.lower() == "list-unsubscribe" for k in msg.headers.keys())
+                    has_header = any(k.lower() == "list-unsubscribe" for k in (msg.headers or {}).keys())
                     if value_token == "":
                         if not has_header:
                             return False
                     else:
-                        header_val = msg.headers.get("List-Unsubscribe", "")
+                        header_val = (msg.headers or {}).get("List-Unsubscribe", "") or ""
                         if value_token.lower() not in header_val.lower():
                             return False
 
         return True
+
+    def _matching_uids_asc(self, *, mailbox: str, query: IMAPQuery) -> Tuple[str, List[int]]:
+        """
+        Return (criteria_str, matching_uids_asc) for the mailbox/query.
+        """
+        criteria = query.build() or "ALL"
+        box = self._mailboxes.get(mailbox, {})
+        parts = query.parts
+
+        uids: List[int] = []
+        for uid in sorted(box.keys()):
+            if self._matches_query(box[uid], parts):
+                uids.append(uid)
+        return criteria, uids
+
+    def search_page(
+        self,
+        *,
+        mailbox: str,
+        query: IMAPQuery,
+        page_size: int = 50,
+        before_uid: Optional[int] = None,
+        after_uid: Optional[int] = None,
+    ) -> PagedSearchResult:
+        """
+        Mirrors current IMAPClient.search_page contract:
+          - Returned refs are newest-first for the page.
+          - total is "window total" (not global total), matching real progressive-search client.
+        """
+        self._maybe_fail()
+        if before_uid is not None and after_uid is not None:
+            raise ValueError("Cannot specify both before_uid and after_uid")
+
+        _criteria, all_uids = self._matching_uids_asc(mailbox=mailbox, query=query)
+        if not all_uids:
+            return PagedSearchResult(refs=[], total=0, has_next=False, has_prev=False)
+
+        # Define the "window" similar to the real client semantics.
+        if before_uid is not None:
+            window_uids = [u for u in all_uids if u < before_uid]
+        elif after_uid is not None:
+            window_uids = [u for u in all_uids if u > after_uid]
+        else:
+            # Real client uses a tail window that widens progressively; for the fake,
+            # we just treat the whole match-set as the window.
+            window_uids = all_uids
+
+        if not window_uids:
+            return PagedSearchResult(refs=[], total=0, has_next=False, has_prev=False)
+
+        # uids are ascending
+        if before_uid is not None:
+            page_uids_asc = window_uids[-page_size:]
+        elif after_uid is not None:
+            page_uids_asc = window_uids[:page_size]
+        else:
+            page_uids_asc = window_uids[-page_size:]
+
+        if not page_uids_asc:
+            return PagedSearchResult(refs=[], total=len(window_uids), has_next=False, has_prev=False)
+
+        refs = [EmailRef(uid=u, mailbox=mailbox) for u in reversed(page_uids_asc)]
+
+        oldest_uid = page_uids_asc[0]
+        newest_uid = page_uids_asc[-1]
+        known_more_in_window = len(window_uids) > len(page_uids_asc)
+
+        if before_uid is not None:
+            has_older = known_more_in_window or (oldest_uid > 1)
+            has_newer = True
+        elif after_uid is not None:
+            has_newer = known_more_in_window
+            has_older = True
+        else:
+            has_older = known_more_in_window or (oldest_uid > 1)
+            has_newer = False
+
+        return PagedSearchResult(
+            refs=refs,
+            next_before_uid=oldest_uid if has_older else None,
+            prev_after_uid=newest_uid if has_newer else None,
+            newest_uid=newest_uid,
+            oldest_uid=oldest_uid,
+            total=len(window_uids),  # window total (not global total)
+            has_next=has_older,
+            has_prev=has_newer,
+        )
+
+    def search(self, *, mailbox: str, query: IMAPQuery, limit: int = 50) -> List[EmailRef]:
+        page = self.search_page(mailbox=mailbox, query=query, page_size=limit)
+        return page.refs
 
     # --- FETCH full message ----------------------------------------------
 
@@ -346,21 +330,20 @@ class FakeIMAPClient:
                 hdr_lines.append(f"{name}: {value}")
 
             hdr_lines: List[str] = []
-            _add_header(hdr_lines, "From", msg.headers.get("From") or msg.from_email)
+            _add_header(hdr_lines, "From", (msg.headers or {}).get("From") or msg.from_email)
             _add_header(
-                hdr_lines, "To", msg.headers.get("To") or (", ".join(msg.to) if msg.to else None)
+                hdr_lines, "To", (msg.headers or {}).get("To") or (", ".join(msg.to) if msg.to else None)
             )
-            _add_header(hdr_lines, "Subject", msg.headers.get("Subject") or msg.subject)
+            _add_header(hdr_lines, "Subject", (msg.headers or {}).get("Subject") or msg.subject)
             _add_header(
                 hdr_lines,
                 "Date",
-                msg.headers.get("Date")
+                (msg.headers or {}).get("Date")
                 or (msg.received_at.isoformat() if msg.received_at else None),
             )
-            _add_header(hdr_lines, "Message-ID", msg.headers.get("Message-ID") or msg.message_id)
+            _add_header(hdr_lines, "Message-ID", (msg.headers or {}).get("Message-ID") or msg.message_id)
 
-            # Preserve any other stored headers that might matter for tests (best-effort)
-            # but avoid duplicates for the main ones.
+            # Preserve other headers best-effort (avoid duplicates for the main ones).
             used = {h.split(":", 1)[0].lower() for h in hdr_lines}
             for k, v in (msg.headers or {}).items():
                 if k.lower() in used:
@@ -373,15 +356,40 @@ class FakeIMAPClient:
             out.append(parse_overview(r, flags, header_bytes, internaldate_raw=None))
 
         return out
+    
+    def fetch_message_id(self, ref: EmailRef) -> Optional[str]:
+        """
+        Mirror IMAPClient.fetch_message_id():
+        returns the parsed Message-ID for a single message, or None.
+        """
+        self._maybe_fail()
+        box = self._mailboxes.get(ref.mailbox, {})
+        stored = box.get(ref.uid)
+        if not stored:
+            return None
+
+        msg = stored.msg
+
+        # Prefer normalized field on the model
+        mid = msg.message_id
+        if isinstance(mid, str) and mid.strip():
+            return mid.strip()
+
+        # Fall back to headers
+        hdr_mid = (msg.headers or {}).get("Message-ID") or (msg.headers or {}).get("Message-Id")
+        if isinstance(hdr_mid, str) and hdr_mid.strip():
+            return hdr_mid.strip()
+
+        return None
 
     # --- Attachment fetch -------------------------------------------------
 
     def fetch_attachment(self, ref: EmailRef, attachment_part: str) -> bytes:
         """
-        Best-effort attachment retrieval. The real client fetches part bytes via IMAP BODY[].
+        Best-effort attachment retrieval.
 
-        Here we look inside stored EmailMessage.attachments for a matching `.part`
-        (or `.attachment_part`) and return bytes from common fields (`content`, `data`, `payload`).
+        Looks inside stored EmailMessage.attachments for a matching `.part`
+        and returns bytes from `.data` if present.
         """
         self._maybe_fail()
         box = self._mailboxes.get(ref.mailbox, {})
@@ -390,23 +398,20 @@ class FakeIMAPClient:
             raise IMAPError(f"Message not found for {ref!r}")
 
         msg = stored.msg
-        atts = msg.attachments
-        for att in atts:
-            part = att.part
-            if part != attachment_part:
+        for att in msg.attachments:
+            if getattr(att, "part", None) != attachment_part:
                 continue
 
-            val = att.data
+            val = getattr(att, "data", None)
             if isinstance(val, (bytes, bytearray)):
                 return bytes(val)
 
-            # if the attachment itself is bytes
             if isinstance(att, (bytes, bytearray)):
                 return bytes(att)
 
             raise IMAPError(
                 f"Attachment found for part={attachment_part!r} but no byte payload "
-                f"(expected .content/.data/.payload as bytes)"
+                f"(expected .data as bytes)"
             )
 
         raise IMAPError(f"Attachment part not found: uid={ref.uid} part={attachment_part}")
@@ -431,7 +436,6 @@ class FakeIMAPClient:
         raw = msg.as_bytes()
         parsed = parse_rfc822(ref, raw, include_attachments=True)
         box[uid] = _StoredMessage(parsed, set(flags or set()))
-        self._invalidate_search_cache(mailbox)
         return ref
 
     def add_flags(self, refs: Sequence[EmailRef], *, flags: Set[str]) -> None:
@@ -444,7 +448,6 @@ class FakeIMAPClient:
             stored = box.get(r.uid)
             if stored:
                 stored.flags |= set(flags)
-        self._invalidate_search_cache(mailbox)
 
     def remove_flags(self, refs: Sequence[EmailRef], *, flags: Set[str]) -> None:
         self._maybe_fail()
@@ -456,7 +459,6 @@ class FakeIMAPClient:
             stored = box.get(r.uid)
             if stored:
                 stored.flags -= set(flags)
-        self._invalidate_search_cache(mailbox)
 
     # --- mailbox maintenance ---------------------------------------------
 
@@ -469,7 +471,6 @@ class FakeIMAPClient:
         to_delete = [uid for uid, s in box.items() if r"\Deleted" in s.flags]
         for uid in to_delete:
             del box[uid]
-        self._invalidate_search_cache(mailbox)
 
     def list_mailboxes(self) -> List[str]:
         self._maybe_fail()
@@ -480,6 +481,7 @@ class FakeIMAPClient:
         box = self._mailboxes.get(mailbox, {})
         messages = len(box)
         unseen = sum(1 for s in box.values() if r"\Seen" not in s.flags)
+        # Real IMAPClient returns more keys; tests only rely on these.
         return {"messages": messages, "unseen": unseen}
 
     # --- copy / move / mailbox ops ---------------------------------------
@@ -512,9 +514,6 @@ class FakeIMAPClient:
             new_msg = self._clone_message_with_ref(stored.msg, new_ref)
             dst[new_uid] = _StoredMessage(new_msg, set(stored.flags))
 
-        self._invalidate_search_cache(src_mailbox)
-        self._invalidate_search_cache(dst_mailbox)
-
     def copy(
         self,
         refs: Sequence[EmailRef],
@@ -542,17 +541,13 @@ class FakeIMAPClient:
             new_msg = self._clone_message_with_ref(stored.msg, new_ref)
             dst[new_uid] = _StoredMessage(new_msg, set(stored.flags))
 
-        self._invalidate_search_cache(dst_mailbox)
-
     def create_mailbox(self, name: str) -> None:
         self._maybe_fail()
         self._ensure_mailbox(name)
-        self._invalidate_search_cache()
 
     def delete_mailbox(self, name: str) -> None:
         self._maybe_fail()
         self._mailboxes.pop(name, None)
-        self._invalidate_search_cache()
 
     def ping(self) -> None:
         """

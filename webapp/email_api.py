@@ -140,7 +140,11 @@ async def get_email_mailbox(
 # ---------------------------
 @router.get("/accounts/{account:path}/mailboxes/{mailbox:path}/emails/{email_id}")
 async def get_email(
-    background_tasks: BackgroundTasks, account: str, mailbox: str, email_id: int
+    background_tasks: BackgroundTasks,
+    account: str,
+    mailbox: str,
+    email_id: int,
+    date: str | None = Query(None, description="Date of the email"),
 ) -> list:
     account = unquote(account)
     mailbox = unquote(mailbox)
@@ -149,21 +153,28 @@ async def get_email(
     if manager is None:
         raise HTTPException(status_code=404, detail="Account not found")
 
-    # cache_key = f"{account}|{mailbox}|{int(email_id)}"
-    # cached = MESSAGE_CACHE.get(cache_key)
-    # if cached is not None:
-    #     email_ref = EmailRef(mailbox=mailbox, uid=email_id)
-    #     background_tasks.add_task(_safe_mark_seen, account, email_ref)
-    #     return cached  # type: ignore
+    cache_key = f"{account}|{mailbox}|{int(email_id)}"
+    cached = MESSAGE_CACHE.get(cache_key)
+    if cached is not None:
+        email_ref = EmailRef(mailbox=mailbox, uid=email_id)
+        background_tasks.add_task(_safe_mark_seen, account, email_ref)
+        return cached
 
     email_ref = EmailRef(mailbox=mailbox, uid=email_id)
 
  
-    messages: List[EmailMessage] = await run_blocking(
-        manager.fetch_thread,
+    # messages: List[EmailMessage] = await run_blocking(
+    #     manager.fetch_thread,
+    #     email_ref,
+    #     date=date,
+    #     include_attachment_meta=True,
+    # )
+    message: EmailMessage = await run_blocking(
+        manager.fetch_message_by_ref,
         email_ref,
         include_attachment_meta=True,
     )
+    messages = [message]
 
     background_tasks.add_task(_safe_mark_seen, account, email_ref)
     data = []
@@ -172,7 +183,7 @@ async def get_email(
         message_data["ref"].setdefault("account", account)
         data.append(message_data)
 
-    # MESSAGE_CACHE.set(cache_key, data)
+    MESSAGE_CACHE.set(cache_key, data)
     return data
 
 

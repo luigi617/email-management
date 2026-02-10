@@ -15,9 +15,6 @@ from openmail import EmailAssistant, EmailManager, EmailQuery
 from openmail.imap import IMAPQuery
 from openmail.models import EmailOverview
 
-# First-page refresh behavior is governed by this TTL:
-# - cache hit: return cached response (no refresh)
-# - cache miss (incl. TTL expiry): fetch, and if it's first page => refresh=True
 _OVERVIEW_RESPONSE_CACHE = TTLCache(ttl_seconds=15, maxsize=512)
 IS_AI_MODEL_AVAILABLE = select_email_provider_and_models()[0] is not None
 
@@ -112,7 +109,6 @@ async def build_email_overview(
             raise KeyError(f"Unknown account: {acc_id}")
         managers[acc_id] = manager
 
-    is_first_page = cursor is None
 
     cached_ai: Optional[_CachedDerivedQuery] = None
 
@@ -159,14 +155,12 @@ async def build_email_overview(
                     IMAPQuery().from_(normalized_search),
                 )
 
-        refresh_flag = is_first_page
 
         try:
             page_meta, overview_list = await run_blocking(
                 q.fetch_overview,
                 before_uid=before_uid,
                 after_uid=None,
-                refresh=refresh_flag,
             )
         except Exception:
             return acc_id, 0, []

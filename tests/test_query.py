@@ -204,14 +204,6 @@ def test_or_with_multiple_and_clauses():
     assert "ANSWERED" in built
 
 
-def test_or_requires_at_least_two_queries():
-    q = IMAPQuery()
-    one = IMAPQuery().from_("a@example.com")
-
-    with pytest.raises(ValueError):
-        q.or_(one)
-
-
 def test_raw_appends_tokens():
     # Use public surface (raw with already-quoted token)
     _q = qmod._q

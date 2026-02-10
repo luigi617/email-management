@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 import html as _html
 from dataclasses import dataclass
 from email.message import EmailMessage as PyEmailMessage
+from time import time
 from typing import Dict, List, Optional, Sequence, Set
 
 from openmail.imap import IMAPClient, PagedSearchResult
+from openmail.imap.query import IMAPQuery
 from openmail.models import (
     Attachment,
     EmailMessage,
@@ -507,12 +510,11 @@ class EmailManager:
         n: int = 50,
         before_uid: Optional[int] = None,
         after_uid: Optional[int] = None,
-        refresh: bool = False,
     ) -> tuple[PagedSearchResult, List[EmailOverview]]:
         """
         Fetch a page of EmailOverview objects with paging metadata.
 
-        - For the first (latest) page, call with refresh=True, before_uid=None.
+        - For the first (latest) page, call with before_uid=None.
         - For next (older) pages, call with before_uid=prev_page.next_before_uid.
         - For previous (newer) pages, call with after_uid=prev_page.prev_after_uid.
         """
@@ -520,7 +522,6 @@ class EmailManager:
         page, overviews = q.fetch_overview(
             before_uid=before_uid,
             after_uid=after_uid,
-            refresh=refresh,
         )
         return page, overviews
 
@@ -533,12 +534,11 @@ class EmailManager:
         include_attachment_meta: bool = False,
         before_uid: Optional[int] = None,
         after_uid: Optional[int] = None,
-        refresh: bool = False,
     ) -> tuple[PagedSearchResult, List[EmailMessage]]:
         """
         Fetch a page of latest messages plus paging metadata.
 
-        - For the first (latest) page, call with refresh=True, before_uid=None.
+        - For the first (latest) page, call with before_uid=None.
         - For next (older) pages, call with before_uid=prev_page.next_before_uid.
         - For previous (newer) pages, call with after_uid=prev_page.prev_after_uid.
         """
@@ -549,7 +549,6 @@ class EmailManager:
         page, messages = q.fetch(
             before_uid=before_uid,
             after_uid=after_uid,
-            refresh=refresh,
             include_attachment_meta=include_attachment_meta,
         )
         return page, messages
@@ -559,24 +558,58 @@ class EmailManager:
         root: EmailRef,
         *,
         mailbox: str = "INBOX",
+        date: Optional[str] = None,
         include_attachment_meta: bool = False,
     ) -> List[EmailMessage]:
         """
         Fetch messages belonging to the same thread as `root`.
         """
-        email_message = self.fetch_message_by_ref(root)
-        if not email_message.message_id:
+        
+        mid = self.imap.fetch_message_id(root)
+        if not mid:
+            email_message = self.fetch_message_by_ref(root, include_attachment_meta=include_attachment_meta)
             return [email_message]
+        
+        q = q = self.imap_query(mailbox)
+        if date:
+            email_datetime = datetime.fromisoformat(date)
+            since_date = (email_datetime - timedelta(days=30*6)).date()
+            q.query = q.query.since(since_date.isoformat())
 
-        q = self.imap_query(mailbox).for_thread_root(email_message).limit(200)
+        try:
+            if self.imap.supports_gmail_ext():
+                thrid = self.imap.fetch_gmail_thrid(root)
+                if thrid:
+                    q2 = IMAPQuery().raw("X-GM-THRID", thrid)
+                    if date:
+                        q2.and_(q)
+                    uids = self.imap.uid_search(mailbox=mailbox, query=q2)
+                    if not uids:
+                        return []
+                    # newest 20
+                    uids = sorted(uids)
+                    refs = [EmailRef(uid=u, mailbox=mailbox) for u in reversed(uids)]
+                    return self.imap.fetch(refs, include_attachment_meta=include_attachment_meta)
+        except Exception:
+            # if anything odd with capabilities/thrid, fall back
+            pass
 
-        _, msgs = q.fetch(include_attachment_meta=include_attachment_meta)
+        q_thread = EmailQuery(self, mailbox=mailbox).for_thread_root(mid).query
+        if date:
+            q_thread = q_thread.and_(q.query)
+        
+        window = 4000  # +/- 4000 UIDs around root
+        start = max(1, root.uid - window)
+        end = root.uid + window
+        q_thread.uid(f"{start}:{end}")
 
-        # Ensure root is present exactly once
-        mid = email_message.message_id
-        if all(m.message_id != mid for m in msgs):
-            msgs = [email_message] + msgs
-        return msgs
+        uids = self.imap.uid_search(mailbox=mailbox, query=q_thread)
+        if not uids:
+            return [self.fetch_message_by_ref(root, include_attachment_meta=include_attachment_meta)]
+
+        uids = sorted(uids)
+        refs = [EmailRef(uid=u, mailbox=mailbox) for u in reversed(uids)]
+        return self.imap.fetch(refs, include_attachment_meta=include_attachment_meta)
 
     def add_flags(self, refs: Sequence[EmailRef], flags: Set[str]) -> None:
         """Bulk add flags to refs."""
@@ -601,11 +634,9 @@ class EmailManager:
         q.query.unseen()
 
         before_uid: Optional[int] = None
-        refresh = True  # do a real SEARCH once to build the cache
 
         while True:
-            page = q.search(before_uid=before_uid, refresh=refresh)
-            refresh = False  # all further pages come from cache
+            page = q.search(before_uid=before_uid)
 
             refs = page.refs
             if not refs:

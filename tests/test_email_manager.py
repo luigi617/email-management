@@ -381,7 +381,7 @@ def test_fetch_latest_unseen_and_limit(manager: EmailManager, fake_imap: FakeIMA
     # mark newest as seen
     fake_imap.add_flags([r3], flags={r"\Seen"})
 
-    page, msgs = manager.fetch_latest(mailbox="INBOX", n=2, unseen_only=True, refresh=True)
+    page, msgs = manager.fetch_latest(mailbox="INBOX", n=2, unseen_only=True)
     texts = [m.text for m in msgs]
 
     assert "m3" not in texts  # seen excluded

@@ -41,10 +41,10 @@ class RecordingFakeIMAPClient(FakeIMAPClient):
 
     def __init__(self):
         super().__init__()
-        self.search_page_cached_calls = []
+        self.search_page_calls = []
         self.fetch_calls = []
 
-    def search_page_cached(
+    def search_page(
         self,
         *,
         mailbox: str,
@@ -52,18 +52,16 @@ class RecordingFakeIMAPClient(FakeIMAPClient):
         page_size: int = 50,
         before_uid=None,
         after_uid=None,
-        refresh: bool = False,
     ):
-        self.search_page_cached_calls.append(
-            (mailbox, query, page_size, before_uid, after_uid, refresh)
+        self.search_page_calls.append(
+            (mailbox, query, page_size, before_uid, after_uid)
         )
-        return super().search_page_cached(
+        return super().search_page(
             mailbox=mailbox,
             query=query,
             page_size=page_size,
             before_uid=before_uid,
             after_uid=after_uid,
-            refresh=refresh,
         )
 
     def fetch(self, refs, *, include_attachment_meta: bool = False):
@@ -95,7 +93,7 @@ def test_subscription_detector_builds_candidates_and_uses_query(monkeypatch):
     """
     - unseen_only=True -> IMAPQuery.unseen() is included in query
     - since is applied via IMAPQuery.since()
-    - search_page_cached/fetch are called correctly
+    - search_page/fetch are called correctly
     - only messages with List-Unsubscribe and parsed methods become candidates
     """
 
@@ -160,9 +158,9 @@ def test_subscription_detector_builds_candidates_and_uses_query(monkeypatch):
     assert cand.methods[0].kind == "mailto"
     assert cand.methods[0].value == "unsub1@example.com"
 
-    # IMAP search usage: search_page_cached called once
-    assert len(imap.search_page_cached_calls) == 1
-    mailbox, query_obj, page_size, before_uid, after_uid, refresh = imap.search_page_cached_calls[0]
+    # IMAP search usage: search_page called once
+    assert len(imap.search_page_calls) == 1
+    mailbox, query_obj, page_size, before_uid, after_uid = imap.search_page_calls[0]
     assert mailbox == "NEWS"
     assert page_size == 3
     assert before_uid is None
@@ -173,7 +171,7 @@ def test_subscription_detector_builds_candidates_and_uses_query(monkeypatch):
     # IMAPQuery.since("YYYY-MM-DD") formats to SINCE DD-Mon-YYYY
     assert "SINCE 01-Jan-2025" in built
 
-    # fetch called once with the refs returned by search_page_cached
+    # fetch called once with the refs returned by search_page
     assert len(imap.fetch_calls) == 1
     fetched_refs, include_attachment_meta = imap.fetch_calls[0]
     assert include_attachment_meta is False

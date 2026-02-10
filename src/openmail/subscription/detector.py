@@ -25,7 +25,7 @@ class SubscriptionDetector:
         if since:
             q.since(since)
 
-        page = self.imap.search_page_cached(mailbox=mailbox, query=q, page_size=limit)
+        page = self.imap.search_page(mailbox=mailbox, query=q, page_size=limit)
         msgs = self.imap.fetch(page.refs)
 
         out: List[UnsubscribeCandidate] = []

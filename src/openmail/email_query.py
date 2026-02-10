@@ -79,7 +79,7 @@ class EmailQuery:
         if len(qs) == 1:
             self._q.parts += qs[0].parts
             return self
-        self._q.or_(*qs)
+        self._q.and_(IMAPQuery().or_(*qs))
         return self
 
     def to_any(self, *recipients: str) -> EmailQuery:
@@ -89,7 +89,7 @@ class EmailQuery:
         if len(qs) == 1:
             self._q.parts += qs[0].parts
             return self
-        self._q.or_(*qs)
+        self._q.and_(IMAPQuery().or_(*qs))
         return self
 
     def subject_any(self, *needles: str) -> EmailQuery:
@@ -99,7 +99,7 @@ class EmailQuery:
         if len(qs) == 1:
             self._q.parts += qs[0].parts
             return self
-        self._q.or_(*qs)
+        self._q.and_(IMAPQuery().or_(*qs))
         return self
 
     def text_any(self, *needles: str) -> EmailQuery:
@@ -109,7 +109,7 @@ class EmailQuery:
         if len(qs) == 1:
             self._q.parts += qs[0].parts
             return self
-        self._q.or_(*qs)
+        self._q.and_(IMAPQuery().or_(*qs))
         return self
 
     def recent_unread(self, days: int = 7) -> EmailQuery:
@@ -131,7 +131,7 @@ class EmailQuery:
         )
         self._q.undeleted().undraft()
         self.last_days(days)
-        self._q.raw(triage_or.build())
+        self._q.and_(triage_or)
         return self
 
     def header_contains(self, name: str, needle: str) -> EmailQuery:
@@ -139,42 +139,20 @@ class EmailQuery:
             self._q.header(name, needle)
         return self
 
-    def for_thread_root(self, root: EmailMessage) -> EmailQuery:
+    def for_thread_root(self, message_id: str) -> EmailQuery:
         """
         Narrow this query to messages that look like they belong to the same
         thread as `root`, based on its Message-ID.
         """
-        if not root.message_id:
+        if not message_id:
             return self
 
-        mid = root.message_id
-
-        self._q.or_(
-            IMAPQuery().header("References", mid),
-            IMAPQuery().header("In-Reply-To", mid),
+        criteria = IMAPQuery().or_(
+            IMAPQuery().header("References", message_id),
+            IMAPQuery().header("In-Reply-To", message_id),
+            IMAPQuery().header("Message-ID", message_id),
         )
-        return self
-
-    def thread_like(
-        self, *, subject: Optional[str] = None, participants: Sequence[str] = ()
-    ) -> EmailQuery:
-        """
-        Approximate "thread" matching:
-        - optional SUBJECT contains `subject`
-        - AND (FROM any participants OR TO any participants OR CC any participants)
-        """
-        if subject:
-            self._q.subject(subject)
-
-        p = [x for x in participants if x]
-        if not p:
-            return self
-
-        q_from = [IMAPQuery().from_(x) for x in p]
-        q_to = [IMAPQuery().to(x) for x in p]
-        q_cc = [IMAPQuery().cc(x) for x in p]
-
-        self._q.or_(*(q_from + q_to + q_cc))
+        self._q.and_(criteria)
         return self
 
     def newsletters(self) -> EmailQuery:
@@ -222,7 +200,7 @@ class EmailQuery:
             IMAPQuery().header("Content-Type", "filename="),
         )
 
-        self._q.raw(hint.build())
+        self._q.and_(hint)
         return self
 
     def raw(self, *tokens: str) -> EmailQuery:
@@ -234,15 +212,13 @@ class EmailQuery:
         *,
         before_uid: Optional[int] = None,
         after_uid: Optional[int] = None,
-        refresh: bool = False,
     ) -> PagedSearchResult:
-        return self._m.imap.search_page_cached(
+        return self._m.imap.search_page(
             mailbox=self._mailbox,
             query=self._q,
             page_size=self._limit,
             before_uid=before_uid,
             after_uid=after_uid,
-            refresh=refresh,
         )
 
     def fetch(
@@ -250,13 +226,12 @@ class EmailQuery:
         *,
         before_uid: Optional[int] = None,
         after_uid: Optional[int] = None,
-        refresh: bool = False,
         include_attachment_meta: bool = False,
     ) -> tuple[PagedSearchResult, List[EmailMessage]]:
         """
         Fetch a page of full EmailMessage objects plus its paging metadata.
         """
-        page = self.search(before_uid=before_uid, after_uid=after_uid, refresh=refresh)
+        page = self.search(before_uid=before_uid, after_uid=after_uid)
         if not page.refs:
             return page, []
         messages = self._m.imap.fetch(page.refs, include_attachment_meta=include_attachment_meta)
@@ -267,12 +242,11 @@ class EmailQuery:
         *,
         before_uid: Optional[int] = None,
         after_uid: Optional[int] = None,
-        refresh: bool = False,
     ) -> tuple[PagedSearchResult, List[EmailOverview]]:
         """
         Fetch a page of EmailOverview objects plus its paging metadata.
         """
-        page = self.search(before_uid=before_uid, after_uid=after_uid, refresh=refresh)
+        page = self.search(before_uid=before_uid, after_uid=after_uid)
         if not page.refs:
             return page, []
         overviews = self._m.imap.fetch_overview(page.refs)

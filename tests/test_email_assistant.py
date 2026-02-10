@@ -33,7 +33,6 @@ class FakeEasyQuery:
         *,
         before_uid=None,
         after_uid=None,
-        refresh: bool = False,
         include_attachment_meta: bool = False,
         **_ignored,
     ):
@@ -42,7 +41,6 @@ class FakeEasyQuery:
             {
                 "before_uid": before_uid,
                 "after_uid": after_uid,
-                "refresh": refresh,
                 "include_attachment_meta": include_attachment_meta,
             }
         )

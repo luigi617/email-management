@@ -213,7 +213,6 @@ The fetch APIs return paging metadata along with results. Paging uses UIDs and s
 page, overviews = mgr.fetch_overview(
     mailbox="INBOX",
     n=50,
-    refresh=True,          # build/refresh the cached search
 )
 ```
 
@@ -249,7 +248,6 @@ page, msgs = mgr.fetch_latest(
     n=50,
     unseen_only=True,
     include_attachment_meta=False,
-    refresh=True,
 )
 ```
 
@@ -471,7 +469,7 @@ status = mgr.health_check()
 
 ```
 with EmailManager(smtp=smtp, imap=imap) as mgr:
-    page, msgs = mgr.fetch_latest(n=10, refresh=True)
+    page, msgs = mgr.fetch_latest(n=10)
 
 # or manually:
 mgr.close()

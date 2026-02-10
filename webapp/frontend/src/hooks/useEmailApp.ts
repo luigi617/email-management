@@ -272,6 +272,7 @@ export function useEmailAppCore() {
       const account = overview.ref.account;
       const mailbox = overview.ref.mailbox ?? currentMailbox;
       const uid = overview.ref.uid;
+      const date = overview.received_at;
 
       if (!account || !mailbox || uid == null) {
         setSelectedMessages(null);
@@ -286,6 +287,7 @@ export function useEmailAppCore() {
           account: String(account),
           mailbox: String(mailbox),
           uid: uid,
+          date: date
         });
 
         setSelectedMessages(msgs);

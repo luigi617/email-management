@@ -195,22 +195,51 @@ class IMAPQuery:
     def exclude_body(self, s: str) -> IMAPQuery:
         return self._not("BODY", _q(s))
 
-    def or_(self, *queries: IMAPQuery) -> IMAPQuery:
-        qs = [q for q in (self, *queries) if q.parts]
+    def _or_chain(self, queries: List["IMAPQuery"]) -> List[str]:
+        """
+        Build a right-nested OR chain:
+        q1 OR q2 OR q3  =>  OR (q1) (OR (q2) (q3))
+        """
+        if not queries:
+            raise ValueError("_or_chain requires at least one query")
 
-        if len(qs) < 2:
-            raise ValueError(
-                "or_ requires at least two non-empty IMAPQuery instances (including self)"
-            )
-
-        tokens: List[str] = list(qs[0].parts)
-
-        for q in qs[1:]:
+        tokens = list(queries[0].parts)
+        for q in queries[1:]:
             right = list(q.parts)
-
             tokens = ["OR", "("] + tokens + [")", "("] + right + [")"]
+        return tokens
 
-        self.parts = tokens
+
+    def or_(self, *queries: "IMAPQuery") -> "IMAPQuery":
+        """
+        Pure IMAP semantics:
+        self OR (q1 OR q2 OR q3 ...)
+        """
+
+        qs = [q for q in queries if q.parts]
+        if not qs:
+            return self
+
+        right = self._or_chain(qs)
+
+        if not self.parts:
+            self.parts = right
+        else:
+            left = list(self.parts)
+            self.parts = ["OR", "("] + left + [")", "("] + right + [")"]
+
+        return self
+
+
+    def and_(self, *queries: "IMAPQuery") -> "IMAPQuery":
+        """
+        Pure IMAP semantics:
+        AND is implied by concatenation of search keys.
+        So: self AND q1 AND q2 ...  ==  self.parts + q1.parts + q2.parts ...
+        """
+        qs = [q for q in queries if q.parts]
+        for q in qs:
+            self.parts += list(q.parts)
         return self
 
     # --- composition helpers ---
