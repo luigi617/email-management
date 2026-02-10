@@ -34,9 +34,9 @@ export default function EmailsHeader(props: EmailsHeaderProps) {
 
         <div className={styles.listHeaderRight}>
 
-          {showCount ? (
+          {/* {showCount ? (
             <span className={styles.listCount}>{totalEmails.toLocaleString()} total</span>
-          ) : null}
+          ) : null} */}
         </div>
       </div>
 
