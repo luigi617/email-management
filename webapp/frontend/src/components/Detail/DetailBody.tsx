@@ -163,8 +163,8 @@ export default function DetailBody(props: DetailBodyProps) {
 
   if (hasHtml) {
     return (
-      <div className={styles.bodyBlock}>
-        <div className={`${styles.detailBody} ${styles.htmlBody}`}>
+      <div className={`${styles.bodyBlock} light-island`}>
+        <div className={`${styles.detailBody} light-island`}>
           <EmailShadowBody html={html} />
         </div>
         {attachmentsInline}
@@ -174,8 +174,8 @@ export default function DetailBody(props: DetailBodyProps) {
 
   const safeText = derivedText.trim().length ? derivedText : "";
   return (
-    <div className={styles.bodyBlock}>
-      <pre className={`${styles.detailBody} ${styles.textBody}`}>{safeText}</pre>
+    <div className={`${styles.bodyBlock} light-island`}>
+      <pre className={`${styles.detailBody} light-island`}>{safeText}</pre>
       {attachmentsInline}
     </div>
   );

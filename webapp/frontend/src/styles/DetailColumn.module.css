@@ -130,15 +130,7 @@
 .detailHeader {
   display: flex;
   gap: 0.55rem;
-  margin-bottom: 0.35rem;
-}
-
-.detailBadge {
-  width: 14px;
-  height: 14px;
-  border-radius: 999px;
-  align-self: center;
-  border: 1px solid var(--border-soft);
+  margin-bottom: 0.65rem;
 }
 
 .detailMeta {

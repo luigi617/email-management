@@ -8,33 +8,13 @@
 /* shared shell for both text and html body */
 .detailBody {
   margin-top: 0.25rem;
-  padding: 2px;
+  padding: 0.25rem;
   background: var(--surface-2);
+  color: var(--text-main);
   border: 1px solid var(--divider);
   border-radius: 8px;
-  font-size: 0.88rem;
   flex: 0 0 auto;
   overflow: visible;
-}
-
-/* html variant */
-.htmlBody {
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-  white-space: normal;
-}
-
-/* text variant */
-.textBody {
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
-    monospace;
-  white-space: pre-wrap;
-  margin: 0; /* since it's a <pre> */
 }
 
 /* attachments bar (detail inline variant) */

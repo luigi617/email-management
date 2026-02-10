@@ -48,7 +48,6 @@ function EmailMessageCard({
   onForward: (mgs: EmailMessage) => void;
 }) {
   const header = useMemo(() => getDetailHeader(message), [message]);
-  const [detailsOpen, setDetailsOpen] = useState(true);
   const [moveOpen, setMoveOpen] = useState(false);
 
   const moveOptions = useMemo(() => {
@@ -68,17 +67,6 @@ function EmailMessageCard({
 
   return (
     <article className={styles.threadEmailCard}>
-      <div className={styles.detailHeader}>
-        <div className={styles.detailBadge} style={{ background: badgeColor }} />
-        <div className={styles.detailMeta}>
-          <div className={styles.detailSubject}>{header.subject}</div>
-          <div className={styles.detailLine}>{header.fromLine}</div>
-          <div className={styles.detailLine}>{header.toLine}</div>
-          <div className={`${styles.detailLine} ${styles.small}`}>{header.dateLine}</div>
-        </div>
-      </div>
-
-
       <DetailToolbar
         emailMessage={message}
         onArchive={onArchive}
@@ -128,19 +116,23 @@ function EmailMessageCard({
         </div>
       )}
 
-      {detailsOpen && (
-        <>
-          <hr className={styles.hr} />
-          <DetailBody
-            account={header.account}
-            mailbox={header.mailbox}
-            email_id={header.uid as number}
-            html={header.html}
-            text={header.text}
-            attachments={header.attachments}
-          />
-        </>
-      )}
+      <div className={styles.detailHeader}>
+        <div className={styles.detailMeta}>
+          <div className={styles.detailSubject}>{header.subject}</div>
+          <div className={styles.detailLine}>{header.fromLine}</div>
+          <div className={styles.detailLine}>{header.toLine}</div>
+          <div className={`${styles.detailLine} ${styles.small}`}>{header.dateLine}</div>
+        </div>
+      </div>
+      <DetailBody
+        account={header.account}
+        mailbox={header.mailbox}
+        email_id={header.uid as number}
+        html={header.html}
+        text={header.text}
+        attachments={header.attachments}
+      />
+
     </article>
   );
 }
