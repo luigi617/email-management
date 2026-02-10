@@ -704,7 +704,6 @@ class IMAPClient:
                 text = ""
                 html = ""
                 attachment_metas: List[AttachmentMeta] = []
-
                 if isinstance(bs_raw, str) and bs_raw:
                     try:
                         tree = parse_bodystructure(bs_raw)
@@ -727,7 +726,7 @@ class IMAPClient:
                             html = self._decode_section(mime_bytes=mime_b, body_bytes=body_b)
 
                         if html and attachment_metas:
-                            html = inline_cids_as_data_uris(
+                            html, attachment_metas = inline_cids_as_data_uris(
                                 conn=state.conn,
                                 uid=r.uid,
                                 html=html,

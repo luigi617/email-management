@@ -70,7 +70,7 @@ export default function DetailAttachments(props: DetailAttachmentsProps) {
   const attachments = useMemo(() => {
     const a = props.attachments ?? [];
     return Array.isArray(a)
-      ? (a.filter((att) => att && !att.is_inline) as Attachment[])
+      ? (a.filter((att) => att) as Attachment[])
       : [];
   }, [props.attachments]);
 

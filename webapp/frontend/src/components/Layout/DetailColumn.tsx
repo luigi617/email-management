@@ -25,7 +25,6 @@ export type DetailColumnProps = {
 
 function EmailMessageCard({
   message,
-  badgeColor,
   mailboxData,
   currentMailbox,
   onArchive,
@@ -36,7 +35,6 @@ function EmailMessageCard({
   onForward,
 }: {
   message: EmailMessage | null;
-  badgeColor: string;
   mailboxData: MailboxData;
   currentMailbox: string;
 
@@ -160,7 +158,6 @@ export default function DetailColumn(props: DetailColumnProps) {
               <div key={`${msg.ref.account}:${msg.ref.uid}`} role="listitem">
                 <EmailMessageCard
                   message={msg}
-                  badgeColor={"transparent"}
                   mailboxData={props.mailboxData}
                   currentMailbox={props.currentMailbox}
                   onArchive={props.onArchive}

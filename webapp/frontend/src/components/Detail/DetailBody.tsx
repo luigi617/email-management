@@ -148,6 +148,7 @@ export default function DetailBody(props: DetailBodyProps) {
   }, [text, hasHtml, html]);
 
   const attachments = props.attachments ?? [];
+  
   const showAttachments = attachments.length > 0;
 
   const attachmentsInline = showAttachments ? (

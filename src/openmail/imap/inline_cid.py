@@ -5,6 +5,7 @@ import imaplib
 import re
 from typing import Dict, Iterable, Optional
 from urllib.parse import unquote
+from openmail.imap.attachment_parts import fetch_part_bytes
 
 from openmail.models import AttachmentMeta
 
@@ -67,15 +68,16 @@ def inline_cids_as_data_uris(
     uid: int,
     html: str,
     attachment_metas: list[AttachmentMeta],
-    fetch_part_bytes,  # callable(part: str) -> bytes
 ) -> str:
     """
     Rewrite <img src="cid:..."> to data: URIs by fetching the bytes via IMAP.
     """
     if not html or not attachment_metas:
-        return html
+        return html, attachment_metas
 
     idx = build_inline_index(attachment_metas)
+    used_parts: set[str] = set()
+
 
     def repl(m: re.Match) -> str:
         prefix, src, suffix = m.group(1), m.group(2), m.group(3)
@@ -97,10 +99,15 @@ def inline_cids_as_data_uris(
 
         if not data:
             return m.group(0)
-
+        used_parts.add(hit.part)
         ctype = (hit.content_type or "application/octet-stream").lower()
         b64 = base64.b64encode(data).decode("ascii")
         data_uri = f"data:{ctype};base64,{b64}"
         return f"{prefix}{data_uri}{suffix}"
 
-    return _IMG_SRC_RE.sub(repl, html)
+    new_html = _IMG_SRC_RE.sub(repl, html)
+    if not used_parts:
+        return new_html, attachment_metas
+
+    updated_metas = [a for a in attachment_metas if a.part not in used_parts]
+    return new_html, updated_metas
