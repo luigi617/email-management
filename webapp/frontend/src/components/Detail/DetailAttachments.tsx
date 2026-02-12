@@ -78,9 +78,6 @@ export default function DetailAttachments(props: DetailAttachmentsProps) {
 
   return (
     <div className={styles.detailAttachments} id="detail-attachments">
-      <div className={`${styles.title} ${styles.detailLine}`}>
-        Attachments
-      </div>
 
       <div
         className={styles.strip}
