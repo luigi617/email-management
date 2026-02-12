@@ -11,6 +11,7 @@ export type EmailsHeaderProps = {
   onLoadMore: () => void;
   searchQuery: string;
   onSearch: (v: string) => void;
+  onOpenSidebar: () => void;
 };
 
 function getAccountMailboxName(accounts: string[], mailbox: string) {
@@ -23,21 +24,24 @@ function getAccountMailboxName(accounts: string[], mailbox: string) {
 
 
 export default function EmailsHeader(props: EmailsHeaderProps) {
-  const { totalEmails, searchQuery, onSearch } = props;
-
-  const showCount = Number.isFinite(totalEmails) && totalEmails > 0;
+  const { searchQuery, onSearch } = props;
 
   return (
     <section className={styles.listHeader}>
       <div className={styles.listHeaderTop}>
+        <div className={styles.mobileTopBar}>
+          <button
+            type="button"
+            className={styles.menuButton}
+            onClick={props.onOpenSidebar}
+            aria-label="Open sidebar"
+          >
+            ☰
+          </button>
+        </div>
         <h2 className={styles.title}>{getAccountMailboxName(props.accounts, props.mailbox)}</h2>
 
-        <div className={styles.listHeaderRight}>
 
-          {/* {showCount ? (
-            <span className={styles.listCount}>{totalEmails.toLocaleString()} total</span>
-          ) : null} */}
-        </div>
       </div>
 
       <SearchCard searchQuery={searchQuery} onSearch={onSearch} />

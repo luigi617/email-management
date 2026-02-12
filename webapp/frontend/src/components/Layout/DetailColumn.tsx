@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import type { EmailMessage, EmailOverview, MailboxData } from "../../types/email";
+import type { EmailMessage, MailboxData } from "../../types/email";
 import { getMailboxDisplayName } from "../../utils/emailFormat";
 import { getDetailHeader } from "../../utils/detailFormat";
 import DetailBody from "../Detail/DetailBody";
@@ -21,6 +21,9 @@ export type DetailColumnProps = {
   onReply: (mgs: EmailMessage) => void;
   onReplyAll: (mgs: EmailMessage) => void;
   onForward: (mgs: EmailMessage) => void;
+
+  // NEW: parent should clear selected thread / overview
+  onBack: () => void;
 };
 
 function EmailMessageCard({
@@ -54,7 +57,8 @@ function EmailMessageCard({
     return Object.keys(mailboxData[account] ?? []);
   }, [message, mailboxData]);
 
-  const [destinationMailbox, setDestinationMailbox] = useState<string>(currentMailbox);
+  const [destinationMailbox, setDestinationMailbox] =
+    useState<string>(currentMailbox);
 
   useEffect(() => {
     setDestinationMailbox(currentMailbox);
@@ -119,9 +123,12 @@ function EmailMessageCard({
           <div className={styles.detailSubject}>{header.subject}</div>
           <div className={styles.detailLine}>{header.fromLine}</div>
           <div className={styles.detailLine}>{header.toLine}</div>
-          <div className={`${styles.detailLine} ${styles.small}`}>{header.dateLine}</div>
+          <div className={`${styles.detailLine} ${styles.small}`}>
+            {header.dateLine}
+          </div>
         </div>
       </div>
+
       <DetailBody
         account={header.account}
         mailbox={header.mailbox}
@@ -130,7 +137,6 @@ function EmailMessageCard({
         text={header.text}
         attachments={header.attachments}
       />
-
     </article>
   );
 }
@@ -138,6 +144,18 @@ function EmailMessageCard({
 export default function DetailColumn(props: DetailColumnProps) {
   return (
     <section className={styles.detailCard}>
+      {/* Mobile-only back bar */}
+      <div className={styles.mobileBackBar}>
+        <button
+          type="button"
+          className={styles.backButton}
+          onClick={props.onBack}
+          aria-label="Back to list"
+        >
+          ←
+        </button>
+      </div>
+
       {!props.selectedMessages ? (
         <div id="detail-placeholder">
           <p className={styles.placeholderText}>
@@ -148,7 +166,9 @@ export default function DetailColumn(props: DetailColumnProps) {
         <div id="email-detail" className={styles.emailDetail}>
           <div
             id="detail-error"
-            className={`${styles.inlineError} ${props.detailError ? "" : styles.hidden}`}
+            className={`${styles.inlineError} ${
+              props.detailError ? "" : styles.hidden
+            }`}
           >
             {props.detailError}
           </div>

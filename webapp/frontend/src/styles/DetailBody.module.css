@@ -1,20 +1,39 @@
+/* DetailBody.module.css */
+
 /* wrapper around the body + (optional) attachments inline */
 .bodyBlock {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
+
+  /* critical when inside flex layouts */
+  min-width: 0;
+  min-height: 0;
 }
 
 /* shared shell for both text and html body */
 .detailBody {
-  margin-top: 0.25rem;
-  padding: 0.25rem;
   background: var(--surface-2);
   color: var(--text-main);
-  border: 1px solid var(--divider);
-  border-radius: 8px;
-  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
   overflow: visible;
+}
+
+/* host wrapper for the shadow root */
+.shadowHost {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+/* plain text body */
+.plainText {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* attachments bar (detail inline variant) */

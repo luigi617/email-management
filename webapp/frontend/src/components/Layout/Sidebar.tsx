@@ -1,4 +1,3 @@
-// src/components/Layout/Sidebar.tsx
 import MailboxesCard from "../Sidebar/MailboxesCard";
 import LegendCard from "../Sidebar/LegendCard";
 import type { MailboxData } from "../../types/email";
@@ -25,7 +24,7 @@ export default function Sidebar(props: SidebarProps) {
     <aside className={styles.sidebar}>
       <SidebarHome />
 
-      <Button type="button" variant="primary" onClick={props.onCompose} >
+      <Button type="button" variant="primary" onClick={props.onCompose}>
         Compose
       </Button>
 

@@ -5,8 +5,8 @@ import type { EmailOverview } from "../../types/email";
 import styles from "@/styles/MiddleColumn.module.css";
 
 export type MiddleColumnProps = {
-  currentMailbox: string,
-  currentAccounts: string[],
+  currentMailbox: string;
+  currentAccounts: string[];
 
   searchQuery: string;
   onSearch: (v: string) => void;
@@ -25,6 +25,9 @@ export type MiddleColumnProps = {
 
   getEmailId: (email: EmailOverview) => string;
   getColorForEmail: (email: EmailOverview) => string;
+
+  // NEW
+  onOpenSidebar: () => void;
 };
 
 export default function MiddleColumn(props: MiddleColumnProps) {
@@ -65,6 +68,8 @@ export default function MiddleColumn(props: MiddleColumnProps) {
 
   return (
     <div className={styles.middle}>
+      {/* Visible ONLY on mobile via CSS */}
+
       <EmailsHeader
         accounts={props.currentAccounts}
         mailbox={props.currentMailbox}
@@ -74,6 +79,7 @@ export default function MiddleColumn(props: MiddleColumnProps) {
         onLoadMore={props.onLoadMore}
         searchQuery={props.searchQuery}
         onSearch={props.onSearch}
+        onOpenSidebar={props.onOpenSidebar}
       />
 
       <section className={styles.listContainer}>

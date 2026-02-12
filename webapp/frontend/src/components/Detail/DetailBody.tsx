@@ -49,7 +49,11 @@ function sanitizeEmailHtml(html: string) {
 }
 
 const SHADOW_EMAIL_CSS = `
-  :host { display: block; }
+  :host {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
 
   .email-root {
     color-scheme: light;
@@ -58,22 +62,43 @@ const SHADOW_EMAIL_CSS = `
     line-height: 1.45;
     color: #111827;
     background: transparent;
+
+    width: 100%;
+    max-width: 100%;
+
+    /* Never allow horizontal overflow */
+    overflow-x: hidden;
+
+    /* Defaults that help reflow */
     overflow-wrap: anywhere;
     word-break: break-word;
-    padding: 6px;
   }
 
   img { max-width: 100%; height: auto; }
 
+
+  /* Links can be ultra-long (tracking URLs). Break them more aggressively. */
+  .email-root a {
+    word-break: break-all !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  /* Preserve newlines but wrap long lines */
+  pre, code, tt {
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+  /* TABLES: fit to screen (no horizontal scroll) */
   table {
-    max-width: 100%;
-    width: auto !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
     border-collapse: collapse;
   }
 
-  pre, code {
-    white-space: pre-wrap;
-    word-break: break-word;
+  td, th {
+    vertical-align: top;
   }
 
   blockquote {
@@ -89,12 +114,40 @@ const SHADOW_EMAIL_CSS = `
     border-top: 1px solid rgba(127,127,127,0.35);
     margin: 12px 0;
   }
-
-  * {
-    max-width: 100% !important;
-    box-sizing: border-box;
-  }
 `;
+
+function normalizeEmailDom(root: HTMLElement) {
+  // Remove width/height attributes that commonly force overflow.
+  root.querySelectorAll<HTMLElement>("[width]").forEach((el) => el.removeAttribute("width"));
+  root.querySelectorAll<HTMLElement>("[height]").forEach((el) => el.removeAttribute("height"));
+
+  // Remove inline styles that prevent reflow.
+  // Keep it targeted: strip only the rules that cause horizontal overflow.
+  root.querySelectorAll<HTMLElement>("[style]").forEach((el) => {
+    const s = el.getAttribute("style") || "";
+
+    const cleaned = s
+      .replace(/(^|;)\s*width\s*:\s*[^;]+/gi, "")
+      .replace(/(^|;)\s*min-width\s*:\s*[^;]+/gi, "")
+      .replace(/(^|;)\s*max-width\s*:\s*[^;]+/gi, "")
+      .replace(/(^|;)\s*white-space\s*:\s*nowrap\s*/gi, "")
+      .replace(/(^|;)\s*overflow-x\s*:\s*[^;]+/gi, "")
+      // Some emails set "overflow:hidden" on wrappers which can clip content.
+      .replace(/(^|;)\s*overflow\s*:\s*hidden\s*/gi, "");
+
+    // Clean up repeated ;; and trim
+    const finalStyle = cleaned.replace(/;;+/g, ";").trim().replace(/^;|;$/g, "");
+
+    if (finalStyle) el.setAttribute("style", finalStyle);
+    else el.removeAttribute("style");
+  });
+
+  // Security / UX: force safe anchor behavior
+  root.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((a) => {
+    a.setAttribute("target", "_blank");
+    a.setAttribute("rel", "noopener noreferrer");
+  });
+}
 
 function EmailShadowBody({ html }: { html: string }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -106,6 +159,7 @@ function EmailShadowBody({ html }: { html: string }) {
 
     const shadow = host.shadowRoot ?? host.attachShadow({ mode: "open" });
 
+    // Clear shadow content
     while (shadow.firstChild) shadow.removeChild(shadow.firstChild);
 
     const styleEl = document.createElement("style");
@@ -115,16 +169,15 @@ function EmailShadowBody({ html }: { html: string }) {
     root.className = "email-root";
     root.innerHTML = safeHtml;
 
+    // Best practice: normalize after sanitizing + parsing
+    normalizeEmailDom(root);
+
     shadow.appendChild(styleEl);
     shadow.appendChild(root);
-
-    shadow.querySelectorAll('a[href]').forEach((a) => {
-      a.setAttribute("target", "_blank");
-      a.setAttribute("rel", "noopener noreferrer");
-    });
   }, [safeHtml]);
 
-  return <div ref={hostRef} />;
+  // Best practice: ensure the host can shrink inside flex/grid without clipping
+  return <div ref={hostRef} className={styles.shadowHost} />;
 }
 
 export type DetailBodyProps = {
@@ -148,7 +201,6 @@ export default function DetailBody(props: DetailBodyProps) {
   }, [text, hasHtml, html]);
 
   const attachments = props.attachments ?? [];
-  
   const showAttachments = attachments.length > 0;
 
   const attachmentsInline = showAttachments ? (
@@ -176,7 +228,7 @@ export default function DetailBody(props: DetailBodyProps) {
   const safeText = derivedText.trim().length ? derivedText : "";
   return (
     <div className={`${styles.bodyBlock} light-island`}>
-      <pre className={`${styles.detailBody} light-island`}>{safeText}</pre>
+      <pre className={`${styles.detailBody} light-island ${styles.plainText}`}>{safeText}</pre>
       {attachmentsInline}
     </div>
   );

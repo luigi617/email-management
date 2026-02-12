@@ -8,6 +8,36 @@
   display: flex;
   flex-direction: column;
   background: var(--detail-bg);
+
+  /* allow internal scrollers */
+  min-height: 0;
+}
+
+/* Mobile-only back bar */
+.mobileBackBar {
+  display: none;
+}
+
+.backButton {
+  appearance: none;
+  border: 1px solid var(--divider);
+  background: var(--surface-1, white);
+  color: var(--text-main);
+  font: inherit;
+  font-weight: 600;
+  border-radius: 0.55rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0.25rem 0.4rem;
+  transition: background 0.08s ease, opacity 0.08s ease;
+}
+
+.backButton:hover {
+  background: var(--hover);
+}
+
+.backButton:active {
+  opacity: 0.9;
 }
 
 .placeholderText {
@@ -157,4 +187,26 @@
   border: none;
   border-top: 1px solid var(--divider);
   margin: 0.3rem 0 0.4rem;
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 880px) {
+  .detailCard {
+    /* remove side padding so back bar aligns nicely */
+    padding: 0;
+  }
+
+  .mobileBackBar {
+    display: flex;
+    align-items: center;
+    padding: 0.45rem 0.6rem;
+    border-bottom: 1px solid var(--divider);
+    background: var(--detail-bg);
+  }
+
+  /* Keep the rest of the content padded like before */
+  .emailDetail,
+  #detail-placeholder {
+    padding: 0.5rem;
+  }
 }

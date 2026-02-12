@@ -14,7 +14,9 @@
   border-bottom: none;
   background: var(--middle-bg);
   padding: 0;
-  height: calc(100vh - 56px);
+  height: calc(100vh - 85px);
+
   display: flex;
   flex-direction: column;
 }
+
