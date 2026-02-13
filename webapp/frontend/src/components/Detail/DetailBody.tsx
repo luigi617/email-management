@@ -93,7 +93,6 @@ const SHADOW_EMAIL_CSS = `
   /* TABLES: fit to screen (no horizontal scroll) */
   table {
     max-width: 100% !important;
-    table-layout: fixed !important;
     border-collapse: collapse;
   }
 
@@ -116,38 +115,6 @@ const SHADOW_EMAIL_CSS = `
   }
 `;
 
-function normalizeEmailDom(root: HTMLElement) {
-  // Remove width/height attributes that commonly force overflow.
-  root.querySelectorAll<HTMLElement>("[width]").forEach((el) => el.removeAttribute("width"));
-  root.querySelectorAll<HTMLElement>("[height]").forEach((el) => el.removeAttribute("height"));
-
-  // Remove inline styles that prevent reflow.
-  // Keep it targeted: strip only the rules that cause horizontal overflow.
-  root.querySelectorAll<HTMLElement>("[style]").forEach((el) => {
-    const s = el.getAttribute("style") || "";
-
-    const cleaned = s
-      .replace(/(^|;)\s*width\s*:\s*[^;]+/gi, "")
-      .replace(/(^|;)\s*min-width\s*:\s*[^;]+/gi, "")
-      .replace(/(^|;)\s*max-width\s*:\s*[^;]+/gi, "")
-      .replace(/(^|;)\s*white-space\s*:\s*nowrap\s*/gi, "")
-      .replace(/(^|;)\s*overflow-x\s*:\s*[^;]+/gi, "")
-      // Some emails set "overflow:hidden" on wrappers which can clip content.
-      .replace(/(^|;)\s*overflow\s*:\s*hidden\s*/gi, "");
-
-    // Clean up repeated ;; and trim
-    const finalStyle = cleaned.replace(/;;+/g, ";").trim().replace(/^;|;$/g, "");
-
-    if (finalStyle) el.setAttribute("style", finalStyle);
-    else el.removeAttribute("style");
-  });
-
-  // Security / UX: force safe anchor behavior
-  root.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((a) => {
-    a.setAttribute("target", "_blank");
-    a.setAttribute("rel", "noopener noreferrer");
-  });
-}
 
 function EmailShadowBody({ html }: { html: string }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -168,9 +135,6 @@ function EmailShadowBody({ html }: { html: string }) {
     const root = document.createElement("div");
     root.className = "email-root";
     root.innerHTML = safeHtml;
-
-    // Best practice: normalize after sanitizing + parsing
-    normalizeEmailDom(root);
 
     shadow.appendChild(styleEl);
     shadow.appendChild(root);
