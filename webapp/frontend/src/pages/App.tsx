@@ -139,6 +139,8 @@ export default function App() {
 
           getEmailId: core.helpers.getEmailId,
           getColorForEmail: core.helpers.getColorForEmail,
+
+          onOpenSidebar: () => {},
         }}
         detail={{
           selectedMessages: core.selectedMessages,
@@ -165,6 +167,7 @@ export default function App() {
             composer.open('forward', msg);
           },
           onMove: detailActions.moveSelected,
+          onBack: () => {}
         }}
       />
 

@@ -73,13 +73,34 @@ function mergeUniqueCaseInsensitive(a: string[], b: string[]): string[] {
   return out;
 }
 
+/**
+ * Helpers to identify "myself" / compare recipients.
+ * We normalize by extracting the email inside "<...>" if present and lowercasing.
+ */
+function normalizeEmailLike(s: string): string {
+  const v = (s || '').trim();
+  const m = v.match(/<([^>]+)>/);
+  return (m?.[1] || v).trim().toLowerCase();
+}
+
+function extractEmailLower(obj: any): string {
+  if (!obj) return '';
+  const raw =
+    obj.email ??
+    obj.address ??
+    obj.mailbox ??
+    obj.value ??
+    obj.addr ??
+    '';
+  return normalizeEmailLike(String(raw));
+}
+
 export function useComposer(args: {
   mailboxData: MailboxData; // account -> mailboxes
   getSelectedRef: () => EmailRef | null;
 
   showCloseConfirm: (cfg: { onSaveDraft: () => Promise<void>; onDiscard: () => void }) => void;
 }) {
-  const [selectedMessage, setSelectedMessage] = useState<EmailMessage | null>(null)
   const [state, setState] = useState<ComposerState>(() => ({
     open: false,
     minimized: false,
@@ -178,7 +199,6 @@ export function useComposer(args: {
 
   const open = useCallback(
     (mode: ComposerMode, emailMessage: EmailMessage | null) => {
-      setSelectedMessage(emailMessage)
       const originalSubj = emailMessage?.subject || '';
 
       // default From
@@ -191,11 +211,13 @@ export function useComposer(args: {
 
       let subject = '';
       let toStr = '';
+      let ccStr = '';
       let html = '';
 
       if (mode === 'compose') {
         subject = '';
         toStr = '';
+        ccStr = '';
         html = '';
       } else if (mode === 'reply') {
         const fromObj = emailMessage?.from_email;
@@ -213,9 +235,23 @@ export function useComposer(args: {
         const toList = emailMessage?.to || [];
         const ccList = emailMessage?.cc || [];
 
-        const allRecipients = [...(fromObj ? [fromObj] : []), ...toList, ...ccList];
+        // TO: only original From
+        if (fromObj) toStr = formatAddress(fromObj);
 
-        toStr = formatAddressList(allRecipients);
+        // "myself" = the account we're sending from
+        const meLower = normalizeEmailLike(defaultFrom);
+        const fromLower = extractEmailLower(fromObj);
+
+        // CC: everyone in original To + Cc except myself, and excluding original From
+        const others = [...toList, ...ccList].filter((r) => {
+          const e = extractEmailLower(r);
+          if (!e) return false;
+          if (meLower && e === meLower) return false; // exclude me
+          if (fromLower && e === fromLower) return false; // exclude original from (already in To)
+          return true;
+        });
+
+        ccStr = formatAddressList(others);
 
         subject = originalSubj.toLowerCase().startsWith('re:')
           ? originalSubj
@@ -235,6 +271,7 @@ export function useComposer(args: {
       }
 
       const to = splitRawList(toStr);
+      const cc = splitRawList(ccStr);
 
       setState((s) => ({
         ...s,
@@ -244,10 +281,11 @@ export function useComposer(args: {
         error: '',
         attachments: [],
 
-        extra: { cc: false, bcc: false, replyto: false, priority: false },
+        // if cc is not empty, show cc by default
+        extra: { cc: cc.length > 0, bcc: false, replyto: false, priority: false },
 
         to,
-        cc: [],
+        cc,
         bcc: [],
         subject,
         replyToRaw: '',

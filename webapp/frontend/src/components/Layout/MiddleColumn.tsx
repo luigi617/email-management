@@ -26,7 +26,6 @@ export type MiddleColumnProps = {
   getEmailId: (email: EmailOverview) => string;
   getColorForEmail: (email: EmailOverview) => string;
 
-  // NEW
   onOpenSidebar: () => void;
 };
 
