@@ -256,6 +256,16 @@ class FakeIMAPClient:
     def search(self, *, mailbox: str, query: IMAPQuery, limit: int = 50) -> List[EmailRef]:
         page = self.search_page(mailbox=mailbox, query=query, page_size=limit)
         return page.refs
+    
+    def uid_search(self, *, mailbox: str, query: IMAPQuery) -> List[int]:
+        """
+        Mirror IMAPClient.uid_search():
+        single SEARCH with the given query (no progressive windowing).
+        Returns ascending UIDs.
+        """
+        self._maybe_fail()
+        _criteria, uids = self._matching_uids_asc(mailbox=mailbox, query=query)
+        return uids
 
     # --- FETCH full message ----------------------------------------------
 
