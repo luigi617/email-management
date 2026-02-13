@@ -1,5 +1,5 @@
 // src/components/Composer/Composer.tsx
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { AddressChipsInput } from "./AddressChipsInput";
 import ComposerExtraMenu from "./ComposerExtraMenu";
 import ComposerEditor from "./ComposerEditor";
@@ -76,6 +76,13 @@ export default function Composer(props: ComposerProps) {
   const { composerRef, zoneRef } = useComposerResize(resizeEnabled);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const isMobile = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 768px)").matches;
+  }, []);
+
+  const disableMinimize = isMobile;
+  
   return (
     <div
       ref={composerRef}
@@ -83,9 +90,10 @@ export default function Composer(props: ComposerProps) {
         styles.composer,
         props.open ? "" : styles.hidden,
         props.minimized ? styles.minimized : "",
+        isMobile ? styles.mobile : "",
       ].join(" ")}
     >
-      {!props.minimized && <div ref={zoneRef} className={styles.resizeZone} />}
+      {!props.minimized && !isMobile && <div ref={zoneRef} className={styles.resizeZone} />}
 
       {/* header */}
       <div className={styles.header}>
@@ -132,13 +140,13 @@ export default function Composer(props: ComposerProps) {
             }}
           />
 
-          <button type="button" id="composer-emoji" className={styles.iconBtn} title="Add emoji">
+          {/* <button type="button" id="composer-emoji" className={styles.iconBtn} title="Add emoji">
             <EmojiIcon className={styles.icon} aria-hidden />
           </button>
 
           <button type="button" id="composer-format" className={styles.iconBtn} title="Format text">
             Aa
-          </button>
+          </button> */}
 
           <span id="composer-title" className={styles.titleHidden}>
             {props.title}
@@ -146,15 +154,17 @@ export default function Composer(props: ComposerProps) {
         </div>
 
         <div className={styles.headerRight}>
-          <button
-            type="button"
-            id="composer-minimize"
-            className={styles.iconBtn}
-            title="Minimize"
-            onClick={props.onMinimizeToggle}
-          >
-            <MinimizeIcon className={styles.icon} aria-hidden />
-          </button>
+          {!disableMinimize && (
+            <button
+              type="button"
+              id="composer-minimize"
+              className={styles.iconBtn}
+              title="Minimize"
+              onClick={props.onMinimizeToggle}
+            >
+              <MinimizeIcon className={styles.icon} aria-hidden />
+            </button>
+          )}
 
           <button
             type="button"
