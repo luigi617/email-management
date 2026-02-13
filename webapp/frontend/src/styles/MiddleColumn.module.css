@@ -2,21 +2,23 @@
 .middle {
   display: flex;
   flex-direction: column;
+  min-height: 0;
   border-right: 1px solid var(--divider);
   background: var(--middle-bg);
 }
 
-/* Container around the list (replaces "card list-container") */
+/* Container around the list */
 .listContainer {
+  display: flex;
+  flex-direction: column;
+
   border-radius: 0;
   box-shadow: none;
   border-top: none;
   border-bottom: none;
   background: var(--middle-bg);
   padding: 0;
-  height: calc(100vh - 85px);
 
-  display: flex;
-  flex-direction: column;
+  /* remove the fixed height calc; let flex do it */
+  height: calc(100dvh - 85px);
 }
-

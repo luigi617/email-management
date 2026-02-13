@@ -1,6 +1,6 @@
 /* --- Layout ------------------------------------------------------ */
 .layout {
-  height: 100vh;
+  height: 100dvh; /* better than 100vh on mobile */
   max-width: none;
   margin: 0;
   padding: 0;
@@ -9,7 +9,6 @@
   overflow: hidden;
 }
 
-/* These wrappers exist only to support grid-area assignment on breakpoints */
 .sidebar {
   height: 100vh;
 }
@@ -22,6 +21,14 @@
   height: 100vh;
 }
 
+
+/* wrappers */
+.sidebar,
+.middle,
+.detail {
+  min-height: 0;
+}
+
 /* Backdrop for mobile sidebar overlay */
 .backdrop {
   display: none;
@@ -30,25 +37,10 @@
   background: rgba(0, 0, 0, 0.35);
 }
 
-/* side-by-side layout for smaller screens still works */
+/* TABLET: keep 3 columns, just tighten widths */
 @media (max-width: 1120px) {
   .layout {
-    grid-template-columns: 240px minmax(0, 1fr);
-    grid-template-areas:
-      "sidebar middle"
-      "sidebar detail";
-  }
-
-  .sidebar {
-    grid-area: sidebar;
-  }
-
-  .middle {
-    grid-area: middle;
-  }
-
-  .detail {
-    grid-area: detail;
+    grid-template-columns: 240px minmax(0, 1fr) minmax(0, 1.2fr);
   }
 }
 
@@ -57,19 +49,22 @@
   .layout {
     position: relative;
     grid-template-columns: 1fr;
-    grid-template-areas: "middle";
   }
-  
+
   /* Sidebar becomes an off-canvas overlay */
   .sidebar {
     position: fixed;
     top: 0;
     left: 0;
-    height: 100vh;
+    height: 100dvh;
     width: min(320px, 85vw);
     transform: translateX(-110%);
     transition: transform 180ms ease;
     z-index: 50;
+
+    /* important */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Backdrop sits behind sidebar but above content */
@@ -87,17 +82,7 @@
     display: block;
   }
 
-  /* Middle is the default mobile view */
-  .middle {
-    grid-area: middle;
-    height: 100vh;
-  }
-
-  /* Detail exists but we toggle visibility via data-mobile-view */
-  .detail {
-    height: 100vh;
-  }
-
+  /* Toggle middle/detail visibility */
   .layout[data-mobile-view="middle"] .detail {
     display: none;
   }

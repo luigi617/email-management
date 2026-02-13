@@ -4,7 +4,7 @@
   box-shadow: none;
   border: none;
   padding: 0.55rem 0.9rem 0.75rem;
-  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--detail-bg);
@@ -192,7 +192,7 @@
 /* Mobile-specific adjustments */
 @media (max-width: 768px) {
   .detailCard {
-    width: 100vh;
+    width: 100vw;
     padding: 0;
   }
 

@@ -1,7 +1,11 @@
 /* Scroll container */
 .emailList {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Email rows: closer to Apple Mail list */
