@@ -66,8 +66,7 @@ const SHADOW_EMAIL_CSS = `
     width: 100%;
     max-width: 100%;
 
-    /* Never allow horizontal overflow */
-    overflow-x: hidden;
+    overflow: auto;
 
     /* Defaults that help reflow */
     overflow-wrap: anywhere;
