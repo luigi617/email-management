@@ -6,7 +6,6 @@ import re
 import ssl
 import threading
 import time
-from collections import OrderedDict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from email.message import EmailMessage as PyEmailMessage
@@ -59,11 +58,10 @@ class _ConnState:
     capabilities: Optional[Set[str]] = None
 
 
-
 @dataclass
 class _UIDWindow:
     start: int  # inclusive
-    end: int    # inclusive
+    end: int  # inclusive
 
 
 @dataclass
@@ -71,19 +69,19 @@ class IMAPClient:
     config: IMAPConfig
 
     # ---- perf knobs ----
-    pool_size: int = 2                    # 2–4 is usually plenty
-    max_concurrent_searches: int = 1      # keep SEARCH serialized-ish
+    pool_size: int = 2  # 2–4 is usually plenty
+    max_concurrent_searches: int = 1  # keep SEARCH serialized-ish
     max_retries: int = 1
     backoff_seconds: float = 0.2
 
-    max_uids_per_key: int = 10_000        # cap UID list size stored
+    max_uids_per_key: int = 10_000  # cap UID list size stored
 
     # ---- progressive SEARCH knobs ----
-    search_window_factor: int = 4         # initial window ~= page_size * factor
-    search_max_rounds: int = 6            # window doubles each round
-    search_max_window_uids: int = 200_000 # hard guard against huge UID SEARCH windows
+    search_window_factor: int = 4  # initial window ~= page_size * factor
+    search_max_rounds: int = 6  # window doubles each round
+    search_max_window_uids: int = 200_000  # hard guard against huge UID SEARCH windows
 
-    _pool: "Queue[_ConnState]" = field(default_factory=Queue, init=False, repr=False)
+    _pool: Queue[_ConnState] = field(default_factory=Queue, init=False, repr=False)
     _pool_lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
     pool_acquire_timeout: float = 5.0
     _closing: bool = field(default=False, init=False, repr=False)
@@ -91,7 +89,7 @@ class IMAPClient:
     _search_sem: threading.Semaphore = field(init=False, repr=False)
 
     @classmethod
-    def from_config(cls, config: IMAPConfig) -> "IMAPClient":
+    def from_config(cls, config: IMAPConfig) -> IMAPClient:
         if not config.host:
             raise ConfigError("IMAP host required")
         if not config.port:
@@ -285,7 +283,7 @@ class IMAPClient:
 
     def _clone_query(self, base: IMAPQuery) -> IMAPQuery:
         return IMAPQuery(parts=list(base.parts))
-    
+
     def _capabilities(self, state: _ConnState) -> Set[str]:
         if state.capabilities is not None:
             return state.capabilities
@@ -304,6 +302,7 @@ class IMAPClient:
     def supports_gmail_ext(self) -> bool:
         def _impl(state: _ConnState) -> bool:
             return "X-GM-EXT-1" in self._capabilities(state)
+
         return self._run(_impl)
 
     def fetch_gmail_thrid(self, ref: EmailRef) -> Optional[str]:
@@ -320,6 +319,7 @@ class IMAPClient:
                 if m:
                     return m.group(1)
             return None
+
         return self._run(_impl)
 
     def _uidnext(self, state: _ConnState, mailbox: str) -> int:
@@ -507,6 +507,7 @@ class IMAPClient:
             return last_criteria, acc
 
         return self._run_search(_impl)
+
     # -----------------------
     # SEARCH + pagination
     # -----------------------
@@ -647,7 +648,9 @@ class IMAPClient:
     # FETCH full message
     # -----------------------
 
-    def fetch(self, refs: Sequence[EmailRef], *, include_attachment_meta: bool = False) -> List[EmailMessage]:
+    def fetch(
+        self, refs: Sequence[EmailRef], *, include_attachment_meta: bool = False
+    ) -> List[EmailMessage]:
         if not refs:
             return []
 
@@ -741,7 +744,9 @@ class IMAPClient:
                     text=text,
                     html=html,
                     attachments=attachment_metas if include_attachment_meta else [],
-                    internaldate_raw=(internaldate_raw if isinstance(internaldate_raw, str) else None),
+                    internaldate_raw=(
+                        internaldate_raw if isinstance(internaldate_raw, str) else None
+                    ),
                 )
                 out.append(msg)
 
@@ -811,7 +816,9 @@ class IMAPClient:
                         r,
                         flags,
                         header_bytes,
-                        internaldate_raw=(internaldate_raw if isinstance(internaldate_raw, str) else None),
+                        internaldate_raw=(
+                            internaldate_raw if isinstance(internaldate_raw, str) else None
+                        ),
                     )
                 )
 
@@ -852,7 +859,6 @@ class IMAPClient:
 
         return self._run(_impl)
 
-
     # -----------------------
     # Attachment fetch
     # -----------------------
@@ -872,7 +878,9 @@ class IMAPClient:
     # Mutations
     # -----------------------
 
-    def append(self, mailbox: str, msg: PyEmailMessage, *, flags: Optional[Set[str]] = None) -> EmailRef:
+    def append(
+        self, mailbox: str, msg: PyEmailMessage, *, flags: Optional[Set[str]] = None
+    ) -> EmailRef:
         def _impl(state: _ConnState) -> EmailRef:
 
             flags_arg = "(" + " ".join(sorted(flags)) + ")" if flags else None
@@ -886,7 +894,9 @@ class IMAPClient:
 
             uid: Optional[int] = None
             if data and data[0]:
-                resp = data[0].decode(errors="ignore") if isinstance(data[0], bytes) else str(data[0])
+                resp = (
+                    data[0].decode(errors="ignore") if isinstance(data[0], bytes) else str(data[0])
+                )
                 m = re.search(r"APPENDUID\s+\d+\s+(\d+)", resp)
                 if m:
                     uid = int(m.group(1))
@@ -1029,11 +1039,11 @@ class IMAPClient:
             typ_store, data_store = state.conn.uid("STORE", uids, "+FLAGS.SILENT", r"(\Deleted)")
             if typ_store != "OK":
                 raise IMAPError(f"STORE +FLAGS.SILENT \\Deleted failed: {data_store}")
-            
+
             typ_ue, _data_ue = state.conn.uid("EXPUNGE", uids)
             if typ_ue == "OK":
                 return
-            
+
             typ_ex, data_ex = state.conn.expunge()
             if typ_ex != "OK":
                 raise IMAPError(f"EXPUNGE after MOVE fallback failed: {data_ex}")
@@ -1096,8 +1106,8 @@ class IMAPClient:
                     state.conn.logout()
                 except Exception:
                     pass
-                
-    def __enter__(self) -> "IMAPClient":
+
+    def __enter__(self) -> IMAPClient:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:

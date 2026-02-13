@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 import html as _html
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from email.message import EmailMessage as PyEmailMessage
-from time import time
 from typing import Dict, List, Optional, Sequence, Set
 
 from openmail.imap import IMAPClient, PagedSearchResult
@@ -564,16 +563,18 @@ class EmailManager:
         """
         Fetch messages belonging to the same thread as `root`.
         """
-        
+
         mid = self.imap.fetch_message_id(root)
         if not mid:
-            email_message = self.fetch_message_by_ref(root, include_attachment_meta=include_attachment_meta)
+            email_message = self.fetch_message_by_ref(
+                root, include_attachment_meta=include_attachment_meta
+            )
             return [email_message]
-        
+
         q = q = self.imap_query(mailbox)
         if date:
             email_datetime = datetime.fromisoformat(date)
-            since_date = (email_datetime - timedelta(days=30*6)).date()
+            since_date = (email_datetime - timedelta(days=30 * 6)).date()
             q.query = q.query.since(since_date.isoformat())
 
         try:
@@ -597,7 +598,7 @@ class EmailManager:
         q_thread = EmailQuery(self, mailbox=mailbox).for_thread_root(mid).query
         if date:
             q_thread = q_thread.and_(q.query)
-        
+
         window = 4000  # +/- 4000 UIDs around root
         start = max(1, root.uid - window)
         end = root.uid + window
@@ -605,7 +606,9 @@ class EmailManager:
 
         uids = self.imap.uid_search(mailbox=mailbox, query=q_thread)
         if not uids:
-            return [self.fetch_message_by_ref(root, include_attachment_meta=include_attachment_meta)]
+            return [
+                self.fetch_message_by_ref(root, include_attachment_meta=include_attachment_meta)
+            ]
 
         uids = sorted(uids)
         refs = [EmailRef(uid=u, mailbox=mailbox) for u in reversed(uids)]

@@ -404,7 +404,9 @@ def test_fetch_thread_includes_root_once(manager: EmailManager, fake_imap: FakeI
     )
     fake_imap.add_parsed_message("INBOX", reply)
 
-    msgs: List[EmailMessage] = manager.fetch_thread(EmailRef(uid=1, mailbox="INBOX"), mailbox="INBOX")
+    msgs: List[EmailMessage] = manager.fetch_thread(
+        EmailRef(uid=1, mailbox="INBOX"), mailbox="INBOX"
+    )
     mids = [m.message_id for m in msgs]
 
     assert mids.count("<root@example.com>") == 1

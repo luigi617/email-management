@@ -53,9 +53,7 @@ class RecordingFakeIMAPClient(FakeIMAPClient):
         before_uid=None,
         after_uid=None,
     ):
-        self.search_page_calls.append(
-            (mailbox, query, page_size, before_uid, after_uid)
-        )
+        self.search_page_calls.append((mailbox, query, page_size, before_uid, after_uid))
         return super().search_page(
             mailbox=mailbox,
             query=query,

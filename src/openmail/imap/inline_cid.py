@@ -5,8 +5,8 @@ import imaplib
 import re
 from typing import Dict, Iterable, Optional
 from urllib.parse import unquote
-from openmail.imap.attachment_parts import fetch_part_bytes
 
+from openmail.imap.attachment_parts import fetch_part_bytes
 from openmail.models import AttachmentMeta
 
 _IMG_SRC_RE = re.compile(r'(<img\b[^>]*\bsrc=["\'])([^"\']+)(["\'])', re.IGNORECASE)
@@ -77,7 +77,6 @@ def inline_cids_as_data_uris(
 
     idx = build_inline_index(attachment_metas)
     used_parts: set[str] = set()
-
 
     def repl(m: re.Match) -> str:
         prefix, src, suffix = m.group(1), m.group(2), m.group(3)

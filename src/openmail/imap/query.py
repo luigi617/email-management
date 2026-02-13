@@ -195,7 +195,7 @@ class IMAPQuery:
     def exclude_body(self, s: str) -> IMAPQuery:
         return self._not("BODY", _q(s))
 
-    def _or_chain(self, queries: List["IMAPQuery"]) -> List[str]:
+    def _or_chain(self, queries: List[IMAPQuery]) -> List[str]:
         """
         Build a right-nested OR chain:
         q1 OR q2 OR q3  =>  OR (q1) (OR (q2) (q3))
@@ -209,8 +209,7 @@ class IMAPQuery:
             tokens = ["OR", "("] + tokens + [")", "("] + right + [")"]
         return tokens
 
-
-    def or_(self, *queries: "IMAPQuery") -> "IMAPQuery":
+    def or_(self, *queries: IMAPQuery) -> IMAPQuery:
         """
         Pure IMAP semantics:
         self OR (q1 OR q2 OR q3 ...)
@@ -230,8 +229,7 @@ class IMAPQuery:
 
         return self
 
-
-    def and_(self, *queries: "IMAPQuery") -> "IMAPQuery":
+    def and_(self, *queries: IMAPQuery) -> IMAPQuery:
         """
         Pure IMAP semantics:
         AND is implied by concatenation of search keys.

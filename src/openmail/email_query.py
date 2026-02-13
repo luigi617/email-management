@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional, Sequence
+from typing import TYPE_CHECKING, List, Optional
 
 from openmail.imap import IMAPQuery, PagedSearchResult
 from openmail.models import EmailMessage, EmailOverview

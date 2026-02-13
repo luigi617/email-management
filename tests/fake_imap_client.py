@@ -155,7 +155,9 @@ class FakeIMAPClient:
                 name_token = parts[i + 1].strip('"')
                 value_token = parts[i + 2].strip('"')
                 if name_token.lower() == "list-unsubscribe":
-                    has_header = any(k.lower() == "list-unsubscribe" for k in (msg.headers or {}).keys())
+                    has_header = any(
+                        k.lower() == "list-unsubscribe" for k in (msg.headers or {}).keys()
+                    )
                     if value_token == "":
                         if not has_header:
                             return False
@@ -224,7 +226,9 @@ class FakeIMAPClient:
             page_uids_asc = window_uids[-page_size:]
 
         if not page_uids_asc:
-            return PagedSearchResult(refs=[], total=len(window_uids), has_next=False, has_prev=False)
+            return PagedSearchResult(
+                refs=[], total=len(window_uids), has_next=False, has_prev=False
+            )
 
         refs = [EmailRef(uid=u, mailbox=mailbox) for u in reversed(page_uids_asc)]
 
@@ -256,7 +260,7 @@ class FakeIMAPClient:
     def search(self, *, mailbox: str, query: IMAPQuery, limit: int = 50) -> List[EmailRef]:
         page = self.search_page(mailbox=mailbox, query=query, page_size=limit)
         return page.refs
-    
+
     def uid_search(self, *, mailbox: str, query: IMAPQuery) -> List[int]:
         """
         Mirror IMAPClient.uid_search():
@@ -342,7 +346,9 @@ class FakeIMAPClient:
             hdr_lines: List[str] = []
             _add_header(hdr_lines, "From", (msg.headers or {}).get("From") or msg.from_email)
             _add_header(
-                hdr_lines, "To", (msg.headers or {}).get("To") or (", ".join(msg.to) if msg.to else None)
+                hdr_lines,
+                "To",
+                (msg.headers or {}).get("To") or (", ".join(msg.to) if msg.to else None),
             )
             _add_header(hdr_lines, "Subject", (msg.headers or {}).get("Subject") or msg.subject)
             _add_header(
@@ -351,7 +357,9 @@ class FakeIMAPClient:
                 (msg.headers or {}).get("Date")
                 or (msg.received_at.isoformat() if msg.received_at else None),
             )
-            _add_header(hdr_lines, "Message-ID", (msg.headers or {}).get("Message-ID") or msg.message_id)
+            _add_header(
+                hdr_lines, "Message-ID", (msg.headers or {}).get("Message-ID") or msg.message_id
+            )
 
             # Preserve other headers best-effort (avoid duplicates for the main ones).
             used = {h.split(":", 1)[0].lower() for h in hdr_lines}
@@ -366,7 +374,7 @@ class FakeIMAPClient:
             out.append(parse_overview(r, flags, header_bytes, internaldate_raw=None))
 
         return out
-    
+
     def fetch_message_id(self, ref: EmailRef) -> Optional[str]:
         """
         Mirror IMAPClient.fetch_message_id():
