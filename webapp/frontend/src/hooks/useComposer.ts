@@ -234,7 +234,7 @@ export function useComposer(args: {
 
         // "myself" = the account we're sending from
         const meLower = normalizeEmailLike(defaultFrom);
-        const fromLower = extractEmailLower(fromObj);
+        const fromLower = fromObj ? extractEmailLower(fromObj) : '';
 
         // CC: everyone in original To + Cc except myself, and excluding original From
         const others = [...toList, ...ccList].filter((r) => {
