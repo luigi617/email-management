@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <defs>
+    <!-- subtle 3D shading -->
+    <linearGradient id="topShade" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity="0.14"></stop>
+      <stop offset="1" stop-color="#000" stop-opacity="0.05"></stop>
+    </linearGradient>
+
+    <linearGradient id="sideShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity="0.28"></stop>
+      <stop offset="1" stop-color="#000" stop-opacity="0.48"></stop>
+    </linearGradient>
+
+    <!-- soft drop shadow -->
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="16" stdDeviation="10" flood-color="#000" flood-opacity="0.25"></feDropShadow>
+    </filter>
+  </defs>
+
+  <!-- background -->
+  <rect width="100%" height="100%" fill="#ffffff"></rect>
+
+  <!--
+    Front L shape:
+      A(150,120) -> B(230,120) -> C(230,320) -> D(350,320) -> E(350,380) -> F(150,380) -> A
+    Extrusion vector:
+      dx = +50, dy = -50
+  -->
+
+  <g filter="url(#shadow)">
+    <!-- TOP faces (true top edges of the L) -->
+    <!-- Edge A->B extruded to A'->B' -->
+    <path d="M150 120 L230 120 L280 70 L200 70 Z" fill="url(#topShade)"></path>
+    <!-- Edge C->D extruded to C'->D' (top of the foot) -->
+    <path d="M230 320 L350 320 L400 270 L280 270 Z" fill="url(#topShade)"></path>
+
+    <!-- SIDE faces (right-facing edges) -->
+    <!-- Inner cutout wall: edge B->C extruded to B'->C' -->
+    <path d="M230 120 L230 320 L280 270 L280 70 Z" fill="url(#sideShade)"></path>
+    <!-- Outer right wall: edge D->E extruded to D'->E' -->
+    <path d="M350 320 L350 380 L400 330 L400 270 Z" fill="url(#sideShade)"></path>
+
+    <!-- FRONT face -->
+    <path d="
+      M150 120
+      L230 120
+      L230 320
+      L350 320
+      L350 380
+      L150 380
+      Z
+    " fill="#000"></path>
+  </g>
+</svg>
