@@ -25,6 +25,7 @@ from openmail.types import EmailRef
 
 router = APIRouter(prefix="/api", tags=["email"])
 
+
 def _safe_set_flagged(account: str, ref: EmailRef, flagged: bool) -> None:
     try:
         manager = ACCOUNTS.get(account)
@@ -36,6 +37,7 @@ def _safe_set_flagged(account: str, ref: EmailRef, flagged: bool) -> None:
             manager.unflag([ref])
     except Exception:
         pass
+
 
 def _safe_mark_seen(account: str, ref: EmailRef) -> None:
     try:
@@ -162,7 +164,6 @@ async def get_email(
 
     email_ref = EmailRef(mailbox=mailbox, uid=email_id)
 
- 
     # messages: List[EmailMessage] = await run_blocking(
     #     manager.fetch_thread,
     #     email_ref,
@@ -600,11 +601,10 @@ async def set_email_flagged(
     account: str,
     mailbox: str,
     email_id: int,
-    flagged: Annotated[bool, Form()] ,
+    flagged: Annotated[bool, Form()],
 ) -> dict:
     account = unquote(account)
     mailbox = unquote(mailbox)
-
 
     ref = EmailRef(mailbox=mailbox, uid=email_id)
 

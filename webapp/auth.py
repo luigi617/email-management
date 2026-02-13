@@ -1,14 +1,13 @@
 # auth.py
 import os
 import secrets
-from typing import Iterable
+from typing import Iterable, Literal, Optional
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from fastapi.responses import HTMLResponse
 
 AUTH_MODE = os.getenv("AUTH_MODE", "required").lower()
 APP_USER = os.getenv("APP_USER", "me")
@@ -16,7 +15,9 @@ APP_PASSWORD = os.getenv("APP_PASSWORD", "")
 SESSION_SECRET = os.getenv("SESSION_SECRET", "")
 
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "true").lower() in ("1", "true", "yes", "on")
-COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "lax")  # "lax" is usually correct for SPA + same-site API
+COOKIE_SAMESITE = os.getenv(
+    "COOKIE_SAMESITE", "lax"
+)  # "lax" is usually correct for SPA + same-site API
 
 AUTH_ENABLED = AUTH_MODE == "required"
 
@@ -26,16 +27,18 @@ if AUTH_ENABLED:
     if not APP_PASSWORD:
         raise RuntimeError("Set APP_PASSWORD in .env")
 
+
 def verify_password(plain: str) -> bool:
     return secrets.compare_digest(plain, APP_PASSWORD)
 
+
 router = APIRouter(prefix="/api", tags=["auth"])
 
-from typing import Literal, Optional
 
 class AuthStatus(BaseModel):
     mode: Literal["open", "required"]
     authed: Optional[bool] = None
+
 
 @router.get("/auth/status", response_model=AuthStatus)
 async def auth_status(request: Request):
@@ -49,6 +52,7 @@ class LoginBody(BaseModel):
     username: str
     password: str
 
+
 @router.post("/login")
 async def login(body: LoginBody, request: Request):
     user_ok = secrets.compare_digest(body.username, APP_USER)
@@ -59,11 +63,11 @@ async def login(body: LoginBody, request: Request):
     request.session["authed"] = True
     return {"ok": True}
 
+
 @router.post("/logout")
 async def logout(request: Request):
     request.session.clear()
     return {"ok": True}
-
 
 
 class SessionAuthGateMiddleware(BaseHTTPMiddleware):
@@ -112,14 +116,12 @@ def setup_auth(app: FastAPI) -> None:
 
     if not AUTH_ENABLED:
         return
-    
+
     app.add_middleware(SessionAuthGateMiddleware, protect_spa=False)
     app.add_middleware(
         SessionMiddleware,
         secret_key=SESSION_SECRET,
         max_age=None,
         same_site=COOKIE_SAMESITE,
-        https_only=COOKIE_SECURE, # set COOKIE_SECURE=false on localhost http
+        https_only=COOKIE_SECURE,  # set COOKIE_SECURE=false on localhost http
     )
-
-

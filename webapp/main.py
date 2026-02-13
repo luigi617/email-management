@@ -4,6 +4,7 @@ from pathlib import Path
 
 from accounts_api import router as accounts_router
 from accounts_api import set_reload_callback
+from auth import setup_auth
 from context import EXECUTOR, reload_accounts_in_memory
 from dotenv import load_dotenv
 from email_api import router as email_router
@@ -13,8 +14,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import GZipMiddleware
-
-from auth import setup_auth
 
 load_dotenv(override=True)
 

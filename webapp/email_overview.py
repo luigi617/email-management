@@ -109,7 +109,6 @@ async def build_email_overview(
             raise KeyError(f"Unknown account: {acc_id}")
         managers[acc_id] = manager
 
-
     cached_ai: Optional[_CachedDerivedQuery] = None
 
     if normalized_search and IS_AI_MODEL_AVAILABLE:
@@ -154,7 +153,6 @@ async def build_email_overview(
                     IMAPQuery().to(normalized_search),
                     IMAPQuery().from_(normalized_search),
                 )
-
 
         try:
             page_meta, overview_list = await run_blocking(
