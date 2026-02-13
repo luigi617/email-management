@@ -53,13 +53,13 @@
 }
 
 /* MOBILE: Middle by default, Sidebar overlays, Detail shows when selected */
-@media (max-width: 880px) {
+@media (max-width: 768px) {
   .layout {
     position: relative;
     grid-template-columns: 1fr;
     grid-template-areas: "middle";
   }
-
+  
   /* Sidebar becomes an off-canvas overlay */
   .sidebar {
     position: fixed;

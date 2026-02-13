@@ -51,7 +51,7 @@
 }
 
 
-@media (max-width: 880px) {
+@media (max-width: 768px) {
   .mobileTopBar {
     display: flex;
     align-items: center;

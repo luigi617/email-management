@@ -190,9 +190,9 @@
 }
 
 /* Mobile-specific adjustments */
-@media (max-width: 880px) {
+@media (max-width: 768px) {
   .detailCard {
-    /* remove side padding so back bar aligns nicely */
+    width: 100vh;
     padding: 0;
   }
 
