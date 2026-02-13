@@ -1,8 +1,8 @@
-import { useState } from "react";
-import Sidebar, { type SidebarProps } from "./Sidebar";
-import MiddleColumn, { type MiddleColumnProps } from "./MiddleColumn";
-import DetailColumn, { type DetailColumnProps } from "./DetailColumn";
-import styles from "@/styles/Layout.module.css";
+import { useState } from 'react';
+import Sidebar, { type SidebarProps } from './Sidebar';
+import MiddleColumn, { type MiddleColumnProps } from './MiddleColumn';
+import DetailColumn, { type DetailColumnProps } from './DetailColumn';
+import styles from '@/styles/Layout.module.css';
 
 export default function Layout(props: {
   sidebar: SidebarProps;
@@ -11,15 +11,13 @@ export default function Layout(props: {
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const [mobileView, setMobileView] = useState<"middle" | "detail">(
-    "middle"
-  );
+  const [mobileView, setMobileView] = useState<'middle' | 'detail'>('middle');
 
   return (
     <main
       className={styles.layout}
       data-mobile-view={mobileView}
-      data-sidebar-open={sidebarOpen ? "true" : "false"}
+      data-sidebar-open={sidebarOpen ? 'true' : 'false'}
     >
       {/* Backdrop (mobile only, shown when sidebar open) */}
       <button
@@ -56,7 +54,7 @@ export default function Layout(props: {
           onOpenSidebar={() => setSidebarOpen(true)}
           onSelectEmail={(email) => {
             props.middle.onSelectEmail(email);
-            setMobileView("detail");
+            setMobileView('detail');
             setSidebarOpen(false);
           }}
         />
@@ -66,7 +64,7 @@ export default function Layout(props: {
         <DetailColumn
           {...props.detail}
           onBack={() => {
-            setMobileView("middle");
+            setMobileView('middle');
           }}
         />
       </section>

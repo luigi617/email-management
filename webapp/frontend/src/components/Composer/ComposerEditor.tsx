@@ -1,6 +1,6 @@
 // src/components/Composer/ComposerEditor.tsx
-import { useEffect, useRef } from "react";
-import styles from "@/styles/ComposerEditor.module.css";
+import { useEffect, useRef } from 'react';
+import styles from '@/styles/ComposerEditor.module.css';
 
 export type ComposerEditorProps = {
   value: string;
@@ -8,23 +8,23 @@ export type ComposerEditorProps = {
 };
 
 function isMac() {
-  return typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+  return typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
 }
 
 function normalizePlainTextToHtml(text: string) {
   const escaped = text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 
-  return escaped.replace(/\r\n|\r|\n/g, "<br>");
+  return escaped.replace(/\r\n|\r|\n/g, '<br>');
 }
 
 function insertHtmlAtSelection(html: string) {
   try {
-    if (document.queryCommandSupported?.("insertHTML")) {
-      const ok = document.execCommand("insertHTML", false, html);
+    if (document.queryCommandSupported?.('insertHTML')) {
+      const ok = document.execCommand('insertHTML', false, html);
       if (ok) return;
     }
   } catch {
@@ -37,7 +37,7 @@ function insertHtmlAtSelection(html: string) {
   const range = sel.getRangeAt(0);
   range.deleteContents();
 
-  const temp = document.createElement("div");
+  const temp = document.createElement('div');
   temp.innerHTML = html;
 
   const frag = document.createDocumentFragment();
@@ -59,23 +59,23 @@ function insertHtmlAtSelection(html: string) {
 
 function sanitizePastedHtml(html: string) {
   const parser = new DOMParser();
-  const doc = parser.parseFromString(html, "text/html");
+  const doc = parser.parseFromString(html, 'text/html');
 
   const blocked = doc.querySelectorAll(
-    "script, iframe, object, embed, link, meta, style, form, input, button, textarea, select"
+    'script, iframe, object, embed, link, meta, style, form, input, button, textarea, select'
   );
   blocked.forEach((n) => n.remove());
 
   const allowedStyleProps = new Set([
-    "font-weight",
-    "font-style",
-    "text-decoration",
-    "color",
-    "background-color",
-    "font-size",
-    "font-family",
-    "text-align",
-    "white-space",
+    'font-weight',
+    'font-style',
+    'text-decoration',
+    'color',
+    'background-color',
+    'font-size',
+    'font-family',
+    'text-align',
+    'white-space',
   ]);
 
   const walk = (node: Element) => {
@@ -83,34 +83,34 @@ function sanitizePastedHtml(html: string) {
       const name = attr.name.toLowerCase();
       const value = attr.value;
 
-      if (name.startsWith("on")) {
+      if (name.startsWith('on')) {
         node.removeAttribute(attr.name);
         continue;
       }
 
-      if ((name === "href" || name === "src") && /^\s*javascript:/i.test(value)) {
+      if ((name === 'href' || name === 'src') && /^\s*javascript:/i.test(value)) {
         node.removeAttribute(attr.name);
         continue;
       }
 
-      if (name === "style") {
+      if (name === 'style') {
         const kept: string[] = [];
-        value.split(";").forEach((decl) => {
-          const [rawProp, ...rest] = decl.split(":");
+        value.split(';').forEach((decl) => {
+          const [rawProp, ...rest] = decl.split(':');
           if (!rawProp || rest.length === 0) return;
           const prop = rawProp.trim().toLowerCase();
-          const val = rest.join(":").trim();
+          const val = rest.join(':').trim();
           if (!prop) return;
 
           if (allowedStyleProps.has(prop)) kept.push(`${prop}: ${val}`);
         });
 
-        if (kept.length) node.setAttribute("style", kept.join("; "));
-        else node.removeAttribute("style");
+        if (kept.length) node.setAttribute('style', kept.join('; '));
+        else node.removeAttribute('style');
         continue;
       }
 
-      if (name === "class" || name === "id") {
+      if (name === 'class' || name === 'id') {
         node.removeAttribute(attr.name);
       }
     }
@@ -143,7 +143,7 @@ export default function ComposerEditor({ value, onChange }: ComposerEditorProps)
   }, [value]);
 
   const emitChange = () => {
-    const html = ref.current?.innerHTML ?? "";
+    const html = ref.current?.innerHTML ?? '';
     lastEmittedHtmlRef.current = html;
     onChange(html);
   };
@@ -172,13 +172,13 @@ export default function ComposerEditor({ value, onChange }: ComposerEditorProps)
         onKeyDown={(e) => {
           const mod = isMac() ? e.metaKey : e.ctrlKey;
 
-          if (mod && e.shiftKey && (e.key === "V" || e.key === "v")) {
+          if (mod && e.shiftKey && (e.key === 'V' || e.key === 'v')) {
             plainPasteNextRef.current = true;
 
             const canRead =
-              typeof navigator !== "undefined" &&
-              "clipboard" in navigator &&
-              "readText" in navigator.clipboard;
+              typeof navigator !== 'undefined' &&
+              'clipboard' in navigator &&
+              'readText' in navigator.clipboard;
 
             if (canRead) {
               e.preventDefault();
@@ -198,8 +198,8 @@ export default function ComposerEditor({ value, onChange }: ComposerEditorProps)
           const dt = e.clipboardData;
           if (!dt) return;
 
-          const html = dt.getData("text/html");
-          const text = dt.getData("text/plain");
+          const html = dt.getData('text/html');
+          const text = dt.getData('text/plain');
 
           e.preventDefault();
 

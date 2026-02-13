@@ -1,6 +1,6 @@
-import { Link } from "react-router-dom";
-import styles from "@/styles/SidebarHome.module.css";
-import SettingsIcon from "@/assets/svg/settings.svg?react";
+import { Link } from 'react-router-dom';
+import styles from '@/styles/SidebarHome.module.css';
+import SettingsIcon from '@/assets/svg/settings.svg?react';
 
 export default function SidebarHome() {
   return (
@@ -10,7 +10,7 @@ export default function SidebarHome() {
       </Link>
 
       <Link to="/settings" className={styles.settingsButton}>
-        <SettingsIcon className={styles.icon}/>
+        <SettingsIcon className={styles.icon} />
       </Link>
     </div>
   );

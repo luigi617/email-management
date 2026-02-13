@@ -35,7 +35,10 @@
   border-radius: 0.55rem;
   cursor: pointer;
   line-height: 1;
-  transition: background 0.08s ease, border-color 0.08s ease, opacity 0.08s ease;
+  transition:
+    background 0.08s ease,
+    border-color 0.08s ease,
+    opacity 0.08s ease;
 }
 
 .accountsButton:hover {

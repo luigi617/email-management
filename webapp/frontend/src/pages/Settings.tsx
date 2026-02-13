@@ -1,15 +1,15 @@
 // Settings.tsx
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { AccountAuth, AccountProvider, AccountRow } from "../types/accountApi";
-import { AccountApi } from "../api/accountApi";
-import { EmailApi } from "../api/emailApi";
-import styles from "@/styles/Settings.module.css";
-import Button from "../components/ui/Button/Button";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { AccountAuth, AccountProvider, AccountRow } from '../types/accountApi';
+import { AccountApi } from '../api/accountApi';
+import { EmailApi } from '../api/emailApi';
+import styles from '@/styles/Settings.module.css';
+import Button from '../components/ui/Button/Button';
 
 const BACKEND_ORIGIN = import.meta.env.VITE_BACKEND_ORIGIN;
 const MOBILE_BREAKPOINT = 960;
 
-type PanelMode = "view" | "create" | "edit";
+type PanelMode = 'view' | 'create' | 'edit';
 type ConnectedMap = Record<string, { ok: boolean; detail: string }>;
 
 function isConnected(a: AccountRow, connectedById: ConnectedMap) {
@@ -35,24 +35,19 @@ function SettingsModal({
   useEffect(() => {
     if (!open) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === 'Escape') onClose();
     }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, onClose]);
 
   if (!open) return null;
 
   return (
-    <div
-      className={styles.modalBackdrop}
-      onMouseDown={onClose}
-      role="dialog"
-      aria-modal="true"
-    >
+    <div className={styles.modalBackdrop} onMouseDown={onClose} role="dialog" aria-modal="true">
       <div className={styles.modalSheet} onMouseDown={(e) => e.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <div className={styles.modalTitle}>{title ?? "Details"}</div>
+          <div className={styles.modalTitle}>{title ?? 'Details'}</div>
           <Button variant="ghost" onClick={onClose} aria-label="Close">
             Close
           </Button>
@@ -74,35 +69,33 @@ export default function Settings({ onAccountsChanged }: Props) {
 
   // selection + panel mode
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [panelMode, setPanelMode] = useState<PanelMode>("view");
+  const [panelMode, setPanelMode] = useState<PanelMode>('view');
 
   // rail search
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
 
   // mobile behavior
   const [isMobile, setIsMobile] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // create/edit form state
-  const [provider, setProvider] = useState<AccountRow["provider"]>("gmail");
-  const [email, setEmail] = useState("");
-  const [authMethod, setAuthMethod] = useState<AccountRow["auth_method"]>("app");
+  const [provider, setProvider] = useState<AccountRow['provider']>('gmail');
+  const [email, setEmail] = useState('');
+  const [authMethod, setAuthMethod] = useState<AccountRow['auth_method']>('app');
 
-  const [password, setPassword] = useState("");
-  const [clientId, setClientId] = useState("");
-  const [clientSecret, setClientSecret] = useState("");
-  const [redirectUri, setRedirectUri] = useState(
-    `${BACKEND_ORIGIN}/api/accounts/oauth/callback`
-  );
-  const [scopes, setScopes] = useState("");
+  const [password, setPassword] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const [redirectUri, setRedirectUri] = useState(`${BACKEND_ORIGIN}/api/accounts/oauth/callback`);
+  const [scopes, setScopes] = useState('');
 
   // mobile breakpoint
   useEffect(() => {
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
     const onChange = () => setIsMobile(mql.matches);
     onChange();
-    mql.addEventListener?.("change", onChange);
-    return () => mql.removeEventListener?.("change", onChange);
+    mql.addEventListener?.('change', onChange);
+    return () => mql.removeEventListener?.('change', onChange);
   }, []);
 
   const selected = useMemo(() => {
@@ -128,86 +121,54 @@ export default function Settings({ onAccountsChanged }: Props) {
   }, [accounts, query]);
 
   function resetForm(
-    next?: Partial<{ provider: AccountRow["provider"]; email: string; auth: AccountAuth }>
+    next?: Partial<{ provider: AccountRow['provider']; email: string; auth: AccountAuth }>
   ) {
-    setProvider(next?.provider ?? "gmail");
-    setEmail(next?.email ?? "");
-    setAuthMethod(next?.auth ?? "app");
-    setPassword("");
-    setClientId("");
-    setClientSecret("");
-    setScopes("");
+    setProvider(next?.provider ?? 'gmail');
+    setEmail(next?.email ?? '');
+    setAuthMethod(next?.auth ?? 'app');
+    setPassword('');
+    setClientId('');
+    setClientSecret('');
+    setScopes('');
     setRedirectUri(`${BACKEND_ORIGIN}/api/accounts/oauth/callback`);
   }
 
-  /** List accounts only (NO connection checks) */
-  const loadAccounts = useCallback(async () => {
-    setLoading(true);
+  /** Connection/health checks (only runs when user asks, on mount, after save/delete, or OAuth success) */
+  const refreshStatus = useCallback(async (rowsOverride?: AccountRow[]) => {
+    setChecking(true);
     setErr(null);
     try {
-      const rows = await AccountApi.listAccounts();
-      setAccounts(rows);
+      const rows = rowsOverride ?? (await AccountApi.listAccounts());
+      if (!rowsOverride) setAccounts(rows);
 
-      // keep selection valid WITHOUT capturing selectedId in deps
-      setSelectedId((prev) => {
-        if (!prev) return prev;
-        const stillExists = rows.some((r) => String(r.id) === prev);
-        return stillExists ? prev : null;
-      });
+      const entries = await Promise.all(
+        rows.map(async (a) => {
+          try {
+            const key = a.email;
 
-      // if selection got cleared, also reset panel/mobile safely
-      setPanelMode((prevMode) => prevMode); // no-op unless you want to force "view"
-      setMobileOpen((prevOpen) => {
-        // close only if selected got cleared
-        // (we can't see the new selectedId here, so keep it simple or handle with another effect)
-        return prevOpen;
-      });
+            if (a.auth_method === 'app' && !a.has_password) {
+              return [String(a.id), { ok: false, detail: 'needs app password' }] as const;
+            }
+            if (a.auth_method === 'oauth2' && !a.has_refresh_token) {
+              return [String(a.id), { ok: false, detail: 'needs OAuth' }] as const;
+            }
+
+            const res = await EmailApi.isAccountConnected(key);
+            return [String(a.id), { ok: !!res.result, detail: res.detail }] as const;
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'health check failed';
+            return [String(a.id), { ok: false, detail: message }] as const;
+          }
+        })
+      );
+
+      setConnectedById(Object.fromEntries(entries));
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
+      setChecking(false);
     }
   }, []);
-
-  /** Connection/health checks (only runs when user asks, on mount, after save/delete, or OAuth success) */
-  const refreshStatus = useCallback(
-    async (rowsOverride?: AccountRow[]) => {
-      setChecking(true);
-      setErr(null);
-      try {
-        const rows = rowsOverride ?? (await AccountApi.listAccounts());
-        if (!rowsOverride) setAccounts(rows);
-
-        const entries = await Promise.all(
-          rows.map(async (a) => {
-            try {
-              const key = a.email;
-
-              if (a.auth_method === "app" && !a.has_password) {
-                return [String(a.id), { ok: false, detail: "needs app password" }] as const;
-              }
-              if (a.auth_method === "oauth2" && !a.has_refresh_token) {
-                return [String(a.id), { ok: false, detail: "needs OAuth" }] as const;
-              }
-
-              const res = await EmailApi.isAccountConnected(key);
-              return [String(a.id), { ok: !!res.result, detail: res.detail }] as const;
-            } catch (e: unknown) {
-              const message = e instanceof Error ? e.message : "health check failed";
-              return [String(a.id), { ok: false, detail: message }] as const;
-            }
-          })
-        );
-
-        setConnectedById(Object.fromEntries(entries));
-      } catch (e: unknown) {
-        setErr(e instanceof Error ? e.message : String(e));
-      } finally {
-        setChecking(false);
-      }
-    },
-    []
-  );
 
   // initial load: list accounts + run status check once
   useEffect(() => {
@@ -226,12 +187,11 @@ export default function Settings({ onAccountsChanged }: Props) {
     })();
   }, [refreshStatus]);
 
-
   // OAuth popup -> postMessage listener
   useEffect(() => {
     function onMessage(event: MessageEvent) {
       if (event.origin !== BACKEND_ORIGIN) return;
-      if (event.data?.type === "oauth-success") {
+      if (event.data?.type === 'oauth-success') {
         // do NOT tie this to selection; only update list + statuses
         (async () => {
           const rows = await AccountApi.listAccounts();
@@ -242,22 +202,22 @@ export default function Settings({ onAccountsChanged }: Props) {
       }
     }
 
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
   }, [refreshStatus, onAccountsChanged]);
 
   // ---- navigation actions (NO status checks here) ----
   function beginView(a: AccountRow) {
     setErr(null);
     setSelectedId(String(a.id));
-    setPanelMode("view");
+    setPanelMode('view');
     if (isMobile) setMobileOpen(true);
   }
 
   function beginCreate() {
     setErr(null);
     setSelectedId(null);
-    setPanelMode("create");
+    setPanelMode('create');
     resetForm();
     if (isMobile) setMobileOpen(true);
   }
@@ -265,17 +225,17 @@ export default function Settings({ onAccountsChanged }: Props) {
   function beginEdit(a: AccountRow) {
     setErr(null);
     setSelectedId(String(a.id));
-    setPanelMode("edit");
+    setPanelMode('edit');
 
     setProvider(a.provider);
     setEmail(a.email);
     setAuthMethod(a.auth_method);
 
     // secrets are not returned for security, so leave blank
-    setPassword("");
-    setClientId("");
-    setClientSecret("");
-    setScopes("");
+    setPassword('');
+    setClientId('');
+    setClientSecret('');
+    setScopes('');
     setRedirectUri(`${BACKEND_ORIGIN}/api/accounts/oauth/callback`);
 
     if (isMobile) setMobileOpen(true);
@@ -283,7 +243,7 @@ export default function Settings({ onAccountsChanged }: Props) {
 
   function cancelEdit() {
     setErr(null);
-    setPanelMode("view");
+    setPanelMode('view');
     resetForm();
     if (isMobile) setMobileOpen(false);
   }
@@ -293,28 +253,28 @@ export default function Settings({ onAccountsChanged }: Props) {
     setErr(null);
 
     try {
-      if (authMethod === "app") {
-        if (!email.trim()) throw new Error("Email is required");
-        if (!password.trim() && panelMode === "create") throw new Error("Password is required");
+      if (authMethod === 'app') {
+        if (!email.trim()) throw new Error('Email is required');
+        if (!password.trim() && panelMode === 'create') throw new Error('Password is required');
 
-        if (panelMode === "create") {
+        if (panelMode === 'create') {
           await AccountApi.createOrUpdateAppAccount({ provider, email, password });
         } else {
-          if (!selected) throw new Error("No account selected");
-          if (!password.trim()) throw new Error("Enter new password to update");
+          if (!selected) throw new Error('No account selected');
+          if (!password.trim()) throw new Error('Enter new password to update');
           await AccountApi.updateAccountSecrets(selected.id, { password });
         }
-      } else if (authMethod === "oauth2") {
-        if (provider === "icloud") throw new Error("iCloud does not support OAuth2");
-        if (!email.trim()) throw new Error("Email is required");
+      } else if (authMethod === 'oauth2') {
+        if (provider === 'icloud') throw new Error('iCloud does not support OAuth2');
+        if (!email.trim()) throw new Error('Email is required');
 
-        if (panelMode === "create") {
-          if (!clientId.trim()) throw new Error("Client ID is required");
-          if (!clientSecret.trim()) throw new Error("Client secret is required");
-          if (!redirectUri.trim()) throw new Error("Redirect URI is required");
+        if (panelMode === 'create') {
+          if (!clientId.trim()) throw new Error('Client ID is required');
+          if (!clientSecret.trim()) throw new Error('Client secret is required');
+          if (!redirectUri.trim()) throw new Error('Redirect URI is required');
 
           const res = await AccountApi.createOrUpdateOAuth2Account({
-            provider: provider as Exclude<AccountRow["provider"], "icloud">,
+            provider: provider as Exclude<AccountRow['provider'], 'icloud'>,
             email,
             client_id: clientId,
             client_secret: clientSecret,
@@ -322,21 +282,21 @@ export default function Settings({ onAccountsChanged }: Props) {
             scopes: scopes.trim() ? scopes.trim() : undefined,
           });
 
-          window.open(res.authorize_url, "_blank", "width=500,height=700");
+          window.open(res.authorize_url, '_blank', 'width=500,height=700');
         } else {
-          if (!selected) throw new Error("No account selected");
+          if (!selected) throw new Error('No account selected');
           type OAuth2SecretPatch = Partial<{ client_id: string; client_secret: string }>;
 
           const patch: OAuth2SecretPatch = {};
           if (clientId.trim()) patch.client_id = clientId.trim();
           if (clientSecret.trim()) patch.client_secret = clientSecret.trim();
           if (Object.keys(patch).length === 0)
-            throw new Error("Enter client_id and/or client_secret to update");
+            throw new Error('Enter client_id and/or client_secret to update');
 
           await AccountApi.updateAccountSecrets(selected.id, patch);
         }
       } else {
-        throw new Error("Unsupported auth method");
+        throw new Error('Unsupported auth method');
       }
 
       // reload list + status (still not tied to selecting an account)
@@ -347,12 +307,12 @@ export default function Settings({ onAccountsChanged }: Props) {
       onAccountsChanged?.();
 
       // after create: select newly created by email (best effort)
-      if (panelMode === "create") {
+      if (panelMode === 'create') {
         const newly = rows.find((r) => r.email === email);
         if (newly) setSelectedId(String(newly.id));
       }
 
-      setPanelMode("view");
+      setPanelMode('view');
       resetForm();
       if (isMobile) setMobileOpen(true); // keep modal open showing view state
     } catch (e: unknown) {
@@ -376,7 +336,7 @@ export default function Settings({ onAccountsChanged }: Props) {
 
       if (selectedId === String(a.id)) {
         setSelectedId(null);
-        setPanelMode("view");
+        setPanelMode('view');
         setMobileOpen(false);
       }
     } catch (e: unknown) {
@@ -387,26 +347,26 @@ export default function Settings({ onAccountsChanged }: Props) {
   async function handleReconnect(a: AccountRow) {
     setErr(null);
     try {
-      if (a.auth_method !== "oauth2") return;
+      if (a.auth_method !== 'oauth2') return;
       const res = await AccountApi.startOAuthExistingAccount(
         a.id,
         redirectUri,
         scopes.trim() ? scopes.trim() : undefined
       );
-      window.open(res.authorize_url, "_blank", "width=500,height=700");
+      window.open(res.authorize_url, '_blank', 'width=500,height=700');
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : String(e));
     }
   }
 
   const rightTitle =
-    panelMode === "create"
-      ? "Add account"
-      : panelMode === "edit"
-      ? "Edit account"
-      : selected
-      ? "Account details"
-      : "Accounts";
+    panelMode === 'create'
+      ? 'Add account'
+      : panelMode === 'edit'
+        ? 'Edit account'
+        : selected
+          ? 'Account details'
+          : 'Accounts';
 
   // Right panel content extracted so we can render in desktop panel or mobile modal
   const rightPanel = (
@@ -415,16 +375,16 @@ export default function Settings({ onAccountsChanged }: Props) {
         <div>
           <div className={styles.panelTitle}>{rightTitle}</div>
           <div className={styles.subtle}>
-            {panelMode === "create"
-              ? "Add an email account and connect it."
+            {panelMode === 'create'
+              ? 'Add an email account and connect it.'
               : selected
-              ? `${selected.provider} • ${selected.auth_method}`
-              : "Select an account on the left to view details."}
+                ? `${selected.provider} • ${selected.auth_method}`
+                : 'Select an account on the left to view details.'}
           </div>
         </div>
 
         <div className={styles.panelHeaderActions}>
-          {selected && panelMode === "view" ? (
+          {selected && panelMode === 'view' ? (
             <>
               <Button variant="secondary" onClick={() => beginEdit(selected)}>
                 Edit
@@ -435,7 +395,7 @@ export default function Settings({ onAccountsChanged }: Props) {
             </>
           ) : null}
 
-          {panelMode !== "view" ? (
+          {panelMode !== 'view' ? (
             <Button variant="secondary" onClick={cancelEdit}>
               Cancel
             </Button>
@@ -444,7 +404,7 @@ export default function Settings({ onAccountsChanged }: Props) {
       </div>
 
       <div className={styles.panelBody}>
-        {panelMode === "view" ? (
+        {panelMode === 'view' ? (
           selected ? (
             <div className={styles.section}>
               <div className={styles.kvGrid}>
@@ -463,26 +423,30 @@ export default function Settings({ onAccountsChanged }: Props) {
                 <div className={styles.kv}>
                   <div className={styles.k}>Status</div>
                   <div className={styles.v}>
-                    {isConnected(selected, connectedById) ? "Connected" : "Not connected"}{" "}
+                    {isConnected(selected, connectedById) ? 'Connected' : 'Not connected'}{' '}
                     <span className={styles.subtle}>
-                      • {connectedById[String(selected.id)]?.detail ?? "status unknown"}
+                      • {connectedById[String(selected.id)]?.detail ?? 'status unknown'}
                     </span>
                   </div>
                 </div>
               </div>
 
               <div className={styles.sectionActions}>
-                <Button variant="secondary" onClick={() => void refreshStatus(accounts)} loading={checking}>
+                <Button
+                  variant="secondary"
+                  onClick={() => void refreshStatus(accounts)}
+                  loading={checking}
+                >
                   Refresh status
                 </Button>
 
-                {selected.auth_method === "oauth2" ? (
+                {selected.auth_method === 'oauth2' ? (
                   <Button variant="secondary" onClick={() => void handleReconnect(selected)}>
-                    {isConnected(selected, connectedById) ? "Reconnect (OAuth)" : "Connect (OAuth)"}
+                    {isConnected(selected, connectedById) ? 'Reconnect (OAuth)' : 'Connect (OAuth)'}
                   </Button>
                 ) : null}
 
-                {selected.auth_method === "app" && !isConnected(selected, connectedById) ? (
+                {selected.auth_method === 'app' && !isConnected(selected, connectedById) ? (
                   <Button variant="primary" onClick={() => beginEdit(selected)}>
                     Connect with app password
                   </Button>
@@ -508,7 +472,7 @@ export default function Settings({ onAccountsChanged }: Props) {
                 <select
                   value={provider}
                   onChange={(e) => setProvider(e.target.value as AccountProvider)}
-                  disabled={panelMode === "edit"}
+                  disabled={panelMode === 'edit'}
                 >
                   <option value="gmail">gmail</option>
                   <option value="outlook">outlook</option>
@@ -523,7 +487,7 @@ export default function Settings({ onAccountsChanged }: Props) {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  disabled={panelMode === "edit"}
+                  disabled={panelMode === 'edit'}
                 />
               </label>
 
@@ -532,7 +496,7 @@ export default function Settings({ onAccountsChanged }: Props) {
                 <select
                   value={authMethod}
                   onChange={(e) => setAuthMethod(e.target.value as AccountAuth)}
-                  disabled={panelMode === "edit"}
+                  disabled={panelMode === 'edit'}
                 >
                   <option value="app">app</option>
                   <option value="oauth2">oauth2</option>
@@ -541,23 +505,23 @@ export default function Settings({ onAccountsChanged }: Props) {
               </label>
             </div>
 
-            {authMethod === "app" ? (
+            {authMethod === 'app' ? (
               <div className={styles.formGrid} style={{ marginTop: 12 }}>
-                <label className={styles.label} style={{ gridColumn: "1 / -1" }}>
+                <label className={styles.label} style={{ gridColumn: '1 / -1' }}>
                   App password
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={
-                      panelMode === "edit"
+                      panelMode === 'edit'
                         ? selected?.has_password
-                          ? "Enter new password to rotate"
-                          : "Enter app password to connect"
-                        : ""
+                          ? 'Enter new password to rotate'
+                          : 'Enter app password to connect'
+                        : ''
                     }
                   />
-                  {panelMode === "edit" && selected && !connectedById[String(selected.id)]?.ok ? (
+                  {panelMode === 'edit' && selected && !connectedById[String(selected.id)]?.ok ? (
                     <div className={styles.subtle}>
                       This account isn’t connected yet — enter the app password and click Save.
                     </div>
@@ -566,7 +530,7 @@ export default function Settings({ onAccountsChanged }: Props) {
               </div>
             ) : null}
 
-            {authMethod === "oauth2" ? (
+            {authMethod === 'oauth2' ? (
               <>
                 <div className={styles.formGrid} style={{ marginTop: 12 }}>
                   <label className={styles.label}>
@@ -575,7 +539,7 @@ export default function Settings({ onAccountsChanged }: Props) {
                       type="password"
                       value={clientId}
                       onChange={(e) => setClientId(e.target.value)}
-                      placeholder={panelMode === "edit" ? "Enter to rotate (optional)" : ""}
+                      placeholder={panelMode === 'edit' ? 'Enter to rotate (optional)' : ''}
                     />
                   </label>
 
@@ -585,11 +549,11 @@ export default function Settings({ onAccountsChanged }: Props) {
                       type="password"
                       value={clientSecret}
                       onChange={(e) => setClientSecret(e.target.value)}
-                      placeholder={panelMode === "edit" ? "Enter to rotate (optional)" : ""}
+                      placeholder={panelMode === 'edit' ? 'Enter to rotate (optional)' : ''}
                     />
                   </label>
 
-                  <label className={styles.label} style={{ gridColumn: "1 / -1" }}>
+                  <label className={styles.label} style={{ gridColumn: '1 / -1' }}>
                     Redirect URI
                     <input
                       type="text"
@@ -598,7 +562,7 @@ export default function Settings({ onAccountsChanged }: Props) {
                     />
                   </label>
 
-                  <label className={styles.label} style={{ gridColumn: "1 / -1" }}>
+                  <label className={styles.label} style={{ gridColumn: '1 / -1' }}>
                     Scopes (optional)
                     <input
                       type="text"
@@ -609,7 +573,7 @@ export default function Settings({ onAccountsChanged }: Props) {
                   </label>
                 </div>
 
-                {panelMode === "edit" && selected ? (
+                {panelMode === 'edit' && selected ? (
                   <div className={styles.inlineActions} style={{ marginTop: 12 }}>
                     <Button
                       variant="secondary"
@@ -645,7 +609,11 @@ export default function Settings({ onAccountsChanged }: Props) {
                 enable IMAP/SMTP.
               </div>
               <div className={styles.formFooterActions}>
-                <Button variant="secondary" onClick={() => void refreshStatus(accounts)} loading={checking}>
+                <Button
+                  variant="secondary"
+                  onClick={() => void refreshStatus(accounts)}
+                  loading={checking}
+                >
                   Re-check status
                 </Button>
                 <Button variant="primary" onClick={handleSave}>
@@ -665,12 +633,16 @@ export default function Settings({ onAccountsChanged }: Props) {
         <div>
           <h2 className={styles.h2}>Settings</h2>
           <div className={styles.subtle}>
-            {loading ? "Loading…" : `${connectedCount}/${accounts.length} connected`}
+            {loading ? 'Loading…' : `${connectedCount}/${accounts.length} connected`}
           </div>
         </div>
 
         <div className={styles.topbarActions}>
-          <Button variant="secondary" onClick={() => void refreshStatus(accounts)} loading={checking}>
+          <Button
+            variant="secondary"
+            onClick={() => void refreshStatus(accounts)}
+            loading={checking}
+          >
             Refresh status
           </Button>
           <Button variant="primary" onClick={beginCreate}>
@@ -700,7 +672,7 @@ export default function Settings({ onAccountsChanged }: Props) {
 
           {filteredAccounts.length === 0 ? (
             <div className={styles.emptySmall}>
-              {accounts.length === 0 ? "No accounts yet." : "No matches."}
+              {accounts.length === 0 ? 'No accounts yet.' : 'No matches.'}
             </div>
           ) : (
             <div className={styles.railList}>
@@ -708,27 +680,27 @@ export default function Settings({ onAccountsChanged }: Props) {
                 const id = String(a.id);
                 const status = connectedById[id];
                 const connected = isConnected(a, connectedById);
-                const active = selectedId === id && panelMode !== "create";
+                const active = selectedId === id && panelMode !== 'create';
 
                 return (
                   <button
                     key={a.id}
                     type="button"
-                    className={`${styles.railItem} ${active ? styles.railItemActive : ""}`}
+                    className={`${styles.railItem} ${active ? styles.railItemActive : ''}`}
                     onClick={() => beginView(a)} // <-- NO status checks on click
                   >
                     <div className={styles.railItemTop}>
                       <div className={styles.railEmail}>{a.email}</div>
                       <span
                         className={`${styles.badge} ${connected ? styles.badgeOk : styles.badgeBad}`}
-                        aria-label={connected ? "Connected" : "Not connected"}
+                        aria-label={connected ? 'Connected' : 'Not connected'}
                       >
-                        {connected ? "Connected" : "Not connected"}
+                        {connected ? 'Connected' : 'Not connected'}
                       </span>
                     </div>
                     <div className={styles.railMeta}>
                       {a.provider} • {a.auth_method}
-                      {status ? ` • ${status.detail}` : ""}
+                      {status ? ` • ${status.detail}` : ''}
                     </div>
                   </button>
                 );
@@ -737,7 +709,9 @@ export default function Settings({ onAccountsChanged }: Props) {
           )}
 
           <div className={styles.railFooter}>
-            <div className={styles.subtle}>Tip: status updates when you click “Refresh status”.</div>
+            <div className={styles.subtle}>
+              Tip: status updates when you click “Refresh status”.
+            </div>
           </div>
         </aside>
 

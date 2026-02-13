@@ -1,8 +1,8 @@
 // src/components/Sidebar/MailboxTree.tsx
-import { useMemo, useState } from "react";
-import type { MailboxData } from "../../types/email";
-import { getMailboxDisplayName } from "../../utils/emailFormat";
-import styles from "@/styles/MailboxTree.module.css";
+import { useMemo, useState } from 'react';
+import type { MailboxData } from '../../types/email';
+import { getMailboxDisplayName } from '../../utils/emailFormat';
+import styles from '@/styles/MailboxTree.module.css';
 
 export type MailboxTreeProps = {
   mailboxData: MailboxData;
@@ -27,13 +27,13 @@ export default function MailboxTree(props: MailboxTreeProps) {
 
     return accounts.reduce((sum, account) => {
       const mailboxesObj = data[account] || {};
-      const inboxStatus = mailboxesObj["INBOX"];
+      const inboxStatus = mailboxesObj['INBOX'];
       const unseen = Number(inboxStatus?.unseen ?? 0);
       return sum + unseen;
     }, 0);
   }, [mailboxData]);
 
-  const allInboxesIsActive = !activeAccounts.size && currentMailbox === "INBOX";
+  const allInboxesIsActive = !activeAccounts.size && currentMailbox === 'INBOX';
 
   return (
     <div id="mailbox-list" className={styles.mailboxList}>
@@ -43,17 +43,17 @@ export default function MailboxTree(props: MailboxTreeProps) {
           className={[
             styles.mailboxItem,
             styles.mailboxItemAll,
-            allInboxesIsActive ? styles.active : "",
+            allInboxesIsActive ? styles.active : '',
           ]
             .filter(Boolean)
-            .join(" ")}
+            .join(' ')}
           data-mailbox="INBOX"
           data-account=""
           onClick={onSelectAllInboxes}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") onSelectAllInboxes();
+            if (e.key === 'Enter' || e.key === ' ') onSelectAllInboxes();
           }}
         >
           <span className={styles.mailboxDot} />
@@ -80,8 +80,8 @@ export default function MailboxTree(props: MailboxTreeProps) {
               messages: Number(status?.messages ?? 0),
             }))
             .sort((a, b) => {
-              if (a.name === "INBOX" && b.name !== "INBOX") return -1;
-              if (b.name === "INBOX" && a.name !== "INBOX") return 1;
+              if (a.name === 'INBOX' && b.name !== 'INBOX') return -1;
+              if (b.name === 'INBOX' && a.name !== 'INBOX') return 1;
               return a.name.localeCompare(b.name);
             });
 
@@ -89,9 +89,9 @@ export default function MailboxTree(props: MailboxTreeProps) {
             <div key={account} className={styles.mailboxGroup}>
               <button
                 type="button"
-                className={[styles.mailboxAccount, isCollapsed ? styles.collapsed : ""]
+                className={[styles.mailboxAccount, isCollapsed ? styles.collapsed : '']
                   .filter(Boolean)
-                  .join(" ")}
+                  .join(' ')}
                 onClick={() => setCollapsedAccounts((s) => ({ ...s, [account]: !s[account] }))}
               >
                 <span className={styles.mailboxAccountChev}>▾</span>
@@ -99,9 +99,9 @@ export default function MailboxTree(props: MailboxTreeProps) {
               </button>
 
               <div
-                className={[styles.mailboxGroupItems, isCollapsed ? styles.itemsCollapsed : ""]
+                className={[styles.mailboxGroupItems, isCollapsed ? styles.itemsCollapsed : '']
                   .filter(Boolean)
-                  .join(" ")}
+                  .join(' ')}
               >
                 {mailboxItems.map(({ name, unseen }) => {
                   const isActive =
@@ -112,16 +112,16 @@ export default function MailboxTree(props: MailboxTreeProps) {
                   return (
                     <div
                       key={`${account}:${name}`}
-                      className={[styles.mailboxItem, isActive ? styles.active : ""]
+                      className={[styles.mailboxItem, isActive ? styles.active : '']
                         .filter(Boolean)
-                        .join(" ")}
+                        .join(' ')}
                       data-mailbox={name}
                       data-account={account}
                       onClick={() => onSelectMailbox(account, name)}
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") onSelectMailbox(account, name);
+                        if (e.key === 'Enter' || e.key === ' ') onSelectMailbox(account, name);
                       }}
                     >
                       <span className={styles.mailboxDot} />

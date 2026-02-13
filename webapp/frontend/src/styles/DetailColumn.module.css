@@ -26,7 +26,9 @@
   border-radius: 0.55rem;
   cursor: pointer;
   padding: 0.25rem 0.4rem;
-  transition: background 0.08s ease, opacity 0.08s ease;
+  transition:
+    background 0.08s ease,
+    opacity 0.08s ease;
 }
 
 .backButton:hover {
@@ -113,7 +115,9 @@
   border-radius: 0.55rem;
   cursor: pointer;
   line-height: 1;
-  transition: background 0.08s ease, opacity 0.08s ease;
+  transition:
+    background 0.08s ease,
+    opacity 0.08s ease;
 }
 
 .secondaryButton:hover {

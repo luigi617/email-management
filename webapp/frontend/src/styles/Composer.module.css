@@ -1,5 +1,5 @@
 .hidden {
-  display: none!important;
+  display: none !important;
 }
 
 /* Floating composer – bottom-right web panel */
@@ -260,11 +260,10 @@
   }
 }
 
-
 /* Mobile full-screen mode */
 .mobile {
   position: fixed;
-  inset: 0;            /* top/right/bottom/left: 0 */
+  inset: 0; /* top/right/bottom/left: 0 */
   width: 100%;
   height: 100%;
   max-width: none;

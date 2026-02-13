@@ -1,12 +1,12 @@
-import ArchiveIcon from "@/assets/svg/box-archive.svg?react";
-import DeleteIcon from "@/assets/svg/delete.svg?react";
-import ReplyIcon from "@/assets/svg/reply.svg?react";
-import ReplyAllIcon from "@/assets/svg/reply-all.svg?react";
-import ForwardIcon from "@/assets/svg/forward.svg?react";
-import FolderIcon from "@/assets/svg/folder.svg?react";
-import styles from "@/styles/DetailToolbar.module.css";
-import type { EmailRef } from "../../types/shared";
-import type { EmailMessage } from "../../types/email";
+import ArchiveIcon from '@/assets/svg/box-archive.svg?react';
+import DeleteIcon from '@/assets/svg/delete.svg?react';
+import ReplyIcon from '@/assets/svg/reply.svg?react';
+import ReplyAllIcon from '@/assets/svg/reply-all.svg?react';
+import ForwardIcon from '@/assets/svg/forward.svg?react';
+import FolderIcon from '@/assets/svg/folder.svg?react';
+import styles from '@/styles/DetailToolbar.module.css';
+import type { EmailRef } from '../../types/shared';
+import type { EmailMessage } from '../../types/email';
 
 export type DetailToolbarProps = {
   emailMessage: EmailMessage;

@@ -9,7 +9,9 @@
   padding: 0.35rem 0.95rem;
   font-size: 0.8rem;
   cursor: pointer;
-  transition: filter 0.15s ease, opacity 0.15s ease;
+  transition:
+    filter 0.15s ease,
+    opacity 0.15s ease;
 }
 
 .primaryBtn:hover:not(:disabled) {

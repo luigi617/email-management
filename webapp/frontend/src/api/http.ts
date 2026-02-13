@@ -23,7 +23,7 @@ export class HttpError extends Error {
 export async function requestJSON<T>(url: string, options: RequestInit = {}): Promise<T> {
   const finalOptions: RequestInit = {
     ...options,
-    credentials: options.credentials ?? "include",
+    credentials: options.credentials ?? 'include',
   };
   const res = await fetch(url, finalOptions);
 

@@ -1,8 +1,8 @@
 // src/components/Composer/ComposerExtraMenu.tsx
-import { useRef } from "react";
-import { useClickOutside } from "../../hooks/useClickOutside";
-import type { ComposerExtraFieldKey } from "../../types/composer";
-import styles from "@/styles/ComposerExtraMenu.module.css";
+import { useRef } from 'react';
+import { useClickOutside } from '../../hooks/useClickOutside';
+import type { ComposerExtraFieldKey } from '../../types/composer';
+import styles from '@/styles/ComposerExtraMenu.module.css';
 
 export type ComposerExtraMenuProps = {
   open: boolean;
@@ -25,7 +25,7 @@ export default function ComposerExtraMenu(props: ComposerExtraMenuProps) {
           className={styles.checkbox}
           type="checkbox"
           checked={!!props.state.cc}
-          onChange={() => props.onToggle("cc")}
+          onChange={() => props.onToggle('cc')}
         />
         Cc
       </label>
@@ -35,7 +35,7 @@ export default function ComposerExtraMenu(props: ComposerExtraMenuProps) {
           className={styles.checkbox}
           type="checkbox"
           checked={!!props.state.bcc}
-          onChange={() => props.onToggle("bcc")}
+          onChange={() => props.onToggle('bcc')}
         />
         Bcc
       </label>
@@ -45,7 +45,7 @@ export default function ComposerExtraMenu(props: ComposerExtraMenuProps) {
           className={styles.checkbox}
           type="checkbox"
           checked={!!props.state.replyto}
-          onChange={() => props.onToggle("replyto")}
+          onChange={() => props.onToggle('replyto')}
         />
         Reply-To
       </label>
@@ -55,7 +55,7 @@ export default function ComposerExtraMenu(props: ComposerExtraMenuProps) {
           className={styles.checkbox}
           type="checkbox"
           checked={!!props.state.priority}
-          onChange={() => props.onToggle("priority")}
+          onChange={() => props.onToggle('priority')}
         />
         Priority
       </label>

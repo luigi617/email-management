@@ -1,6 +1,6 @@
 // src/components/Sidebar/LegendCard.tsx
-import { useMemo } from "react";
-import styles from "@/styles/LegendCard.module.css";
+import { useMemo } from 'react';
+import styles from '@/styles/LegendCard.module.css';
 
 export type LegendCardProps = {
   accounts: string[];
@@ -20,13 +20,15 @@ export default function LegendCard(props: LegendCardProps) {
 
       <div id="legend-list" className={styles.legendList}>
         {props.accounts.map((account) => {
-          const color = props.colorMap[account] || "#9ca3af";
+          const color = props.colorMap[account] || '#9ca3af';
           const isActive = active.has(account);
 
           return (
             <div
               key={account}
-              className={[styles.legendItem, isActive ? styles.active : ""].filter(Boolean).join(" ")}
+              className={[styles.legendItem, isActive ? styles.active : '']
+                .filter(Boolean)
+                .join(' ')}
             >
               <span className={styles.legendColorDot} style={{ background: color }} />
               <span className={styles.legendText}>{account}</span>

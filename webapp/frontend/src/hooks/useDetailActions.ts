@@ -15,57 +15,63 @@ export function useDetailActions(args: {
   }) => Promise<boolean>;
   setDetailError: (msg: string) => void;
 }) {
-  const archiveSelected = useCallback(async (ref: EmailRef) => {
-    args.setDetailError('');
-    if (!ref) {
-      args.setDetailError('No email selected to archive.');
-      return;
-    }
+  const archiveSelected = useCallback(
+    async (ref: EmailRef) => {
+      args.setDetailError('');
+      if (!ref) {
+        args.setDetailError('No email selected to archive.');
+        return;
+      }
 
-    const ok = await args.confirm({
-      title: 'Archive email',
-      message: 'Archive this email?',
-      confirmLabel: 'Archive',
-      confirmVariant: 'primary',
-      cancelLabel: 'Cancel',
-      cancelVariant: 'secondary',
-    });
-    if (!ok) return;
+      const ok = await args.confirm({
+        title: 'Archive email',
+        message: 'Archive this email?',
+        confirmLabel: 'Archive',
+        confirmVariant: 'primary',
+        cancelLabel: 'Cancel',
+        cancelVariant: 'secondary',
+      });
+      if (!ok) return;
 
-    try {
-      await EmailApi.archiveEmail(ref);
-      await args.refreshOverview();
-    } catch (e) {
-      console.error('Error archiving:', e);
-      args.setDetailError('Error archiving email. Please try again.');
-    }
-  }, [args]);
+      try {
+        await EmailApi.archiveEmail(ref);
+        await args.refreshOverview();
+      } catch (e) {
+        console.error('Error archiving:', e);
+        args.setDetailError('Error archiving email. Please try again.');
+      }
+    },
+    [args]
+  );
 
-  const deleteSelected = useCallback(async (ref: EmailRef) => {
-    args.setDetailError('');
-    if (!ref) {
-      args.setDetailError('No email selected to delete.');
-      return;
-    }
+  const deleteSelected = useCallback(
+    async (ref: EmailRef) => {
+      args.setDetailError('');
+      if (!ref) {
+        args.setDetailError('No email selected to delete.');
+        return;
+      }
 
-    const ok = await args.confirm({
-      title: 'Delete email',
-      message: 'Permanently delete this email?',
-      confirmLabel: 'Delete',
-      confirmVariant: 'primary',
-      cancelLabel: 'Cancel',
-      cancelVariant: 'secondary',
-    });
-    if (!ok) return;
+      const ok = await args.confirm({
+        title: 'Delete email',
+        message: 'Permanently delete this email?',
+        confirmLabel: 'Delete',
+        confirmVariant: 'primary',
+        cancelLabel: 'Cancel',
+        cancelVariant: 'secondary',
+      });
+      if (!ok) return;
 
-    try {
-      await EmailApi.deleteEmail(ref);
-      await args.refreshOverview();
-    } catch (e) {
-      console.error('Error deleting:', e);
-      args.setDetailError('Error deleting email. Please try again.');
-    }
-  }, [args]);
+      try {
+        await EmailApi.deleteEmail(ref);
+        await args.refreshOverview();
+      } catch (e) {
+        console.error('Error deleting:', e);
+        args.setDetailError('Error deleting email. Please try again.');
+      }
+    },
+    [args]
+  );
 
   const moveSelected = useCallback(
     async (ref: EmailRef, destinationMailbox: string) => {

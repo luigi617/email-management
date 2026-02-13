@@ -31,7 +31,8 @@
 }
 
 /* Header */
-.header {}
+.header {
+}
 
 .title {
   margin: 0;
@@ -64,7 +65,9 @@
   cursor: pointer;
   border: 1px solid transparent;
   font: inherit;
-  transition: filter 0.08s ease, background 0.08s ease;
+  transition:
+    filter 0.08s ease,
+    background 0.08s ease;
 }
 
 /* Primary */

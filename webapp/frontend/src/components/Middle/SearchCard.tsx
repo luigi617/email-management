@@ -43,12 +43,7 @@ export default function SearchCard(props: Props) {
           onKeyDown={handleKeyDown}
         />
 
-        <button
-          type="button"
-          className={styles.clearBtn}
-          aria-label="Clear"
-          onClick={handleClear}
-        >
+        <button type="button" className={styles.clearBtn} aria-label="Clear" onClick={handleClear}>
           <CloseIcon className={styles.icon} aria-hidden />
         </button>
       </div>

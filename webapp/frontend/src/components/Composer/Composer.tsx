@@ -1,22 +1,21 @@
 // src/components/Composer/Composer.tsx
-import { useMemo, useRef } from "react";
-import { AddressChipsInput } from "./AddressChipsInput";
-import ComposerExtraMenu from "./ComposerExtraMenu";
-import ComposerEditor from "./ComposerEditor";
-import ComposerAttachments from "./ComposerAttachments";
-import SendLaterMenu from "./SendLaterMenu";
-import { useComposerResize } from "../../hooks/useComposerResize";
-import type { ComposerExtraFieldKey } from "../../types/composer";
-import type { Priority } from "../../types/shared";
+import { useMemo, useRef } from 'react';
+import { AddressChipsInput } from './AddressChipsInput';
+import ComposerExtraMenu from './ComposerExtraMenu';
+import ComposerEditor from './ComposerEditor';
+import ComposerAttachments from './ComposerAttachments';
+import SendLaterMenu from './SendLaterMenu';
+import { useComposerResize } from '../../hooks/useComposerResize';
+import type { ComposerExtraFieldKey } from '../../types/composer';
+import type { Priority } from '../../types/shared';
 
-import ListIcon from "@/assets/svg/composerList.svg?react";
-import AttachmentIcon from "@/assets/svg/attachment.svg?react";
-import EmojiIcon from "@/assets/svg/emoji.svg?react";
-import MinimizeIcon from "@/assets/svg/minimize.svg?react";
-import CloseIcon from "@/assets/svg/close.svg?react";
+import ListIcon from '@/assets/svg/composerList.svg?react';
+import AttachmentIcon from '@/assets/svg/attachment.svg?react';
+import MinimizeIcon from '@/assets/svg/minimize.svg?react';
+import CloseIcon from '@/assets/svg/close.svg?react';
 
-import styles from "@/styles/Composer.module.css";
-import Button from "../ui/Button/Button";
+import styles from '@/styles/Composer.module.css';
+import Button from '../ui/Button/Button';
 
 export type ComposerProps = {
   open: boolean;
@@ -77,21 +76,21 @@ export default function Composer(props: ComposerProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const isMobile = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia("(max-width: 768px)").matches;
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 768px)').matches;
   }, []);
 
   const disableMinimize = isMobile;
-  
+
   return (
     <div
       ref={composerRef}
       className={[
         styles.composer,
-        props.open ? "" : styles.hidden,
-        props.minimized ? styles.minimized : "",
-        isMobile ? styles.mobile : "",
-      ].join(" ")}
+        props.open ? '' : styles.hidden,
+        props.minimized ? styles.minimized : '',
+        isMobile ? styles.mobile : '',
+      ].join(' ')}
     >
       {!props.minimized && !isMobile && <div ref={zoneRef} className={styles.resizeZone} />}
 
@@ -136,7 +135,7 @@ export default function Composer(props: ComposerProps) {
             onChange={(e) => {
               const files = Array.from(e.target.files ?? []);
               if (files.length) props.onAddAttachments(files);
-              e.currentTarget.value = "";
+              e.currentTarget.value = '';
             }}
           />
 
@@ -193,11 +192,9 @@ export default function Composer(props: ComposerProps) {
             </label>
 
             <label
-              className={[
-                styles.row,
-                styles.rowExtra,
-                props.extra.cc ? "" : styles.hidden,
-              ].join(" ")}
+              className={[styles.row, styles.rowExtra, props.extra.cc ? '' : styles.hidden].join(
+                ' '
+              )}
               data-field="cc"
             >
               <span className={styles.label}>Cc:</span>
@@ -210,11 +207,9 @@ export default function Composer(props: ComposerProps) {
             </label>
 
             <label
-              className={[
-                styles.row,
-                styles.rowExtra,
-                props.extra.bcc ? "" : styles.hidden,
-              ].join(" ")}
+              className={[styles.row, styles.rowExtra, props.extra.bcc ? '' : styles.hidden].join(
+                ' '
+              )}
               data-field="bcc"
             >
               <span className={styles.label}>Bcc:</span>
@@ -242,8 +237,8 @@ export default function Composer(props: ComposerProps) {
               className={[
                 styles.row,
                 styles.rowExtra,
-                props.extra.replyto ? "" : styles.hidden,
-              ].join(" ")}
+                props.extra.replyto ? '' : styles.hidden,
+              ].join(' ')}
               data-field="replyto"
             >
               <span className={styles.label}>Reply-To:</span>
@@ -261,8 +256,8 @@ export default function Composer(props: ComposerProps) {
               className={[
                 styles.row,
                 styles.rowExtra,
-                props.extra.priority ? "" : styles.hidden,
-              ].join(" ")}
+                props.extra.priority ? '' : styles.hidden,
+              ].join(' ')}
               data-field="priority"
             >
               <span className={styles.label}>Priority:</span>
@@ -304,7 +299,7 @@ export default function Composer(props: ComposerProps) {
             onRemove={props.onRemoveAttachmentAt}
             onPreview={(file) => {
               const url = URL.createObjectURL(file);
-              window.open(url, "_blank", "noopener,noreferrer");
+              window.open(url, '_blank', 'noopener,noreferrer');
               setTimeout(() => URL.revokeObjectURL(url), 60_000);
             }}
           />
@@ -313,7 +308,10 @@ export default function Composer(props: ComposerProps) {
 
       {!props.minimized && (
         <div className={styles.footer}>
-          <div className={`${styles.error} ${props.error ? "" : styles.hidden}`} id="composer-error">
+          <div
+            className={`${styles.error} ${props.error ? '' : styles.hidden}`}
+            id="composer-error"
+          >
             {props.error}
           </div>
 

@@ -1,6 +1,6 @@
 // src/components/Composer/ComposerAttachments.tsx
-import CloseIcon from "@/assets/svg/close.svg?react";
-import styles from "@/styles/ComposerAttachments.module.css";
+import CloseIcon from '@/assets/svg/close.svg?react';
+import styles from '@/styles/ComposerAttachments.module.css';
 
 export type ComposerAttachmentsProps = {
   files: File[];
@@ -11,7 +11,7 @@ export type ComposerAttachmentsProps = {
 
 export default function ComposerAttachments(props: ComposerAttachmentsProps) {
   return (
-    <div className={`${styles.attachments} ${props.visible ? "" : styles.hidden}`}>
+    <div className={`${styles.attachments} ${props.visible ? '' : styles.hidden}`}>
       {props.files.map((f, idx) => (
         <div key={`${f.name}-${idx}`} className={styles.pill} role="group">
           <button

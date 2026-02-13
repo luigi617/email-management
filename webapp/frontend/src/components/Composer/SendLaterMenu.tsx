@@ -1,7 +1,7 @@
 // src/components/Composer/SendLaterMenu.tsx
-import { useRef } from "react";
-import { useClickOutside } from "../../hooks/useClickOutside";
-import styles from "@/styles/SendLaterMenu.module.css";
+import { useRef } from 'react';
+import { useClickOutside } from '../../hooks/useClickOutside';
+import styles from '@/styles/SendLaterMenu.module.css';
 
 export type SendLaterMenuProps = {
   open: boolean;
@@ -23,12 +23,12 @@ export default function SendLaterMenu(props: SendLaterMenuProps) {
       className={styles.menu}
       onClick={(e) => {
         const btn = (e.target as HTMLElement).closest(
-          "button[data-delay]"
+          'button[data-delay]'
         ) as HTMLButtonElement | null;
         if (!btn) return;
 
-        const delayKey = btn.dataset.delay || "";
-        const label = (btn.textContent || "").trim();
+        const delayKey = btn.dataset.delay || '';
+        const label = (btn.textContent || '').trim();
         props.onPick(label, delayKey);
       }}
     >

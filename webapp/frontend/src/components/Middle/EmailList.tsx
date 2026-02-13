@@ -1,8 +1,8 @@
-import { useState } from "react";
-import type { EmailOverview } from "../../types/email";
-import { formatDate } from "../../utils/emailFormat";
-import styles from "@/styles/EmailList.module.css";
-import { EmailApi } from "../../api/emailApi";
+import { useState } from 'react';
+import type { EmailOverview } from '../../types/email';
+import { formatDate } from '../../utils/emailFormat';
+import styles from '@/styles/EmailList.module.css';
+import { EmailApi } from '../../api/emailApi';
 
 export type EmailListProps = {
   emails: EmailOverview[];
@@ -19,18 +19,18 @@ export type EmailListProps = {
 };
 
 function stableFallbackKey(email: EmailOverview, index: number) {
-  const a = email.ref.account ?? "";
-  const m = email.ref.mailbox ?? "";
-  const u = email.ref.uid ?? "";
+  const a = email.ref.account ?? '';
+  const m = email.ref.mailbox ?? '';
+  const u = email.ref.uid ?? '';
   const raw = `${a}:${m}:${String(u)}`;
-  return raw !== "::" ? raw : `row-${index}`;
+  return raw !== '::' ? raw : `row-${index}`;
 }
 
 function isSeenFromFlags(flags: unknown): boolean {
   if (!Array.isArray(flags)) return false;
   return flags.some((f) => {
     const s = String(f).toLowerCase();
-    return s.includes("seen") || s === "read" || s.includes("\\seen");
+    return s.includes('seen') || s === 'read' || s.includes('\\seen');
   });
 }
 
@@ -38,22 +38,16 @@ function isStarredFromFlags(flags: unknown): boolean {
   if (!Array.isArray(flags)) return false;
   return flags.some((f) => {
     const s = String(f).toLowerCase();
-    return s.includes("flagged") || s.includes("\\flagged") || s === "starred";
+    return s.includes('flagged') || s.includes('\\flagged') || s === 'starred';
   });
 }
 
 function StarIcon({ filled }: { filled: boolean }) {
   return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      focusable="false"
-    >
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       <path
         d="M12 17.27l5.18 3.73-1.64-6.03L20 10.24l-6.19-.52L12 4 10.19 9.72 4 10.24l4.46 4.73L6.82 21z"
-        fill={filled ? "currentColor" : "none"}
+        fill={filled ? 'currentColor' : 'none'}
         stroke="currentColor"
         strokeWidth="1.6"
         strokeLinejoin="round"
@@ -82,7 +76,9 @@ export default function EmailList(props: EmailListProps) {
         const emailId = props.getEmailId(email);
         const key = emailId || stableFallbackKey(email, index);
 
-        const selectedEmailId = props.selectedOverview ? props.getEmailId(props.selectedOverview) : null
+        const selectedEmailId = props.selectedOverview
+          ? props.getEmailId(props.selectedOverview)
+          : null;
         const isSelected = !!emailId && emailId === selectedEmailId;
 
         const isSeenFromServer = isSeenFromFlags(email.flags);
@@ -91,24 +87,22 @@ export default function EmailList(props: EmailListProps) {
 
         const starredFromServer = isStarredFromFlags(email.flags);
 
-        const isStarred =
-          (starredFromServer && !uiStarOff.has(key)) || uiStarOn.has(key);
+        const isStarred = (starredFromServer && !uiStarOff.has(key)) || uiStarOn.has(key);
 
         const isStarBusy = starBusy.has(key);
 
         const color = props.getColorForEmail(email);
-        const fromAddr =
-          email.from_email?.name || email.from_email?.email || "(unknown sender)";
+        const fromAddr = email.from_email?.name || email.from_email?.email || '(unknown sender)';
         const dateStr = formatDate(email.received_at);
-        const subj = email.subject || "(no subject)";
+        const subj = email.subject || '(no subject)';
 
         const cardClassName = [
           styles.emailCard,
-          isSelected ? styles.selected : "",
+          isSelected ? styles.selected : '',
           isUnread ? styles.unread : styles.read,
         ]
           .filter(Boolean)
-          .join(" ");
+          .join(' ');
 
         const toggleStarred = async () => {
           const account = email.ref.account;
@@ -174,10 +168,7 @@ export default function EmailList(props: EmailListProps) {
         };
 
         const starDisabled =
-          isStarBusy ||
-          !email.ref.account ||
-          !email.ref.mailbox ||
-          email.ref.uid == null;
+          isStarBusy || !email.ref.account || !email.ref.mailbox || email.ref.uid == null;
 
         return (
           <div
@@ -197,7 +188,7 @@ export default function EmailList(props: EmailListProps) {
             tabIndex={0}
             aria-selected={isSelected}
             onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
+              if (e.key === 'Enter' || e.key === ' ') {
                 setUiSeenKeys((prev) => {
                   if (prev.has(key)) return prev;
                   const next = new Set(prev);
@@ -208,10 +199,7 @@ export default function EmailList(props: EmailListProps) {
               }
             }}
           >
-            <div
-              className={styles.emailColorStrip}
-              style={{ background: color }}
-            />
+            <div className={styles.emailColorStrip} style={{ background: color }} />
 
             <div className={styles.emailMain}>
               {/* Row 1: From (left) + Date (right) */}
@@ -226,13 +214,10 @@ export default function EmailList(props: EmailListProps) {
 
                 <button
                   type="button"
-                  className={[
-                    styles.starButton,
-                    isStarred ? styles.starButtonActive : "",
-                  ]
+                  className={[styles.starButton, isStarred ? styles.starButtonActive : '']
                     .filter(Boolean)
-                    .join(" ")}
-                  aria-label={isStarred ? "Unstar email" : "Star email"}
+                    .join(' ')}
+                  aria-label={isStarred ? 'Unstar email' : 'Star email'}
                   aria-pressed={isStarred}
                   disabled={starDisabled}
                   onClick={(e) => {
@@ -252,13 +237,11 @@ export default function EmailList(props: EmailListProps) {
         );
       })}
 
-      <div className={`${styles.emptyState} ${props.emptyList ? "" : styles.hidden}`}>
+      <div className={`${styles.emptyState} ${props.emptyList ? '' : styles.hidden}`}>
         No emails match the current filters.
       </div>
 
-      {props.showLoadingMore ? (
-        <div className={styles.loadingMore}>Loading more…</div>
-      ) : null}
+      {props.showLoadingMore ? <div className={styles.loadingMore}>Loading more…</div> : null}
       {props.showEnd ? <div className={styles.end}>You're all caught up.</div> : null}
 
       <div

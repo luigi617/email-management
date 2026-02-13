@@ -287,7 +287,7 @@ export function useEmailAppCore() {
           account: String(account),
           mailbox: String(mailbox),
           uid: uid,
-          date: date
+          date: date,
         });
 
         setSelectedMessages(msgs);

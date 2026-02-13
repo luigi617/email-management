@@ -1,12 +1,12 @@
-import { useMemo, useState, useEffect } from "react";
-import type { EmailMessage, MailboxData } from "../../types/email";
-import { getMailboxDisplayName } from "../../utils/emailFormat";
-import { getDetailHeader } from "../../utils/detailFormat";
-import DetailBody from "../Detail/DetailBody";
-import styles from "@/styles/DetailColumn.module.css";
-import type { EmailRef } from "../../types/shared";
-import DetailToolbar from "../Detail/DetailToolbar";
-import BackIcon from "@/assets/svg/back.svg?react";
+import { useMemo, useState, useEffect } from 'react';
+import type { EmailMessage, MailboxData } from '../../types/email';
+import { getMailboxDisplayName } from '../../utils/emailFormat';
+import { getDetailHeader } from '../../utils/detailFormat';
+import DetailBody from '../Detail/DetailBody';
+import styles from '@/styles/DetailColumn.module.css';
+import type { EmailRef } from '../../types/shared';
+import DetailToolbar from '../Detail/DetailToolbar';
+import BackIcon from '@/assets/svg/back.svg?react';
 
 export type DetailColumnProps = {
   selectedMessages: EmailMessage[] | null;
@@ -58,8 +58,7 @@ function EmailMessageCard({
     return Object.keys(mailboxData[account] ?? []);
   }, [message, mailboxData]);
 
-  const [destinationMailbox, setDestinationMailbox] =
-    useState<string>(currentMailbox);
+  const [destinationMailbox, setDestinationMailbox] = useState<string>(currentMailbox);
 
   useEffect(() => {
     setDestinationMailbox(currentMailbox);
@@ -124,12 +123,8 @@ function EmailMessageCard({
           <div className={styles.detailSubject}>{header.subject}</div>
           <div className={styles.detailLine}>{header.fromLine}</div>
           <div className={styles.detailLine}>{header.toLine}</div>
-          {header.ccLine && 
-            <div className={styles.detailLine}>{header.ccLine}</div>
-          }
-          <div className={`${styles.detailLine} ${styles.small}`}>
-            {header.dateLine}
-          </div>
+          {header.ccLine && <div className={styles.detailLine}>{header.ccLine}</div>}
+          <div className={`${styles.detailLine} ${styles.small}`}>{header.dateLine}</div>
         </div>
       </div>
 
@@ -170,9 +165,7 @@ export default function DetailColumn(props: DetailColumnProps) {
         <div id="email-detail" className={styles.emailDetail}>
           <div
             id="detail-error"
-            className={`${styles.inlineError} ${
-              props.detailError ? "" : styles.hidden
-            }`}
+            className={`${styles.inlineError} ${props.detailError ? '' : styles.hidden}`}
           >
             {props.detailError}
           </div>

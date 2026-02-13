@@ -9,7 +9,6 @@ import { useAppModal } from '../hooks/useAppModal';
 import { useComposer } from '../hooks/useComposer';
 import { useDetailActions } from '../hooks/useDetailActions';
 import type { EmailMessage } from '../types/email';
-import type { EmailRef } from '../types/shared';
 
 export default function App() {
   const core = useEmailAppCore();
@@ -111,13 +110,12 @@ export default function App() {
           },
         }}
         middle={{
-
           currentMailbox: core.currentMailbox,
           currentAccounts: core.filterAccounts,
 
           searchQuery: core.appliedSearchText,
           onSearch: core.applySearch,
-          
+
           onLoadMore: loadMore,
           hasMore: Boolean(core.nextCursor),
           isLoadingMore: core.isLoadingMore,
@@ -167,7 +165,7 @@ export default function App() {
             composer.open('forward', msg);
           },
           onMove: detailActions.moveSelected,
-          onBack: () => {}
+          onBack: () => {},
         }}
       />
 

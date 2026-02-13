@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { EmailApi } from '../api/emailApi';
 import type { ComposerExtraFieldKey, ComposerMode, ComposerState } from '../types/composer';
 import type { Priority } from '../types/shared';
-import type { MailboxData, EmailOverview, EmailMessage } from '../types/email';
+import type { MailboxData, EmailMessage, EmailAddress } from '../types/email';
 import type { EmailRef } from '../types/shared';
 import {
   buildForwardedOriginalBodyHtml,
@@ -83,15 +83,9 @@ function normalizeEmailLike(s: string): string {
   return (m?.[1] || v).trim().toLowerCase();
 }
 
-function extractEmailLower(obj: any): string {
+function extractEmailLower(obj: EmailAddress): string {
   if (!obj) return '';
-  const raw =
-    obj.email ??
-    obj.address ??
-    obj.mailbox ??
-    obj.value ??
-    obj.addr ??
-    '';
+  const raw = obj.email ?? '';
   return normalizeEmailLike(String(raw));
 }
 

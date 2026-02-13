@@ -1,6 +1,6 @@
 // src/components/Composer/AddressChipsInput.tsx
-import { useRef, useState } from "react";
-import styles from "@/styles/AddressChipsInput.module.css";
+import { useRef, useState } from 'react';
+import styles from '@/styles/AddressChipsInput.module.css';
 
 type Props = {
   fieldId: string; // used for id attribute (composer-to, etc.)
@@ -18,14 +18,14 @@ function splitAddresses(raw: string): string[] {
 }
 
 export function AddressChipsInput({ fieldId, placeholder, value, onChange, className }: Props) {
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState('');
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   function commit() {
     const parts = splitAddresses(draft);
     if (!parts.length) return;
     onChange([...value, ...parts]);
-    setDraft("");
+    setDraft('');
   }
 
   function removeAt(idx: number) {
@@ -35,10 +35,7 @@ export function AddressChipsInput({ fieldId, placeholder, value, onChange, class
   }
 
   return (
-    <div
-      className={styles.wrapper}
-      data-field={fieldId.replace("composer-", "")}
-    >
+    <div className={styles.wrapper} data-field={fieldId.replace('composer-', '')}>
       <div className={styles.pills}>
         {value.map((addr, idx) => (
           <span
@@ -64,15 +61,15 @@ export function AddressChipsInput({ fieldId, placeholder, value, onChange, class
         ref={inputRef}
         id={fieldId}
         type="text"
-        className={[styles.input, className].filter(Boolean).join(" ")}
+        className={[styles.input, className].filter(Boolean).join(' ')}
         placeholder={placeholder}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === ";" || e.key === ",") {
+          if (e.key === 'Enter' || e.key === ';' || e.key === ',') {
             e.preventDefault();
             commit();
-          } else if (e.key === "Backspace" && !draft) {
+          } else if (e.key === 'Backspace' && !draft) {
             if (value.length) onChange(value.slice(0, -1));
           }
         }}

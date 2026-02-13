@@ -1,8 +1,8 @@
-import { useEffect, useRef, useCallback } from "react";
-import EmailsHeader from "../Middle/EmailsHeader";
-import EmailList from "../Middle/EmailList";
-import type { EmailOverview } from "../../types/email";
-import styles from "@/styles/MiddleColumn.module.css";
+import { useEffect, useRef, useCallback } from 'react';
+import EmailsHeader from '../Middle/EmailsHeader';
+import EmailList from '../Middle/EmailList';
+import type { EmailOverview } from '../../types/email';
+import styles from '@/styles/MiddleColumn.module.css';
 
 export type MiddleColumnProps = {
   currentMailbox: string;
@@ -57,7 +57,7 @@ export default function MiddleColumn(props: MiddleColumnProps) {
       {
         root: rootEl,
         threshold: 0,
-        rootMargin: "200px",
+        rootMargin: '200px',
       }
     );
 

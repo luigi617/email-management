@@ -1,9 +1,9 @@
-import styles from "@/styles/AppAlertModal.module.css";
+import styles from '@/styles/AppAlertModal.module.css';
 
 export type AppModalButton = {
   id: number;
   label: string;
-  variant?: "primary" | "secondary";
+  variant?: 'primary' | 'secondary';
   onClick: () => void;
 };
 
@@ -14,26 +14,19 @@ export type AppModalState = {
   buttons?: AppModalButton[];
 };
 
-export default function AppAlertModal(props: {
-  state: AppModalState;
-  onClose: () => void;
-}) {
+export default function AppAlertModal(props: { state: AppModalState; onClose: () => void }) {
   const { state } = props;
 
-  const buttons =
-    state.buttons?.length
-      ? state.buttons
-      : [{ id: 1, label: "OK", variant: "primary" as const, onClick: props.onClose }];
+  const buttons = state.buttons?.length
+    ? state.buttons
+    : [{ id: 1, label: 'OK', variant: 'primary' as const, onClick: props.onClose }];
 
   return (
     <div
-      className={`${styles.backdrop} ${state.open ? "" : styles.hidden}`}
+      className={`${styles.backdrop} ${state.open ? '' : styles.hidden}`}
       onMouseDown={props.onClose}
     >
-      <div
-        className={styles.dialog}
-        onMouseDown={(e) => e.stopPropagation()}
-      >
+      <div className={styles.dialog} onMouseDown={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <h2 className={styles.title}>{state.title}</h2>
         </div>
@@ -44,10 +37,7 @@ export default function AppAlertModal(props: {
 
         <div className={styles.footer}>
           {buttons.map((b) => {
-            const variantClass =
-              b.variant === "primary"
-                ? styles.primary
-                : styles.secondary;
+            const variantClass = b.variant === 'primary' ? styles.primary : styles.secondary;
 
             return (
               <button

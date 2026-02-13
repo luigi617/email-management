@@ -60,16 +60,13 @@ async function replyImpl<T>(
 }
 
 export const EmailApi = {
-
-  async setFlagged<T>(
-    args: EmailRef & { flagged: boolean }
-  ): Promise<T> {
+  async setFlagged<T>(args: EmailRef & { flagged: boolean }): Promise<T> {
     const form = new FormData();
     form.append('flagged', String(args.flagged));
-    const url = buildEmailUrl(args.account, args.mailbox, args.uid.toString(), "/flagged");
+    const url = buildEmailUrl(args.account, args.mailbox, args.uid.toString(), '/flagged');
 
     return requestJSON<T>(url, {
-      method: "PATCH",
+      method: 'PATCH',
       body: form,
     });
   },
@@ -106,9 +103,10 @@ export const EmailApi = {
   },
 
   // GET single email
-  async getEmail(
-    { date = null, ...key }: EmailRef & { date?: string | null }
-  ): Promise<EmailMessage[]> {
+  async getEmail({
+    date = null,
+    ...key
+  }: EmailRef & { date?: string | null }): Promise<EmailMessage[]> {
     const suffix = date ? `?date=${encodeURIComponent(date)}` : '';
 
     return requestJSON<EmailMessage[]>(

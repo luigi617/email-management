@@ -1,6 +1,6 @@
 // src/utils/messageBuilders.ts
 import { escapeHtml, formatAddressList } from './emailFormat';
-import type { EmailOverview, EmailMessage, EmailAddress } from '../types/email';
+import type { EmailMessage, EmailAddress } from '../types/email';
 
 function senderLabel(fromObj?: EmailAddress) {
   if (!fromObj) return 'unknown sender';
@@ -14,9 +14,7 @@ function preferOriginalHtml(msg?: EmailMessage | null) {
   return '';
 }
 
-export function buildQuotedOriginalBodyHtml(
-  msg: EmailMessage | null
-) {
+export function buildQuotedOriginalBodyHtml(msg: EmailMessage | null) {
   if (!msg) return '';
 
   const fromObj = msg?.from_email;
@@ -52,9 +50,7 @@ export function buildQuotedOriginalBodyHtml(
   return html.replace(/>\s+</g, '><').trim();
 }
 
-export function buildForwardedOriginalBodyHtml(
-  msg: EmailMessage | null
-) {
+export function buildForwardedOriginalBodyHtml(msg: EmailMessage | null) {
   if (!msg) return '';
 
   const fromObj = msg?.from_email;

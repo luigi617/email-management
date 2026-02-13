@@ -1,9 +1,9 @@
-import MailboxesCard from "../Sidebar/MailboxesCard";
-import LegendCard from "../Sidebar/LegendCard";
-import type { MailboxData } from "../../types/email";
-import styles from "@/styles/Sidebar.module.css";
-import SidebarHome from "../Sidebar/SidebarHome";
-import Button from "../ui/Button/Button";
+import MailboxesCard from '../Sidebar/MailboxesCard';
+import LegendCard from '../Sidebar/LegendCard';
+import type { MailboxData } from '../../types/email';
+import styles from '@/styles/Sidebar.module.css';
+import SidebarHome from '../Sidebar/SidebarHome';
+import Button from '../ui/Button/Button';
 
 export type SidebarProps = {
   mailboxData: MailboxData;

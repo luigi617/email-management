@@ -1,11 +1,10 @@
 // Button.tsx
-import React from "react";
-import styles from "./Button.module.css";
+import React from 'react';
+import styles from './Button.module.css';
 
-export type ButtonVariant = "primary" | "secondary" | "ghost";
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost';
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   loading?: boolean;
 }
@@ -17,7 +16,7 @@ const variantClassMap: Record<ButtonVariant, string> = {
 };
 
 export const Button: React.FC<ButtonProps> = ({
-  variant = "primary",
+  variant = 'primary',
   loading = false,
   className,
   children,
@@ -26,14 +25,13 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
   return (
     <button
-      className={[variantClassMap[variant], className].filter(Boolean).join(" ") }
+      className={[variantClassMap[variant], className].filter(Boolean).join(' ')}
       disabled={disabled || loading}
       {...rest}
     >
-      {loading ? "Loading..." : children}
+      {loading ? 'Loading...' : children}
     </button>
   );
 };
 
 export default Button;
-

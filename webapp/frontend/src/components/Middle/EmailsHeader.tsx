@@ -1,7 +1,7 @@
-import { getMailboxDisplayName } from "../../utils/emailFormat";
-import SearchCard from "./SearchCard";
+import { getMailboxDisplayName } from '../../utils/emailFormat';
+import SearchCard from './SearchCard';
 import styles from '@/styles/EmailsHeader.module.css';
-import MenuIcon from "@/assets/svg/list.svg?react";
+import MenuIcon from '@/assets/svg/list.svg?react';
 
 export type EmailsHeaderProps = {
   accounts: string[];
@@ -17,12 +17,10 @@ export type EmailsHeaderProps = {
 
 function getAccountMailboxName(accounts: string[], mailbox: string) {
   if (accounts.length == 0) {
-    return "All inboxes"
+    return 'All inboxes';
   }
-  return accounts[0] + " • " + getMailboxDisplayName(mailbox)
-
+  return accounts[0] + ' • ' + getMailboxDisplayName(mailbox);
 }
-
 
 export default function EmailsHeader(props: EmailsHeaderProps) {
   const { searchQuery, onSearch } = props;
@@ -41,8 +39,6 @@ export default function EmailsHeader(props: EmailsHeaderProps) {
           </button>
         </div>
         <h2 className={styles.title}>{getAccountMailboxName(props.accounts, props.mailbox)}</h2>
-
-
       </div>
 
       <SearchCard searchQuery={searchQuery} onSearch={onSearch} />

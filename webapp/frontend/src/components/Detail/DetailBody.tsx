@@ -1,49 +1,49 @@
-import { useEffect, useMemo, useRef } from "react";
-import DOMPurify from "dompurify";
-import type { Attachment } from "../../types/email";
-import DetailAttachments from "./DetailAttachments";
-import styles from "@/styles/DetailBody.module.css";
+import { useEffect, useMemo, useRef } from 'react';
+import DOMPurify from 'dompurify';
+import type { Attachment } from '../../types/email';
+import DetailAttachments from './DetailAttachments';
+import styles from '@/styles/DetailBody.module.css';
 
 function htmlToText(html: string) {
-  const div = document.createElement("div");
+  const div = document.createElement('div');
   div.innerHTML = html;
-  div.querySelectorAll("script,style,noscript").forEach((n) => n.remove());
-  return (div.textContent || "").replace(/\n{3,}/g, "\n\n").trim();
+  div.querySelectorAll('script,style,noscript').forEach((n) => n.remove());
+  return (div.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function sanitizeEmailHtml(html: string) {
   return DOMPurify.sanitize(html, {
     USE_PROFILES: { html: true },
     FORBID_TAGS: [
-      "script",
-      "style",
-      "noscript",
-      "iframe",
-      "object",
-      "embed",
-      "base",
-      "meta",
-      "link",
-      "form",
-      "input",
-      "button",
-      "textarea",
-      "select",
+      'script',
+      'style',
+      'noscript',
+      'iframe',
+      'object',
+      'embed',
+      'base',
+      'meta',
+      'link',
+      'form',
+      'input',
+      'button',
+      'textarea',
+      'select',
     ],
     FORBID_ATTR: [
-      "onload",
-      "onclick",
-      "onerror",
-      "onmouseover",
-      "onfocus",
-      "onsubmit",
-      "onmouseenter",
-      "onmouseleave",
-      "onkeydown",
-      "onkeyup",
-      "onkeypress",
-      "oninput",
-      "onchange",
+      'onload',
+      'onclick',
+      'onerror',
+      'onmouseover',
+      'onfocus',
+      'onsubmit',
+      'onmouseenter',
+      'onmouseleave',
+      'onkeydown',
+      'onkeyup',
+      'onkeypress',
+      'oninput',
+      'onchange',
     ],
   });
 }
@@ -114,7 +114,6 @@ const SHADOW_EMAIL_CSS = `
   }
 `;
 
-
 function EmailShadowBody({ html }: { html: string }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const safeHtml = useMemo(() => sanitizeEmailHtml(html), [html]);
@@ -123,16 +122,16 @@ function EmailShadowBody({ html }: { html: string }) {
     const host = hostRef.current;
     if (!host) return;
 
-    const shadow = host.shadowRoot ?? host.attachShadow({ mode: "open" });
+    const shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
 
     // Clear shadow content
     while (shadow.firstChild) shadow.removeChild(shadow.firstChild);
 
-    const styleEl = document.createElement("style");
+    const styleEl = document.createElement('style');
     styleEl.textContent = SHADOW_EMAIL_CSS;
 
-    const root = document.createElement("div");
-    root.className = "email-root";
+    const root = document.createElement('div');
+    root.className = 'email-root';
     root.innerHTML = safeHtml;
 
     shadow.appendChild(styleEl);
@@ -153,14 +152,14 @@ export type DetailBodyProps = {
 };
 
 export default function DetailBody(props: DetailBodyProps) {
-  const html = props.html ?? "";
-  const text = props.text ?? "";
+  const html = props.html ?? '';
+  const text = props.text ?? '';
   const hasHtml = html.trim().length > 0;
 
   const derivedText = useMemo(() => {
     if (text.trim().length) return text;
     if (hasHtml) return htmlToText(html);
-    return "";
+    return '';
   }, [text, hasHtml, html]);
 
   const attachments = props.attachments ?? [];
@@ -188,7 +187,7 @@ export default function DetailBody(props: DetailBodyProps) {
     );
   }
 
-  const safeText = derivedText.trim().length ? derivedText : "";
+  const safeText = derivedText.trim().length ? derivedText : '';
   return (
     <div className={`${styles.bodyBlock} light-island`}>
       <pre className={`${styles.detailBody} light-island ${styles.plainText}`}>{safeText}</pre>

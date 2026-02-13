@@ -36,7 +36,9 @@
   cursor: pointer;
   line-height: 1;
   padding: 0.25rem 0.4rem;
-  transition: background 0.08s ease, opacity 0.08s ease;
+  transition:
+    background 0.08s ease,
+    opacity 0.08s ease;
 }
 
 .menuButton:hover {
@@ -54,7 +56,6 @@
   fill: currentColor;
   stroke: currentColor;
 }
-
 
 @media (max-width: 768px) {
   .mobileTopBar {
