@@ -1,4 +1,3 @@
-
 import openmail.imap.query as qmod
 from openmail.imap.query import IMAPQuery
 
