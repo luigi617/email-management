@@ -9,7 +9,7 @@ import { useComposerResize } from "../../hooks/useComposerResize";
 import type { ComposerExtraFieldKey } from "../../types/composer";
 import type { Priority } from "../../types/shared";
 
-import ListIcon from "@/assets/svg/list.svg?react";
+import ListIcon from "@/assets/svg/composerList.svg?react";
 import AttachmentIcon from "@/assets/svg/attachment.svg?react";
 import EmojiIcon from "@/assets/svg/emoji.svg?react";
 import MinimizeIcon from "@/assets/svg/minimize.svg?react";

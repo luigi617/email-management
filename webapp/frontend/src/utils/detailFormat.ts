@@ -10,6 +10,9 @@ export function getDetailHeader(msg: EmailMessage | null) {
   const toList = msg?.to || [];
   const toAddr = formatAddressList(toList);
 
+  const ccList = msg?.cc || [];
+  const ccAddr = formatAddressList(ccList);
+
   const dateVal = msg?.received_at;
   const dateVerbose = formatDate(dateVal, true);
 
@@ -20,6 +23,7 @@ export function getDetailHeader(msg: EmailMessage | null) {
     subject: subj,
     fromLine: `From: ${fromAddr}`,
     toLine: toAddr ? `To: ${toAddr}` : '',
+    ccLine: ccAddr ? `CC: ${ccAddr}` : '',
     dateLine: `Date: ${dateVerbose}`,
     attachments: msg?.attachments || [],
     html: msg?.html || '',

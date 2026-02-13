@@ -370,10 +370,12 @@ def load_accounts_from_db() -> Dict[str, EmailManager]:
                 pass
             else:
                 continue
-
-            results[acc.email] = get_email_manager(
-                acc.provider, acc.email, acc.auth_method, **kwargs
-            )
+            try:
+                results[acc.email] = get_email_manager(
+                    acc.provider, acc.email, acc.auth_method, **kwargs
+                )
+            except:
+                pass
     return results
 
 

@@ -1,6 +1,7 @@
 import { getMailboxDisplayName } from "../../utils/emailFormat";
 import SearchCard from "./SearchCard";
 import styles from '@/styles/EmailsHeader.module.css';
+import MenuIcon from "@/assets/svg/list.svg?react";
 
 export type EmailsHeaderProps = {
   accounts: string[];
@@ -36,7 +37,7 @@ export default function EmailsHeader(props: EmailsHeaderProps) {
             onClick={props.onOpenSidebar}
             aria-label="Open sidebar"
           >
-            ☰
+            <MenuIcon className={styles.icon} aria-hidden />
           </button>
         </div>
         <h2 className={styles.title}>{getAccountMailboxName(props.accounts, props.mailbox)}</h2>

@@ -30,16 +30,13 @@
   position: absolute;
   appearance: none;
   border: 1px solid var(--divider);
-  background: var(--surface-1, white);
+  background: var(--surface-3);
   color: var(--text-main);
-  font: inherit;
-  font-weight: 600;
   border-radius: 0.55rem;
   cursor: pointer;
   line-height: 1;
   padding: 0.25rem 0.4rem;
   transition: background 0.08s ease, opacity 0.08s ease;
-  justify-content: center;
 }
 
 .menuButton:hover {
@@ -48,6 +45,14 @@
 
 .menuButton:active {
   opacity: 0.9;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  fill: currentColor;
+  stroke: currentColor;
 }
 
 
